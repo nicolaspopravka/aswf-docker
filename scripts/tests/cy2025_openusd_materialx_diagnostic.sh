@@ -41,16 +41,19 @@ run_container() {
 }
 
 inner() {
-  export ASWF_PKG_ORG=aswf CONAN_HOME=/src/packages/conan/settings
+  export ASWF_PKG_ORG=aswf
   export CMAKE_BUILD_PARALLEL_LEVEL="${jobs}"
-  source_profile=/src/packages/conan/settings/profiles/vfx2025
-  profile="${root}/metadata/vfx2025-diagnostic.profile"
+  export CONAN_HOME="${root}/conan-home"
+  rm -rf "${CONAN_HOME}"
+  cp -a /src/packages/conan/settings "${CONAN_HOME}"
+  profile="${CONAN_HOME}/profiles/vfx2025-diagnostic"
   mtlx_ref=materialx/1.39.3@diagnostic/vfx2025
   usd_ref=openusd/25.05.01@diagnostic/vfx2025
-  cp "${source_profile}" "${profile}"
+  cp "${CONAN_HOME}/profiles/vfx2025" "${profile}"
   sed -i -E \
-    's#materialx/[^[:space:]]+#materialx/1.39.3@diagnostic/vfx2025#' \
+    's#^materialx/\*:.*$#materialx/*: materialx/1.39.3@diagnostic/vfx2025#' \
     "${profile}"
+  cp "${profile}" "${root}/metadata/vfx2025-diagnostic.profile"
   env | sort > "${root}/metadata/environment.txt"
   git -c safe.directory=/src -C /src rev-parse HEAD > "${root}/metadata/aswf-docker-commit.txt"
   git -c safe.directory=/src -C /src status --short > "${root}/metadata/aswf-docker-status.txt"
@@ -84,7 +87,7 @@ inner() {
   source "${root}/results/generated/conanrun.sh"
   set -u
   /src/scripts/tests/openusd_materialx_render_smoke.sh "${root}/results/smoke"
-  rm -rf "${root}/results/deployed" "${root}/results/generated"
+  rm -rf "${root}/conan-home" "${root}/results/deployed" "${root}/results/generated"
 }
 
 case "${mode}" in
