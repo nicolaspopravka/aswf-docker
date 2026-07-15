@@ -66,25 +66,29 @@ inner() {
     --user=diagnostic --channel=vfx2025 --profile:all="${profile}" \
     -o 'materialx/*:with_openimageio=False' --build='materialx/*' \
     2>&1 | tee "${root}/build-logs/materialx.log"
-  usd_options=(
-    -o 'openusd/*:shared=True' -o 'openusd/*:with_gpu=True'
-    -o 'openusd/*:with_gl=True' -o 'openusd/*:with_python=True'
-    -o 'openusd/*:with_materialx=True' -o 'openusd/*:with_usdview=False'
+  usd_option_names=(
+    'shared=True' 'with_gpu=True' 'with_gl=True' 'with_python=True'
+    'with_materialx=True' 'with_usdview=False'
   )
   if [[ "${variant}" == pixar-parity ]]; then
-    usd_options+=(
-      -o 'openusd/*:with_alembic=False' -o 'openusd/*:with_hdf5=False'
-      -o 'openusd/*:with_opencolorio=False' -o 'openusd/*:with_openimageio=False'
-      -o 'openusd/*:with_openvdb=False' -o 'openusd/*:with_osl=False'
-      -o 'openusd/*:with_ptex=False'
+    usd_option_names+=(
+      'with_alembic=False' 'with_hdf5=False' 'with_opencolorio=False'
+      'with_openimageio=False' 'with_openvdb=False' 'with_osl=False'
+      'with_ptex=False'
     )
   fi
+  usd_create_options=()
+  usd_dependency_options=()
+  for option in "${usd_option_names[@]}"; do
+    usd_create_options+=(-o "&:${option}")
+    usd_dependency_options+=(-o "openusd/*:${option}")
+  done
   conan create "${root}/recipes/openusd" --version=25.05.01 \
     --user=diagnostic --channel=vfx2025 --profile:all="${profile}" \
-    "${usd_options[@]}" --build='openusd/*' \
+    "${usd_create_options[@]}" --build='openusd/*' \
     2>&1 | tee "${root}/build-logs/openusd.log"
   conan install --requires="${usd_ref}" --profile:all="${profile}" \
-    "${usd_options[@]}" --output-folder="${root}/results/generated" \
+    "${usd_dependency_options[@]}" --output-folder="${root}/results/generated" \
     --deployer-folder="${root}/results/deployed" --deployer=full_deploy \
     --generator=VirtualRunEnv --format=json > "${root}/results/graph.json"
   set +u
