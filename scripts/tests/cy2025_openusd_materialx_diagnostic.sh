@@ -76,6 +76,15 @@ inner() {
       'with_openimageio=False' 'with_openvdb=False' 'with_osl=False'
       'with_ptex=False'
     )
+    for option in with_alembic with_hdf5 with_opencolorio with_openimageio \
+      with_openvdb with_osl with_ptex with_usdview; do
+      sed -i -E \
+        "s#(\"${option}\"[[:space:]]*:[[:space:]]*)True#\1False#" \
+        "${root}/recipes/openusd/conanfile.py"
+    done
+    sed -n '/default_options = {/,/^    }/p' \
+      "${root}/recipes/openusd/conanfile.py" \
+      > "${root}/metadata/openusd-parity-default-options.txt"
   fi
   usd_create_options=()
   usd_dependency_options=()
