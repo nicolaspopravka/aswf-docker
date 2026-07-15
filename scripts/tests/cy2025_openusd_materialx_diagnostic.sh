@@ -46,6 +46,10 @@ inner() {
   export CONAN_HOME="${root}/conan-home"
   rm -rf "${CONAN_HOME}"
   cp -a /src/packages/conan/settings "${CONAN_HOME}"
+  rm -rf "${root}/recipes"
+  mkdir -p "${root}/recipes"
+  cp -a /src/packages/conan/recipes/materialx "${root}/recipes/materialx"
+  cp -a /src/packages/conan/recipes/openusd "${root}/recipes/openusd"
   profile="${CONAN_HOME}/profiles/vfx2025-diagnostic"
   mtlx_ref=materialx/1.39.3@diagnostic/vfx2025
   usd_ref=openusd/25.05.01@diagnostic/vfx2025
@@ -58,7 +62,7 @@ inner() {
   git -c safe.directory=/src -C /src rev-parse HEAD > "${root}/metadata/aswf-docker-commit.txt"
   git -c safe.directory=/src -C /src status --short > "${root}/metadata/aswf-docker-status.txt"
   conan --version > "${root}/metadata/conan-version.txt"
-  conan create /src/packages/conan/recipes/materialx --version=1.39.3 \
+  conan create "${root}/recipes/materialx" --version=1.39.3 \
     --user=diagnostic --channel=vfx2025 --profile:all="${profile}" \
     -o 'materialx/*:with_openimageio=False' --build='materialx/*' \
     2>&1 | tee "${root}/build-logs/materialx.log"
@@ -75,7 +79,7 @@ inner() {
       -o 'openusd/*:with_ptex=False'
     )
   fi
-  conan create /src/packages/conan/recipes/openusd --version=25.05.01 \
+  conan create "${root}/recipes/openusd" --version=25.05.01 \
     --user=diagnostic --channel=vfx2025 --profile:all="${profile}" \
     "${usd_options[@]}" --build='openusd/*' \
     2>&1 | tee "${root}/build-logs/openusd.log"
@@ -87,7 +91,8 @@ inner() {
   source "${root}/results/generated/conanrun.sh"
   set -u
   /src/scripts/tests/openusd_materialx_render_smoke.sh "${root}/results/smoke"
-  rm -rf "${root}/conan-home" "${root}/results/deployed" "${root}/results/generated"
+  rm -rf "${root}/conan-home" "${root}/recipes" \
+    "${root}/results/deployed" "${root}/results/generated"
 }
 
 case "${mode}" in
