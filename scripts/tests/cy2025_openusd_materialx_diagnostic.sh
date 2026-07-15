@@ -57,6 +57,9 @@ inner() {
   sed -i -E \
     's#^materialx/\*:.*$#materialx/*: materialx/1.39.3@diagnostic/vfx2025#' \
     "${profile}"
+  sed -i -E \
+    's#^openusd/\*:.*$#openusd/*: openusd/25.05.01@diagnostic/vfx2025#' \
+    "${profile}"
   cp "${profile}" "${root}/metadata/vfx2025-diagnostic.profile"
   env | sort > "${root}/metadata/environment.txt"
   git -c safe.directory=/src -C /src rev-parse HEAD > "${root}/metadata/aswf-docker-commit.txt"
