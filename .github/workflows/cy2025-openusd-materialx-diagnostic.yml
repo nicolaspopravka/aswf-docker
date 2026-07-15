@@ -25,6 +25,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Capture capacity and reclaim runner disk
         run: |
+          set -o pipefail
           mkdir -p diagnostic-artifacts/metadata
           scripts/tests/cy2025_openusd_materialx_diagnostic.sh capacity \
             2>&1 | tee diagnostic-artifacts/metadata/capacity.log
@@ -32,6 +33,7 @@ jobs:
         env:
           DIAGNOSTIC_VARIANT: ${{ inputs.variant }}
         run: |
+          set -o pipefail
           scripts/tests/cy2025_openusd_materialx_diagnostic.sh run \
             2>&1 | tee diagnostic-artifacts/driver.log
       - name: Upload diagnostic evidence

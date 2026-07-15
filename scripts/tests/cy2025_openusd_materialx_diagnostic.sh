@@ -52,8 +52,8 @@ inner() {
     's#materialx/[^[:space:]]+#materialx/1.39.3@diagnostic/vfx2025#' \
     "${profile}"
   env | sort > "${root}/metadata/environment.txt"
-  git -C /src rev-parse HEAD > "${root}/metadata/aswf-docker-commit.txt"
-  git -C /src status --short > "${root}/metadata/aswf-docker-status.txt"
+  git -c safe.directory=/src -C /src rev-parse HEAD > "${root}/metadata/aswf-docker-commit.txt"
+  git -c safe.directory=/src -C /src status --short > "${root}/metadata/aswf-docker-status.txt"
   conan --version > "${root}/metadata/conan-version.txt"
   conan create /src/packages/conan/recipes/materialx --version=1.39.3 \
     --user=diagnostic --channel=vfx2025 --profile:all="${profile}" \
