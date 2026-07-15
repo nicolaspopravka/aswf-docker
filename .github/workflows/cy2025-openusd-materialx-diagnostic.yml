@@ -1,0 +1,44 @@
+# Copyright (c) Contributors to the aswf-docker Project. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+name: CY2025 OpenUSD MaterialX diagnostic
+
+on:
+  workflow_dispatch:
+    inputs:
+      variant:
+        description: Diagnostic variant
+        required: true
+        default: pixar-parity
+        type: choice
+        options:
+          - pixar-parity
+          - stock-options
+
+jobs:
+  diagnostic:
+    if: github.repository_owner != 'AcademySoftwareFoundation'
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Capture capacity and reclaim runner disk
+        run: |
+          mkdir -p diagnostic-artifacts/metadata
+          scripts/tests/cy2025_openusd_materialx_diagnostic.sh capacity \
+            2>&1 | tee diagnostic-artifacts/metadata/capacity.log
+      - name: Build and test matched CY2025 packages
+        env:
+          DIAGNOSTIC_VARIANT: ${{ inputs.variant }}
+        run: |
+          scripts/tests/cy2025_openusd_materialx_diagnostic.sh run \
+            2>&1 | tee diagnostic-artifacts/driver.log
+      - name: Upload diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: cy2025-openusd-materialx-${{ inputs.variant }}-${{ github.run_id }}
+          path: diagnostic-artifacts
+          if-no-files-found: warn
+          retention-days: 14

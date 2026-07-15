@@ -1,0 +1,31 @@
+#usda 1.0
+(
+    defaultPrim = "World"
+    upAxis = "Y"
+)
+def Xform "World" {
+    def Sphere "Sphere" (prepend apiSchemas = ["MaterialBindingAPI"]) {
+        rel material:binding = </World/Looks/Mat>
+        double radius = 1
+    }
+    def Camera "Camera" {
+        float focalLength = 35
+        matrix4d xformOp:transform = ((1,0,0,0),(0,0.7071068,0.7071068,0),(0,-0.7071068,0.7071068,0),(0,0,4,1))
+        uniform token[] xformOpOrder = ["xformOp:transform"]
+    }
+    def DistantLight "KeyLight" { float inputs:intensity = 500 }
+    def Scope "Looks" {
+        def Material "Mat" {
+            token outputs:mtlx:surface.connect = </World/Looks/Mat/NG.outputs:out>
+            def NodeGraph "NG" {
+                token outputs:out.connect = </World/Looks/Mat/NG/SS.outputs:out>
+                def Shader "SS" {
+                    uniform token info:id = "ND_standard_surface_surfaceshader"
+                    float inputs:base = 1
+                    color3f inputs:base_color = (0.2, 0.6, 1.0)
+                    token outputs:out
+                }
+            }
+        }
+    }
+}

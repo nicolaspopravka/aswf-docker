@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - '*'
+      - '!codex/cy2025-openusd-materialx-render'
     paths-ignore:
       - '**.md'
   pull_request:

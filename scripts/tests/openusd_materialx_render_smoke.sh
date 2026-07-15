@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# Copyright (c) Contributors to the aswf-docker Project. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+set -euo pipefail
+root="${1:?evidence directory required}"
+mkdir -p "${root}"/{images,logs,metadata}
+export DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1 MESA_LOADER_DRIVER_OVERRIDE=llvmpipe
+Xvfb :99 -screen 0 640x480x24 +extension GLX +render -noreset >"${root}/metadata/xvfb.log" 2>&1 &
+xvfb_pid=$!
+trap 'kill "${xvfb_pid}" 2>/dev/null || true' EXIT
+sleep 2
+python3 -c 'from pxr import Usd; print(Usd.GetVersion())' >"${root}/metadata/openusd.txt"
+python3 -c 'import MaterialX as mx; print(mx.__file__, mx.getVersionString())' >"${root}/metadata/materialx.txt"
+result=0
+for scene in usdpreview_control materialx_standard_surface; do
+  set +e
+  timeout 120 usdrecord --camera /World/Camera --renderer Storm --purposes render \
+    --imageWidth 256 "/src/scripts/tests/fixtures/openusd-materialx/${scene}.usda" \
+    "${root}/images/${scene}.png" >"${root}/logs/${scene}.log" 2>&1
+  status=$?
+  set -e
+  echo "${status}" >"${root}/logs/${scene}.exit"
+  [[ "${status}" == 0 && -s "${root}/images/${scene}.png" ]] || result=1
+  grep -Eqi 'Failed to compile shader|Generated MaterialX Document does not have 1 material|Invalid port connection|undefined variable|undeclared' "${root}/logs/${scene}.log" && result=1 || true
+done
+exit "${result}"
