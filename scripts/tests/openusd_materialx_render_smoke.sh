@@ -13,6 +13,9 @@ sleep 2
   echo "LIBGL_ALWAYS_SOFTWARE=${LIBGL_ALWAYS_SOFTWARE}"
   echo "MESA_LOADER_DRIVER_OVERRIDE=${MESA_LOADER_DRIVER_OVERRIDE}"
   echo "DISPLAY=${DISPLAY}"
+  echo "NVIDIA_CPU_ONLY=${NVIDIA_CPU_ONLY:-unset}"
+  echo "NVIDIA_VISIBLE_DEVICES=${NVIDIA_VISIBLE_DEVICES:-unset}"
+  echo "NVIDIA_DRIVER_CAPABILITIES=${NVIDIA_DRIVER_CAPABILITIES:-unset}"
   echo "dri drivers:"
   find /usr/lib /usr/lib64 -type f \
     \( -name '*swrast*_dri.so' -o -name '*llvmpipe*' \) -print 2>/dev/null || true
