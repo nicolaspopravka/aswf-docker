@@ -25,9 +25,18 @@ capacity() {
   docker system prune -af || true
   mem_kib="$(awk '/MemTotal/ {print $2}' /proc/meminfo)"
   free_kib="$(df -Pk / | awk 'NR==2 {print $4}')"
-  echo "mem_kib=${mem_kib} free_kib=${free_kib}"
+  min_free_gib=50
+  capacity_mode=full-build
+  if [[ -n "${DIAGNOSTIC_REUSE_RUN_ID:-}" ]]; then
+    min_free_gib=20
+    capacity_mode=artifact-reuse
+  fi
+  echo "mem_kib=${mem_kib} free_kib=${free_kib} capacity_mode=${capacity_mode} min_free_gib=${min_free_gib}"
   (( mem_kib >= 14 * 1024 * 1024 )) || { echo "capacity gate: less than 14 GiB RAM" >&2; exit 3; }
-  (( free_kib >= 50 * 1024 * 1024 )) || { echo "capacity gate: less than 50 GiB free disk" >&2; exit 3; }
+  (( free_kib >= min_free_gib * 1024 * 1024 )) || {
+    echo "capacity gate: less than ${min_free_gib} GiB free disk for ${capacity_mode}" >&2
+    exit 3
+  }
 }
 
 install_software_gl() {
