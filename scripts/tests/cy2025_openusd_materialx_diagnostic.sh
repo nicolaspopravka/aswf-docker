@@ -82,20 +82,31 @@ inner() {
     for option in with_alembic with_hdf5 with_opencolorio with_openimageio \
       with_openvdb with_osl with_ptex with_usdview; do
       sed -i -E \
-        "s#(\"${option}\"[[:space:]]*:[[:space:]]*)True#\1False#" \
+        "/default_options = \\{/,/^    \\}/ s#(\"${option}\"[[:space:]]*:[[:space:]]*)True#\1False#" \
         "${root}/recipes/openusd/conanfile.py"
     done
     sed -n '/default_options = {/,/^    }/p' \
       "${root}/recipes/openusd/conanfile.py" \
       > "${root}/metadata/openusd-parity-default-options.txt"
+    for option in with_alembic with_hdf5 with_opencolorio with_openimageio \
+      with_openvdb with_osl with_ptex with_usdview; do
+      if grep -Eq "\"${option}\"[[:space:]]*:[[:space:]]*True" \
+        "${root}/metadata/openusd-parity-default-options.txt"; then
+        echo "OpenUSD parity default remained enabled: ${option}" >&2
+        return 1
+      fi
+    done
   fi
   usd_dependency_options=()
+  usd_consumer_options=()
   for option in "${usd_option_names[@]}"; do
     usd_dependency_options+=(-o "openusd/*:${option}")
+    usd_consumer_options+=(-o "&:${option}")
   done
   conan create "${root}/recipes/openusd" --version=25.05.01 \
     --user=diagnostic --channel=vfx2025 --profile:all="${profile}" \
-    "${usd_dependency_options[@]}" --build='openusd/*' \
+    "${usd_dependency_options[@]}" "${usd_consumer_options[@]}" \
+    --build='openusd/*' \
     2>&1 | tee "${root}/build-logs/openusd.log"
   conan install --requires="${usd_ref}" --profile:all="${profile}" \
     "${usd_dependency_options[@]}" --output-folder="${root}/results/generated" \
