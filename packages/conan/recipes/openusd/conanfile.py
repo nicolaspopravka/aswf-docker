@@ -230,6 +230,11 @@ class OpenUSDConan(ConanFile):
         # rmdir(self, os.path.join(self.package_folder, "cmake"))
 
     def package_info(self):
+        if self.options.with_python:
+            self.runenv_info.prepend_path(
+                "PYTHONPATH", os.path.join(self.package_folder, "lib", "python")
+            )
+
         if self.settings.os in ["Linux", "FreeBSD"]:
             self.cpp_info.system_libs.append("m")
             self.cpp_info.system_libs.append("pthread")

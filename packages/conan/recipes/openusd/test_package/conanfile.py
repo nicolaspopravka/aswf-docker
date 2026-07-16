@@ -31,3 +31,8 @@ class TestPackageConan(ConanFile):
         if can_run(self):
             bin_path = os.path.join(self.cpp.build.bindir, "test_package")
             self.run(bin_path, env="conanrun")
+            if self.dependencies[self.tested_reference_str].options.get_safe("with_python"):
+                self.run(
+                    'python3 -c "from pxr import Usd; print(Usd.GetVersion())"',
+                    env="conanrun",
+                )
