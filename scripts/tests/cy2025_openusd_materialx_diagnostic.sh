@@ -103,6 +103,7 @@ inner() {
     usd_dependency_options+=(-o "openusd/*:${option}")
     usd_consumer_options+=(-o "&:${option}")
   done
+  usd_dependency_options+=(-o 'materialx/*:with_openimageio=False')
   conan create "${root}/recipes/openusd" --version=25.05.01 \
     --user=diagnostic --channel=vfx2025 --profile:all="${profile}" \
     "${usd_dependency_options[@]}" "${usd_consumer_options[@]}" \
