@@ -13,7 +13,9 @@ def Xform "World" {
         matrix4d xformOp:transform = ((1,0,0,0),(0,0.7071068,0.7071068,0),(0,-0.7071068,0.7071068,0),(0,0,4,1))
         uniform token[] xformOpOrder = ["xformOp:transform"]
     }
-    def DistantLight "KeyLight" { float inputs:intensity = 500 }
+    def DistantLight "KeyLight" {
+        float inputs:intensity = 500
+    }
     def Scope "Looks" {
         def Material "Mat" {
             token outputs:surface.connect = </World/Looks/Mat/PBR.outputs:surface>
