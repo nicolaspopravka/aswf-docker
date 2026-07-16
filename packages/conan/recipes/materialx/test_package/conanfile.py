@@ -33,3 +33,9 @@ class TestMaterialXConan(ConanFile):
                 'python3 -c "import MaterialX as mx; print(mx.getVersionString())"',
                 env="conanrun",
             )
+            self.run(
+                "python3 -c \"import os; p = os.environ['PXR_MTLX_STDLIB_SEARCH_PATHS']; "
+                "assert os.path.isfile(os.path.join(p, 'libraries', 'bxdf', "
+                "'standard_surface.mtlx')); print(p)\"",
+                env="conanrun",
+            )

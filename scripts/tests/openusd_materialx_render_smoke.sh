@@ -65,6 +65,6 @@ for scene in usdpreview_control materialx_standard_surface; do
   set -e
   echo "${status}" >"${root}/logs/${scene}.exit"
   [[ "${status}" == 0 && -s "${root}/images/${scene}.png" ]] || result=1
-  grep -Eqi 'Failed to compile shader|Generated MaterialX Document does not have 1 material|Invalid port connection|undefined variable|undeclared' "${root}/logs/${scene}.log" && result=1 || true
+  grep -Eqi 'Failed to compile shader|Generated MaterialX Document does not have 1 material|Invalid port connection|Invalid info:id|undefined variable|undeclared' "${root}/logs/${scene}.log" && result=1 || true
 done
 exit "${result}"

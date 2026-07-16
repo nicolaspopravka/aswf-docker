@@ -163,6 +163,10 @@ class MaterialXConan(ConanFile):
             "PYTHONPATH",
             os.path.join(self.package_folder, "share", "MaterialX", "python"),
         )
+        self.runenv_info.prepend_path(
+            "PXR_MTLX_STDLIB_SEARCH_PATHS",
+            os.path.join(self.package_folder, "share", "MaterialX"),
+        )
 
         if self.settings.os in ["Linux", "FreeBSD"]:
             self.cpp_info.system_libs.append("m")
