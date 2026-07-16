@@ -4,6 +4,16 @@
 set -euo pipefail
 root="${1:?evidence directory required}"
 mkdir -p "${root}"/{images,logs,metadata}
+usdrecord_python="${DIAGNOSTIC_USDRECORD_PYTHON:-/usr/local/bin/python3}"
+usdrecord_script="$(command -v usdrecord)"
+[[ -x "${usdrecord_python}" ]] || {
+  echo "stock usdrecord Python is not executable: ${usdrecord_python}" >&2
+  exit 1
+}
+[[ -f "${usdrecord_script}" ]] || {
+  echo "usdrecord script was not found: ${usdrecord_script}" >&2
+  exit 1
+}
 export DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe
 unset MESA_LOADER_DRIVER_OVERRIDE
 Xvfb :99 -screen 0 640x480x24 +extension GLX +render -noreset >"${root}/metadata/xvfb.log" 2>&1 &
@@ -53,12 +63,18 @@ if [[ -n "${qxcb_plugin}" ]]; then
 else
   echo "libqxcb.so not found" >"${root}/metadata/qxcb-linkage.txt"
 fi
-python3 -c 'from pxr import Usd; print(Usd.GetVersion())' >"${root}/metadata/openusd.txt"
-python3 -c 'import MaterialX as mx; print(mx.__file__, mx.getVersionString())' >"${root}/metadata/materialx.txt"
+{
+  "${usdrecord_python}" -c 'import sys; print(sys.executable, sys.version)'
+  "${usdrecord_python}" -c 'import PySide6; print(PySide6.__file__)'
+  echo "usdrecord=${usdrecord_script}"
+} >"${root}/metadata/usdrecord-python.txt"
+"${usdrecord_python}" -c 'from pxr import Usd; print(Usd.GetVersion())' >"${root}/metadata/openusd.txt"
+"${usdrecord_python}" -c 'import MaterialX as mx; print(mx.__file__, mx.getVersionString())' >"${root}/metadata/materialx.txt"
 result=0
 for scene in usdpreview_control materialx_standard_surface; do
   set +e
-  timeout 120 usdrecord --camera /World/Camera --renderer Storm --purposes render \
+  timeout 120 "${usdrecord_python}" "${usdrecord_script}" \
+    --camera /World/Camera --renderer Storm --purposes render \
     --imageWidth 256 "/src/scripts/tests/fixtures/openusd-materialx/${scene}.usda" \
     "${root}/images/${scene}.png" >"${root}/logs/${scene}.log" 2>&1
   status=$?
