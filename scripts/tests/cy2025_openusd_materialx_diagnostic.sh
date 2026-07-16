@@ -89,15 +89,13 @@ inner() {
       "${root}/recipes/openusd/conanfile.py" \
       > "${root}/metadata/openusd-parity-default-options.txt"
   fi
-  usd_create_options=()
   usd_dependency_options=()
   for option in "${usd_option_names[@]}"; do
-    usd_create_options+=(-o "&:${option}")
     usd_dependency_options+=(-o "openusd/*:${option}")
   done
   conan create "${root}/recipes/openusd" --version=25.05.01 \
     --user=diagnostic --channel=vfx2025 --profile:all="${profile}" \
-    "${usd_create_options[@]}" --build='openusd/*' \
+    "${usd_dependency_options[@]}" --build='openusd/*' \
     2>&1 | tee "${root}/build-logs/openusd.log"
   conan install --requires="${usd_ref}" --profile:all="${profile}" \
     "${usd_dependency_options[@]}" --output-folder="${root}/results/generated" \
