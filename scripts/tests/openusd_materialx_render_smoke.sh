@@ -9,6 +9,39 @@ Xvfb :99 -screen 0 640x480x24 +extension GLX +render -noreset >"${root}/metadata
 xvfb_pid=$!
 trap 'kill "${xvfb_pid}" 2>/dev/null || true' EXIT
 sleep 2
+{
+  echo "LIBGL_ALWAYS_SOFTWARE=${LIBGL_ALWAYS_SOFTWARE}"
+  echo "MESA_LOADER_DRIVER_OVERRIDE=${MESA_LOADER_DRIVER_OVERRIDE}"
+  echo "DISPLAY=${DISPLAY}"
+  echo "dri drivers:"
+  find /usr/lib /usr/lib64 -type f \
+    \( -name '*swrast*_dri.so' -o -name '*llvmpipe*' \) -print 2>/dev/null || true
+  echo "GL/EGL libraries:"
+  ldconfig -p 2>/dev/null | grep -E 'lib(GLX|GL|EGL|OSMesa)\.so' || true
+} >"${root}/metadata/mesa-runtime.txt"
+for utility in glxinfo eglinfo; do
+  if command -v "${utility}" >/dev/null 2>&1; then
+    utility_args=()
+    [[ "${utility}" == glxinfo ]] && utility_args=(-B)
+    set +e
+    "${utility}" "${utility_args[@]}" >"${root}/metadata/${utility}.log" 2>&1
+    utility_status=$?
+    set -e
+    echo "${utility_status}" >"${root}/metadata/${utility}.exit"
+  else
+    echo "not installed" >"${root}/metadata/${utility}.log"
+    echo 127 >"${root}/metadata/${utility}.exit"
+  fi
+done
+qxcb_plugin="$(find /usr /opt -type f -name 'libqxcb.so' -print -quit 2>/dev/null || true)"
+if [[ -n "${qxcb_plugin}" ]]; then
+  {
+    echo "${qxcb_plugin}"
+    ldd "${qxcb_plugin}" || true
+  } >"${root}/metadata/qxcb-linkage.txt" 2>&1
+else
+  echo "libqxcb.so not found" >"${root}/metadata/qxcb-linkage.txt"
+fi
 python3 -c 'from pxr import Usd; print(Usd.GetVersion())' >"${root}/metadata/openusd.txt"
 python3 -c 'import MaterialX as mx; print(mx.__file__, mx.getVersionString())' >"${root}/metadata/materialx.txt"
 result=0
