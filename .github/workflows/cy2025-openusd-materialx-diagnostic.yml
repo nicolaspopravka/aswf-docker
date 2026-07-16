@@ -13,6 +13,11 @@ on:
         options:
           - pixar-parity
           - stock-options
+      reuse_run_id:
+        description: Prior run whose deployed packages should be reused; leave empty for a full rebuild
+        required: false
+        default: '29491081594'
+        type: string
 
 jobs:
   diagnostic:
@@ -20,6 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 330
     permissions:
+      actions: read
       contents: read
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -29,12 +35,26 @@ jobs:
           mkdir -p diagnostic-artifacts/metadata
           scripts/tests/cy2025_openusd_materialx_diagnostic.sh capacity \
             2>&1 | tee diagnostic-artifacts/metadata/capacity.log
-      - name: Build and test matched CY2025 packages
+      - name: Download prior deployed packages
+        if: inputs.reuse_run_id != ''
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: cy2025-openusd-materialx-${{ inputs.variant }}-${{ inputs.reuse_run_id }}
+          path: diagnostic-artifacts
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ inputs.reuse_run_id }}
+      - name: Build or reuse matched CY2025 packages and test
         env:
           DIAGNOSTIC_VARIANT: ${{ inputs.variant }}
+          DIAGNOSTIC_REUSE_RUN_ID: ${{ inputs.reuse_run_id }}
         run: |
           set -o pipefail
-          scripts/tests/cy2025_openusd_materialx_diagnostic.sh run \
+          mode=run
+          if [[ -n "${DIAGNOSTIC_REUSE_RUN_ID}" ]]; then
+            mode=reuse
+          fi
+          scripts/tests/cy2025_openusd_materialx_diagnostic.sh "${mode}" \
             2>&1 | tee diagnostic-artifacts/driver.log
       - name: Upload diagnostic evidence
         if: always()

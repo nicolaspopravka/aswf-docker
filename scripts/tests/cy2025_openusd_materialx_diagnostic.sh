@@ -40,6 +40,50 @@ run_container() {
     "${image}" scripts/tests/cy2025_openusd_materialx_diagnostic.sh inner
 }
 
+reuse_container() {
+  docker pull "${image}"
+  docker image inspect "${image}" > "${root}/metadata/base-image.json"
+  docker run --rm \
+    -e DIAGNOSTIC_INNER=1 -e DIAGNOSTIC_VARIANT="${variant}" \
+    -e DIAGNOSTIC_REUSE_RUN_ID="${DIAGNOSTIC_REUSE_RUN_ID:-}" \
+    -e DIAGNOSTIC_ROOT=/evidence \
+    -v "${PWD}:/src:ro" -v "${root}:/evidence" -w /src \
+    "${image}" scripts/tests/cy2025_openusd_materialx_diagnostic.sh inner-reuse
+}
+
+inner_reuse() {
+  deploy_root="${root}/results/deployed/full_deploy/host"
+  usd_root="${deploy_root}/openusd/25.05.01/Release/x86_64"
+  mtlx_root="${deploy_root}/materialx/1.39.3/Release/x86_64"
+  [[ -x "${usd_root}/bin/usdrecord" || -f "${usd_root}/bin/usdrecord" ]] || {
+    echo "reused deployment is missing usdrecord: ${usd_root}/bin/usdrecord" >&2
+    return 1
+  }
+  [[ -d "${usd_root}/lib/python/pxr" ]] || {
+    echo "reused deployment is missing pxr modules" >&2
+    return 1
+  }
+  [[ -d "${mtlx_root}/share/MaterialX/python/MaterialX" ]] || {
+    echo "reused deployment is missing MaterialX modules" >&2
+    return 1
+  }
+  chmod +x "${usd_root}/bin/usdrecord"
+  path_entries="$(find "${deploy_root}" -type d -name bin -print | paste -sd: -)"
+  lib_entries="$(find "${deploy_root}" -type d -name lib -print | paste -sd: -)"
+  export PATH="${path_entries}:${PATH}"
+  export LD_LIBRARY_PATH="${lib_entries}:${LD_LIBRARY_PATH:-}"
+  export PYTHONPATH="${usd_root}/lib/python:${mtlx_root}/share/MaterialX/python"
+  printf '%s\n' "${DIAGNOSTIC_REUSE_RUN_ID:-unknown}" \
+    > "${root}/metadata/reused-run-id.txt"
+  rm -rf "${root}/results/smoke"
+  set +e
+  /src/scripts/tests/openusd_materialx_render_smoke.sh "${root}/results/smoke"
+  smoke_status=$?
+  set -e
+  rm -rf "${root}/results/deployed" "${root}/results/generated"
+  return "${smoke_status}"
+}
+
 inner() {
   export ASWF_PKG_ORG=aswf
   export CMAKE_BUILD_PARALLEL_LEVEL="${jobs}"
@@ -124,7 +168,9 @@ inner() {
 case "${mode}" in
   capacity) capacity ;;
   run) run_container ;;
+  reuse) reuse_container ;;
   inner) inner ;;
+  inner-reuse) inner_reuse ;;
   dry-run) echo "variant=${variant} image=${image} jobs=${jobs}"; echo "would build ${mtlx_ref:-materialx/1.39.3} then openusd/25.05.01" ;;
-  *) echo "usage: $0 {capacity|run|inner|dry-run}" >&2; exit 2 ;;
+  *) echo "usage: $0 {capacity|run|reuse|inner|inner-reuse|dry-run}" >&2; exit 2 ;;
 esac
