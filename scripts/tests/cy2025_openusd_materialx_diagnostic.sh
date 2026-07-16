@@ -90,6 +90,7 @@ inner_reuse() {
   export PATH="${path_entries}:${PATH}"
   export LD_LIBRARY_PATH="${lib_entries}:${LD_LIBRARY_PATH:-}"
   export PYTHONPATH="${usd_root}/lib/python:${mtlx_root}/share/MaterialX/python"
+  export PXR_MTLX_STDLIB_SEARCH_PATHS="${mtlx_root}/share/MaterialX"
   printf '%s\n' "${DIAGNOSTIC_REUSE_RUN_ID:-unknown}" \
     > "${root}/metadata/reused-run-id.txt"
   rm -rf "${root}/results/smoke"
