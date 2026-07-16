@@ -153,7 +153,10 @@ class MaterialXConan(ConanFile):
         # You can try uncommenting the following to use vendored pybind11
         # instead of Conan dependency
         self.cpp_info.requires.append("pybind11::pybind11")
-        #self.env_info.PYTHONPATH.append(os.path.join(self.package_folder, "python"))
+        self.runenv_info.prepend_path(
+            "PYTHONPATH",
+            os.path.join(self.package_folder, "share", "MaterialX", "python"),
+        )
 
         if self.settings.os in ["Linux", "FreeBSD"]:
             self.cpp_info.system_libs.append("m")
