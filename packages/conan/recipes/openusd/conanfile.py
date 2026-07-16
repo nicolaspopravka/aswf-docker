@@ -47,20 +47,20 @@ class OpenUSDConan(ConanFile):
     default_options = {
         "shared": False,
         "fPIC": False,
-        "with_alembic": True ,     # ASWF: build with Alembic plugin
-        "with_hdf5": True,         # ASWF: build with HDF5 for Alembic
+        "with_alembic": False,     # Diagnostic: match Pixar build_usd.py
+        "with_hdf5": False,        # Diagnostic: match Pixar build_usd.py
         "with_gpu": True,          # ASWF: build with GPU support
         "with_gl": True,           # ASWF: build with OpenGL
         "with_metal": False,       # ASWF: build with Metal
         "with_vulkan": False,      # ASWF: build with Vulkan, requires VULKAN_SDK and libshaderc
         "with_materialx": True,    # ASWF: build with MateriaX
-        "with_opencolorio": True,  # ASWF: build OpenColorIO plugin
-        "with_openimageio": True,  # ASWF: build OpenImageIO plugin
-        "with_openvdb": True,      # ASWF: build with OpenVDB
-        "with_osl": True,          # ASWF: build with OpenShadingLanguage
-        "with_ptex": True,         # ASWF: build with Ptex
+        "with_opencolorio": False, # Diagnostic: match Pixar build_usd.py
+        "with_openimageio": False, # Diagnostic: match Pixar build_usd.py
+        "with_openvdb": False,     # Diagnostic: match Pixar build_usd.py
+        "with_osl": False,         # Diagnostic: match Pixar build_usd.py
+        "with_ptex": False,        # Diagnostic: match Pixar build_usd.py
         "with_python": True,       # ASWF: build with Python
-        "with_usdview": True,      # ASWF: build usdview
+        "with_usdview": False,     # Diagnostic: match Pixar build_usd.py
     }
 
     short_paths = True
@@ -536,4 +536,3 @@ class OpenUSDConan(ConanFile):
             self.cpp_info.components["usd_usdview"].requires = ["cpython::cpython", "pyside::pyside"]
             if self.options.shared:
                 self.cpp_info.components["usd_usdview"].requires.append("onetbb::libtbb")
-
