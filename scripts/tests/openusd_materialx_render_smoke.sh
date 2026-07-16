@@ -4,14 +4,16 @@
 set -euo pipefail
 root="${1:?evidence directory required}"
 mkdir -p "${root}"/{images,logs,metadata}
-export DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1 MESA_LOADER_DRIVER_OVERRIDE=llvmpipe
+export DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe
+unset MESA_LOADER_DRIVER_OVERRIDE
 Xvfb :99 -screen 0 640x480x24 +extension GLX +render -noreset >"${root}/metadata/xvfb.log" 2>&1 &
 xvfb_pid=$!
 trap 'kill "${xvfb_pid}" 2>/dev/null || true' EXIT
 sleep 2
 {
   echo "LIBGL_ALWAYS_SOFTWARE=${LIBGL_ALWAYS_SOFTWARE}"
-  echo "MESA_LOADER_DRIVER_OVERRIDE=${MESA_LOADER_DRIVER_OVERRIDE}"
+  echo "GALLIUM_DRIVER=${GALLIUM_DRIVER}"
+  echo "MESA_LOADER_DRIVER_OVERRIDE=${MESA_LOADER_DRIVER_OVERRIDE:-unset}"
   echo "DISPLAY=${DISPLAY}"
   echo "NVIDIA_CPU_ONLY=${NVIDIA_CPU_ONLY:-unset}"
   echo "NVIDIA_VISIBLE_DEVICES=${NVIDIA_VISIBLE_DEVICES:-unset}"
@@ -36,6 +38,12 @@ for utility in glxinfo eglinfo; do
     echo 127 >"${root}/metadata/${utility}.exit"
   fi
 done
+if [[ "$(<"${root}/metadata/glxinfo.exit")" != 0 ]] || \
+  ! grep -Eqi 'OpenGL renderer string:.*llvmpipe|Device: llvmpipe' \
+    "${root}/metadata/glxinfo.log"; then
+  echo "software GL preflight did not select LLVMpipe" >&2
+  exit 1
+fi
 qxcb_plugin="$(find /usr /opt -type f -name 'libqxcb.so' -print -quit 2>/dev/null || true)"
 if [[ -n "${qxcb_plugin}" ]]; then
   {

@@ -30,6 +30,14 @@ capacity() {
   (( free_kib >= 50 * 1024 * 1024 )) || { echo "capacity gate: less than 50 GiB free disk" >&2; exit 3; }
 }
 
+install_software_gl() {
+  mkdir -p "${root}/metadata"
+  dnf -y install mesa-dri-drivers \
+    > "${root}/metadata/mesa-dri-install.log" 2>&1
+  rpm -q mesa-dri-drivers mesa-libGL mesa-libEGL \
+    > "${root}/metadata/mesa-packages.txt"
+}
+
 run_container() {
   docker pull "${image}"
   docker image inspect "${image}" > "${root}/metadata/base-image.json"
@@ -76,6 +84,7 @@ inner_reuse() {
   printf '%s\n' "${DIAGNOSTIC_REUSE_RUN_ID:-unknown}" \
     > "${root}/metadata/reused-run-id.txt"
   rm -rf "${root}/results/smoke"
+  install_software_gl
   set +e
   /src/scripts/tests/openusd_materialx_render_smoke.sh "${root}/results/smoke"
   smoke_status=$?
@@ -160,6 +169,7 @@ inner() {
   set +u
   source "${root}/results/generated/conanrun.sh"
   set -u
+  install_software_gl
   /src/scripts/tests/openusd_materialx_render_smoke.sh "${root}/results/smoke"
   rm -rf "${root}/conan-home" "${root}/recipes" \
     "${root}/results/deployed" "${root}/results/generated"
