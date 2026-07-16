@@ -108,7 +108,7 @@ class MaterialXConan(ConanFile):
         tc.variables["MATERIALX_BUILD_GEN_MSL"] = self.options.build_gen_msl and is_apple_os
         tc.variables["MATERIALX_INSTALL_STDLIB_PATH"] = os.path.join("share", "MaterialX", "libraries") # ASWF: otherwise end up in /usr/local
         tc.variables["MATERIALX_INSTALL_RESOURCES_PATH"] = os.path.join("share", "MaterialX", "resources") # ASWF: otherwise end  up in /usr/local
-        tc.variables["MATERIALX_PYTHON_FOLDER_NAME"] = os.path.join("share", "MaterialX", "python", "MaterialX") # ASWF: otherwise end up in /usr/local
+        tc.variables["MATERIALX_PYTHON_FOLDER_NAME"] = os.path.join("share", "MaterialX", "python") # ASWF: otherwise end up in /usr/local
         tc.variables["MATERIALX_BUILD_USE_CCACHE"] = False
         tc.generate()
 
@@ -136,6 +136,12 @@ class MaterialXConan(ConanFile):
         copy(self, "LICENSE", src=self.source_folder, dst=os.path.join(self.package_folder, "licenses", self.name))
         cmake = CMake(self)
         cmake.install()
+
+        python_root = os.path.join(self.package_folder, "share", "MaterialX", "python")
+        python_package = os.path.join(python_root, "MaterialX")
+        for pattern in ("PyMaterialX*.so*", "PyMaterialX*.pyd"):
+            copy(self, pattern, src=python_root, dst=python_package, keep_path=False)
+            rm(self, pattern, python_root, recursive=False)
 
         # rmdir(self, os.path.join(self.package_folder, "resources")) # ASWF: keep resources
         # rmdir(self, os.path.join(self.package_folder, "libraries")) # ASWF: keep libraries
