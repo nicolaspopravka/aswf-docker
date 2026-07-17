@@ -16,6 +16,7 @@ on:
           - pixar-materialx-layout
           - pixar-core-tbb
           - pixar-build-usd
+          - pixar-build-usd-ci-common6
           - stock-options
       reuse_run_id:
         description: Prior run whose deployed packages should be reused; leave empty for a full rebuild

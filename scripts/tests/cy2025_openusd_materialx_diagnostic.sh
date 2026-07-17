@@ -9,7 +9,10 @@ root="${DIAGNOSTIC_ROOT:-${PWD}/diagnostic-artifacts}"
 image="${DIAGNOSTIC_IMAGE:-aswf/ci-vfxall:2025}"
 jobs="${DIAGNOSTIC_JOBS:-4}"
 
-case "${variant}" in pixar-parity|pixar-materialx|pixar-materialx-layout|pixar-core-tbb|pixar-build-usd|stock-options) ;; *) echo "unknown variant: ${variant}" >&2; exit 2;; esac
+case "${variant}" in pixar-parity|pixar-materialx|pixar-materialx-layout|pixar-core-tbb|pixar-build-usd|pixar-build-usd-ci-common6|stock-options) ;; *) echo "unknown variant: ${variant}" >&2; exit 2;; esac
+if [[ "${variant}" == pixar-build-usd-ci-common6 ]]; then
+  image="aswf/ci-common:6-clang20"
+fi
 mkdir -p "${root}"/{build-logs,metadata,results}
 
 capacity() {
@@ -41,10 +44,36 @@ capacity() {
 
 install_software_gl() {
   mkdir -p "${root}/metadata"
-  dnf -y install mesa-dri-drivers \
+  gl_packages=(mesa-dri-drivers)
+  gl_rpms=(mesa-dri-drivers mesa-libGL mesa-libEGL)
+  if [[ "${variant}" == pixar-build-usd-ci-common6 ]]; then
+    gl_packages+=(xorg-x11-server-Xvfb glx-utils)
+    gl_rpms+=(xorg-x11-server-Xvfb glx-utils)
+  fi
+  dnf -y install "${gl_packages[@]}" \
     > "${root}/metadata/mesa-dri-install.log" 2>&1
-  rpm -q mesa-dri-drivers mesa-libGL mesa-libEGL \
+  rpm -q "${gl_rpms[@]}" \
     > "${root}/metadata/mesa-packages.txt"
+}
+
+prepare_ci_common6_runtime() {
+  gcc_toolset_root=/opt/rh/gcc-toolset-14/root
+  [[ -x "${gcc_toolset_root}/usr/bin/gcc" ]] || {
+    echo "GCC toolset 14 is missing from ci-common: ${gcc_toolset_root}" >&2
+    return 1
+  }
+  export PATH="${gcc_toolset_root}/usr/bin:${PATH}"
+  export LD_LIBRARY_PATH="${gcc_toolset_root}/usr/lib64:${gcc_toolset_root}/usr/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
+  export CC=gcc CXX=g++
+  python3 -m pip install --disable-pip-version-check --no-cache-dir \
+    --report "${root}/metadata/pyside-pip-report.json" 'PySide6==6.8.3' \
+    > "${root}/metadata/pyside-pip-install.log" 2>&1
+  {
+    echo "image=${image}"
+    echo "gcc_toolset_root=${gcc_toolset_root}"
+    python3 -c 'import sys; print(sys.executable, sys.version)'
+    python3 -c 'import PySide6; print(PySide6.__file__, PySide6.__version__)'
+  } > "${root}/metadata/ci-common6-runtime.txt"
 }
 
 run_container() {
@@ -69,7 +98,10 @@ reuse_container() {
 }
 
 inner_reuse() {
-  if [[ "${variant}" == pixar-build-usd ]]; then
+  if [[ "${variant}" == pixar-build-usd || "${variant}" == pixar-build-usd-ci-common6 ]]; then
+    if [[ "${variant}" == pixar-build-usd-ci-common6 ]]; then
+      prepare_ci_common6_runtime
+    fi
     install_root="${root}/results/pixar-install"
     [[ -f "${install_root}/bin/usdrecord" ]] || {
       echo "reused Pixar installation is missing usdrecord: ${install_root}/bin/usdrecord" >&2
@@ -90,6 +122,9 @@ inner_reuse() {
     }
     export PXR_MTLX_STDLIB_SEARCH_PATHS="$(dirname "${mtlx_library}")"
     export DIAGNOSTIC_REQUIRE_MATERIALX_PYTHON=0
+    if [[ "${variant}" == pixar-build-usd-ci-common6 ]]; then
+      export DIAGNOSTIC_USDRECORD_PYTHON="$(command -v python3)"
+    fi
     printf '%s\n' "${DIAGNOSTIC_REUSE_RUN_ID:-unknown}" \
       > "${root}/metadata/reused-run-id.txt"
     asset_root="${root}/input-assets"
@@ -154,6 +189,9 @@ inner_pixar_build_usd() {
   source_root="${root}/openusd-source"
   install_root="${root}/results/pixar-install"
   rm -rf "${source_root}" "${install_root}"
+  if [[ "${variant}" == pixar-build-usd-ci-common6 ]]; then
+    prepare_ci_common6_runtime
+  fi
   curl -L --fail --retry 3 -o "${source_archive}" "${source_url}"
   echo "${source_sha}  ${source_archive}" | sha256sum --check \
     > "${root}/metadata/openusd-source-sha256.txt"
@@ -162,6 +200,8 @@ inner_pixar_build_usd() {
   {
     echo "source_url=${source_url}"
     echo "source_sha256=${source_sha}"
+    echo "variant=${variant}"
+    echo "image=${image}"
     gcc --version | head -1
     g++ --version | head -1
     cmake --version | head -1
@@ -200,12 +240,15 @@ inner_pixar_build_usd() {
   }
   export PXR_MTLX_STDLIB_SEARCH_PATHS="$(dirname "${mtlx_library}")"
   export DIAGNOSTIC_REQUIRE_MATERIALX_PYTHON=0
+  if [[ "${variant}" == pixar-build-usd-ci-common6 ]]; then
+    export DIAGNOSTIC_USDRECORD_PYTHON="$(command -v python3)"
+  fi
   install_software_gl
   /src/scripts/tests/openusd_materialx_render_smoke.sh "${root}/results/smoke"
 }
 
 inner() {
-  if [[ "${variant}" == pixar-build-usd ]]; then
+  if [[ "${variant}" == pixar-build-usd || "${variant}" == pixar-build-usd-ci-common6 ]]; then
     inner_pixar_build_usd
     return
   fi
