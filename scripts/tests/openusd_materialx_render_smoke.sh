@@ -70,7 +70,16 @@ fi
   echo "usdrecord=${usdrecord_script}"
 } >"${root}/metadata/usdrecord-python.txt"
 "${usdrecord_python}" -c 'from pxr import Usd; print(Usd.GetVersion())' >"${root}/metadata/openusd.txt"
-"${usdrecord_python}" -c 'import MaterialX as mx; print(mx.__file__, mx.getVersionString())' >"${root}/metadata/materialx.txt"
+set +e
+"${usdrecord_python}" -c 'import MaterialX as mx; print(mx.__file__, mx.getVersionString())' \
+  >"${root}/metadata/materialx.txt" 2>&1
+materialx_python_status=$?
+set -e
+echo "${materialx_python_status}" >"${root}/metadata/materialx.exit"
+if [[ "${DIAGNOSTIC_REQUIRE_MATERIALX_PYTHON:-1}" == 1 && "${materialx_python_status}" != 0 ]]; then
+  echo "MaterialX Python import failed" >&2
+  exit 1
+fi
 result=0
 for scene in usdpreview_control materialx_standard_surface; do
   set +e

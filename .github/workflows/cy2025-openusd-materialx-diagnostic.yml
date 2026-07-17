@@ -12,6 +12,7 @@ on:
         type: choice
         options:
           - pixar-parity
+          - pixar-materialx
           - stock-options
       reuse_run_id:
         description: Prior run whose deployed packages should be reused; leave empty for a full rebuild

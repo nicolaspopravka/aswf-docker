@@ -9,7 +9,7 @@ root="${DIAGNOSTIC_ROOT:-${PWD}/diagnostic-artifacts}"
 image="${DIAGNOSTIC_IMAGE:-aswf/ci-vfxall:2025}"
 jobs="${DIAGNOSTIC_JOBS:-4}"
 
-case "${variant}" in pixar-parity|stock-options) ;; *) echo "unknown variant: ${variant}" >&2; exit 2;; esac
+case "${variant}" in pixar-parity|pixar-materialx|stock-options) ;; *) echo "unknown variant: ${variant}" >&2; exit 2;; esac
 mkdir -p "${root}"/{build-logs,metadata,results}
 
 capacity() {
@@ -113,6 +113,17 @@ inner() {
   mkdir -p "${root}/recipes"
   cp -a /src/packages/conan/recipes/materialx "${root}/recipes/materialx"
   cp -a /src/packages/conan/recipes/openusd "${root}/recipes/openusd"
+  if [[ "${variant}" == pixar-materialx ]]; then
+    sed -i -E \
+      's#(tc\.variables\["MATERIALX_BUILD_PYTHON"\][[:space:]]*=[[:space:]]*)"ON"#\1"OFF"#' \
+      "${root}/recipes/materialx/conanfile.py"
+    grep -F 'tc.variables["MATERIALX_BUILD_PYTHON"] = "OFF"' \
+      "${root}/recipes/materialx/conanfile.py" \
+      > "${root}/metadata/materialx-pixar-build-options.txt" || {
+        echo "MaterialX Pixar build option remained enabled" >&2
+        return 1
+      }
+  fi
   profile="${CONAN_HOME}/profiles/vfx2025-diagnostic"
   mtlx_ref=materialx/1.39.3@diagnostic/vfx2025
   usd_ref=openusd/25.05.01@diagnostic/vfx2025
@@ -136,7 +147,7 @@ inner() {
     'shared=True' 'with_gpu=True' 'with_gl=True' 'with_python=True'
     'with_materialx=True' 'with_usdview=False'
   )
-  if [[ "${variant}" == pixar-parity ]]; then
+  if [[ "${variant}" == pixar-parity || "${variant}" == pixar-materialx ]]; then
     usd_option_names+=(
       'with_alembic=False' 'with_hdf5=False' 'with_opencolorio=False'
       'with_openimageio=False' 'with_openvdb=False' 'with_osl=False'
@@ -179,6 +190,9 @@ inner() {
   set +u
   source "${root}/results/generated/conanrun.sh"
   set -u
+  if [[ "${variant}" == pixar-materialx ]]; then
+    export DIAGNOSTIC_REQUIRE_MATERIALX_PYTHON=0
+  fi
   install_software_gl
   /src/scripts/tests/openusd_materialx_render_smoke.sh "${root}/results/smoke"
   rm -rf "${root}/conan-home" "${root}/recipes" \
