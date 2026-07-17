@@ -196,6 +196,8 @@ class OpenUSDConan(ConanFile):
         tc = CMakeDeps(self)
         tc.set_property("opensubdiv::osdcpu", "cmake_target_name", "OpenSubdiv::osdcpu")
         tc.set_property("opensubdiv::osdcpu", "cmake_target_aliases", ["OpenSubdiv::osdcpu_static"])
+        tc.set_property("materialx::MaterialXCore", "cmake_target_aliases", ["MaterialXCore"])
+        tc.set_property("materialx::MaterialXFormat", "cmake_target_aliases", ["MaterialXFormat"])
 
         tc.generate()
 
