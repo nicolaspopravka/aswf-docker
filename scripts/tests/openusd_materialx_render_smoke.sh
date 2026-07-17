@@ -93,4 +93,19 @@ for scene in usdpreview_control materialx_standard_surface; do
   [[ "${status}" == 0 && -s "${root}/images/${scene}.png" ]] || result=1
   grep -Eqi 'Failed to compile shader|Generated MaterialX Document does not have 1 material|Invalid port connection|Invalid info:id|undefined variable|undeclared' "${root}/logs/${scene}.log" && result=1 || true
 done
+set +e
+"${usdrecord_python}" -c '
+import sys
+from PySide6.QtGui import QImage
+image = QImage(sys.argv[1])
+colors = {image.pixel(x, y) for y in range(image.height()) for x in range(image.width())}
+print(f"width={image.width()} height={image.height()} unique_rgba={len(colors)}")
+raise SystemExit(0 if not image.isNull() and len(colors) > 1 else 1)
+' "${root}/images/usdpreview_control.png" \
+  > "${root}/metadata/usdpreview-image-variation.txt" 2>&1
+preview_variation_status=$?
+set -e
+echo "${preview_variation_status}" \
+  > "${root}/metadata/usdpreview-image-variation.exit"
+[[ "${preview_variation_status}" == 0 ]] || result=1
 exit "${result}"
