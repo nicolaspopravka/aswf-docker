@@ -128,13 +128,13 @@ inner_pixar_build_usd() {
     --no-embree --no-prman \
     --no-usdview --no-examples --no-tutorials \
     --no-tests --no-docs --no-python-docs \
-    --build-args "USD,-DCMAKE_FIND_PACKAGE_PREFER_CONFIG=FALSE -DTBB_ROOT_DIR=${install_root} -DTBB_INCLUDE_DIR=${install_root}/include -DTBB_LIBRARY=${install_root}/lib/libtbb.so -DTBB_tbb_LIBRARY_RELEASE=${install_root}/lib/libtbb.so" \
+    --build-args "USD,-DCMAKE_IGNORE_PATH=/usr/local/lib/cmake/TBB -DTBB_ROOT_DIR=${install_root} -DTBB_INCLUDE_DIR=${install_root}/include -DTBB_LIBRARY=${install_root}/lib/libtbb.so -DTBB_tbb_LIBRARY_RELEASE=${install_root}/lib/libtbb.so" \
     --materialx "${install_root}" \
     2>&1 | tee "${root}/build-logs/pixar-build-usd.log"
   : > "${root}/metadata/pixar-cmake-tbb-cache.txt"
   while IFS= read -r cache; do
     echo "=== ${cache}" >> "${root}/metadata/pixar-cmake-tbb-cache.txt"
-    grep -E '^(CMAKE_FIND_PACKAGE_PREFER_CONFIG|TBB[^:]*)[:=]' "${cache}" \
+    grep -E '^(CMAKE_IGNORE_PATH|TBB[^:]*)[:=]' "${cache}" \
       >> "${root}/metadata/pixar-cmake-tbb-cache.txt" || true
   done < <(find "${install_root}/build" -name CMakeCache.txt -type f -print)
   rm -rf "${source_root}" "${source_archive}"
