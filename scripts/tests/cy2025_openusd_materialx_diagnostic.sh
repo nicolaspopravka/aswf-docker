@@ -128,10 +128,18 @@ inner_pixar_build_usd() {
     --no-embree --no-prman \
     --no-usdview --no-examples --no-tutorials \
     --no-tests --no-docs --no-python-docs \
+    --build-args "USD,-DTBB_ROOT_DIR=${install_root}" \
     --materialx "${install_root}" \
     2>&1 | tee "${root}/build-logs/pixar-build-usd.log"
   rm -rf "${source_root}" "${source_archive}"
   rm -rf "${install_root}/build" "${install_root}/src"
+  readelf -d "${install_root}/lib/libusd_hd.so" \
+    > "${root}/metadata/pixar-usd-hd-dynamic.txt"
+  grep -Eq 'Shared library: \[libtbb\.so\.2\]' \
+    "${root}/metadata/pixar-usd-hd-dynamic.txt" || {
+      echo "Pixar control did not link libusd_hd to classic TBB" >&2
+      return 1
+    }
   export PATH="${install_root}/bin:${PATH}"
   export LD_LIBRARY_PATH="${install_root}/lib:${LD_LIBRARY_PATH:-}"
   export PYTHONPATH="${install_root}/lib/python"
