@@ -92,10 +92,26 @@ inner_reuse() {
     export DIAGNOSTIC_REQUIRE_MATERIALX_PYTHON=0
     printf '%s\n' "${DIAGNOSTIC_REUSE_RUN_ID:-unknown}" \
       > "${root}/metadata/reused-run-id.txt"
+    asset_root="${root}/input-assets"
+    rm -rf "${asset_root}"
+    git init "${asset_root}"
+    git -C "${asset_root}" remote add origin https://github.com/usd-wg/assets.git
+    git -C "${asset_root}" -c protocol.version=2 fetch --depth=1 \
+      --filter=blob:none origin 907d5f17bbe933fc14441a3f3ab69a5bd8abe32a
+    git -C "${asset_root}" sparse-checkout init --cone
+    git -C "${asset_root}" sparse-checkout set full_assets/OpenChessSet
+    git -C "${asset_root}" checkout --detach FETCH_HEAD
+    git -C "${asset_root}" rev-parse HEAD \
+      > "${root}/metadata/openchessset-commit.txt"
+    export DIAGNOSTIC_OPENCHESSSET="${asset_root}/full_assets/OpenChessSet/chess_set.usda"
     rm -rf "${root}/results/smoke"
     install_software_gl
+    set +e
     /src/scripts/tests/openusd_materialx_render_smoke.sh "${root}/results/smoke"
-    return
+    smoke_status=$?
+    set -e
+    rm -rf "${asset_root}"
+    return "${smoke_status}"
   fi
   deploy_root="${root}/results/deployed/full_deploy/host"
   usd_root="${deploy_root}/openusd/25.05.01/Release/x86_64"

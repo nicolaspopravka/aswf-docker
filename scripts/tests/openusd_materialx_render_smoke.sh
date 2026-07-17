@@ -93,6 +93,26 @@ for scene in usdpreview_control materialx_standard_surface; do
   [[ "${status}" == 0 && -s "${root}/images/${scene}.png" ]] || result=1
   grep -Eqi 'Failed to compile shader|Generated MaterialX Document does not have 1 material|Invalid port connection|Invalid info:id|undefined variable|undeclared' "${root}/logs/${scene}.log" && result=1 || true
 done
+if [[ -n "${DIAGNOSTIC_OPENCHESSSET:-}" ]]; then
+  [[ -f "${DIAGNOSTIC_OPENCHESSSET}" ]] || {
+    echo "OpenChessSet input is missing: ${DIAGNOSTIC_OPENCHESSSET}" >&2
+    result=1
+  }
+  if [[ -f "${DIAGNOSTIC_OPENCHESSSET}" ]]; then
+    set +e
+    timeout 300 "${usdrecord_python}" "${usdrecord_script}" \
+      --camera main_cam --renderer Storm --purposes render \
+      --imageWidth 512 "${DIAGNOSTIC_OPENCHESSSET}" \
+      "${root}/images/openchessset.png" \
+      >"${root}/logs/openchessset.log" 2>&1
+    status=$?
+    set -e
+    echo "${status}" >"${root}/logs/openchessset.exit"
+    [[ "${status}" == 0 && -s "${root}/images/openchessset.png" ]] || result=1
+    grep -Eqi 'Failed to compile shader|Generated MaterialX Document does not have 1 material|Invalid port connection|Invalid info:id|undefined variable|undeclared' \
+      "${root}/logs/openchessset.log" && result=1 || true
+  fi
+fi
 set +e
 "${usdrecord_python}" -c '
 import sys
@@ -108,4 +128,21 @@ set -e
 echo "${preview_variation_status}" \
   > "${root}/metadata/usdpreview-image-variation.exit"
 [[ "${preview_variation_status}" == 0 ]] || result=1
+if [[ -f "${root}/images/openchessset.png" ]]; then
+  set +e
+  "${usdrecord_python}" -c '
+import sys
+from PySide6.QtGui import QImage
+image = QImage(sys.argv[1])
+colors = {image.pixel(x, y) for y in range(image.height()) for x in range(image.width())}
+print(f"width={image.width()} height={image.height()} unique_rgba={len(colors)}")
+raise SystemExit(0 if not image.isNull() and len(colors) > 1 else 1)
+' "${root}/images/openchessset.png" \
+    > "${root}/metadata/openchessset-image-variation.txt" 2>&1
+  openchessset_variation_status=$?
+  set -e
+  echo "${openchessset_variation_status}" \
+    > "${root}/metadata/openchessset-image-variation.exit"
+  [[ "${openchessset_variation_status}" == 0 ]] || result=1
+fi
 exit "${result}"
