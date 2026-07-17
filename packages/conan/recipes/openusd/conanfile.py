@@ -178,6 +178,7 @@ class OpenUSDConan(ConanFile):
         if self.options.with_materialx:
             materialx_info = self.dependencies["materialx"]
             tc.variables["MATERIALX_STDLIB_DIR"] = os.path.join(materialx_info.package_folder,"share","MaterialX")
+            tc.variables["MaterialX_DIR"] = os.path.join(materialx_info.package_folder, "lib", "cmake", "MaterialX")
         tc.variables["PXR_BUILD_OPENCOLORIO_PLUGIN"] = self.options.with_opencolorio # ASWF: build OpenColorIO plugin
         tc.variables["PXR_BUILD_OPENIMAGEIO_PLUGIN"] = self.options.with_openimageio # ASWF: build OpenImageIO plugin
         tc.variables["PXR_ENABLE_OPENVDB_SUPPORT"] = self.options.with_openvdb       # ASWF: build OpenVDB support
@@ -196,8 +197,7 @@ class OpenUSDConan(ConanFile):
         tc = CMakeDeps(self)
         tc.set_property("opensubdiv::osdcpu", "cmake_target_name", "OpenSubdiv::osdcpu")
         tc.set_property("opensubdiv::osdcpu", "cmake_target_aliases", ["OpenSubdiv::osdcpu_static"])
-        tc.set_property("materialx::MaterialXCore", "cmake_target_aliases", ["MaterialXCore"])
-        tc.set_property("materialx::MaterialXFormat", "cmake_target_aliases", ["MaterialXFormat"])
+        tc.set_property("materialx", "cmake_find_mode", "none")
 
         tc.generate()
 
