@@ -9,7 +9,7 @@ root="${DIAGNOSTIC_ROOT:-${PWD}/diagnostic-artifacts}"
 image="${DIAGNOSTIC_IMAGE:-aswf/ci-vfxall:2025}"
 jobs="${DIAGNOSTIC_JOBS:-4}"
 
-case "${variant}" in pixar-parity|pixar-materialx|stock-options) ;; *) echo "unknown variant: ${variant}" >&2; exit 2;; esac
+case "${variant}" in pixar-parity|pixar-materialx|pixar-materialx-layout|stock-options) ;; *) echo "unknown variant: ${variant}" >&2; exit 2;; esac
 mkdir -p "${root}"/{build-logs,metadata,results}
 
 capacity() {
@@ -113,10 +113,10 @@ inner() {
   mkdir -p "${root}/recipes"
   cp -a /src/packages/conan/recipes/materialx "${root}/recipes/materialx"
   cp -a /src/packages/conan/recipes/openusd "${root}/recipes/openusd"
-  if [[ "${variant}" == pixar-materialx ]]; then
+  if [[ "${variant}" == pixar-materialx || "${variant}" == pixar-materialx-layout ]]; then
     export DIAGNOSTIC_SKIP_MATERIALX_PYTHON_TEST=1
     sed -i -E \
-      's#(tc\.variables\["MATERIALX_BUILD_PYTHON"\][[:space:]]*=[[:space:]]*)"ON"#\1"OFF"#' \
+      's#tc\.variables\["MATERIALX_BUILD_PYTHON"\][[:space:]]*=[[:space:]]*"ON"#tc.variables["MATERIALX_BUILD_PYTHON"] = "OFF"#' \
       "${root}/recipes/materialx/conanfile.py"
     grep -F 'tc.variables["MATERIALX_BUILD_PYTHON"] = "OFF"' \
       "${root}/recipes/materialx/conanfile.py" \
@@ -124,6 +124,33 @@ inner() {
         echo "MaterialX Pixar build option remained enabled" >&2
         return 1
       }
+  fi
+  if [[ "${variant}" == pixar-materialx-layout ]]; then
+    sed -i -E \
+      's#tc\.variables\["MATERIALX_INSTALL_STDLIB_PATH"\].*#tc.variables["MATERIALX_INSTALL_STDLIB_PATH"] = "libraries"#' \
+      "${root}/recipes/materialx/conanfile.py"
+    sed -i -E \
+      's#tc\.variables\["MATERIALX_INSTALL_RESOURCES_PATH"\].*#tc.variables["MATERIALX_INSTALL_RESOURCES_PATH"] = "resources"#' \
+      "${root}/recipes/materialx/conanfile.py"
+    sed -i -E \
+      's#os\.path\.join\(self\.package_folder, "share", "MaterialX"\)#self.package_folder#' \
+      "${root}/recipes/materialx/conanfile.py"
+    sed -i -E \
+      '/tc\.variables\["MATERIALX_STDLIB_DIR"\]/d' \
+      "${root}/recipes/openusd/conanfile.py"
+    {
+      grep -F 'tc.variables["MATERIALX_INSTALL_STDLIB_PATH"] = "libraries"' \
+        "${root}/recipes/materialx/conanfile.py"
+      grep -F 'tc.variables["MATERIALX_INSTALL_RESOURCES_PATH"] = "resources"' \
+        "${root}/recipes/materialx/conanfile.py"
+      grep -A2 '"PXR_MTLX_STDLIB_SEARCH_PATHS"' \
+        "${root}/recipes/materialx/conanfile.py"
+      if grep -Fq 'tc.variables["MATERIALX_STDLIB_DIR"]' \
+        "${root}/recipes/openusd/conanfile.py"; then
+        echo "OpenUSD retained the explicit MaterialX stdlib hint" >&2
+        return 1
+      fi
+    } > "${root}/metadata/materialx-pixar-layout-options.txt"
   fi
   profile="${CONAN_HOME}/profiles/vfx2025-diagnostic"
   mtlx_ref=materialx/1.39.3@diagnostic/vfx2025
@@ -148,7 +175,7 @@ inner() {
     'shared=True' 'with_gpu=True' 'with_gl=True' 'with_python=True'
     'with_materialx=True' 'with_usdview=False'
   )
-  if [[ "${variant}" == pixar-parity || "${variant}" == pixar-materialx ]]; then
+  if [[ "${variant}" == pixar-parity || "${variant}" == pixar-materialx || "${variant}" == pixar-materialx-layout ]]; then
     usd_option_names+=(
       'with_alembic=False' 'with_hdf5=False' 'with_opencolorio=False'
       'with_openimageio=False' 'with_openvdb=False' 'with_osl=False'
@@ -191,7 +218,7 @@ inner() {
   set +u
   source "${root}/results/generated/conanrun.sh"
   set -u
-  if [[ "${variant}" == pixar-materialx ]]; then
+  if [[ "${variant}" == pixar-materialx || "${variant}" == pixar-materialx-layout ]]; then
     export DIAGNOSTIC_REQUIRE_MATERIALX_PYTHON=0
   fi
   install_software_gl
