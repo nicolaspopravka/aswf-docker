@@ -221,10 +221,16 @@ inner() {
     usd_consumer_options+=(-o "&:${option}")
   done
   usd_dependency_options+=(-o 'materialx/*:with_openimageio=False')
+  usd_build_patterns=(--build='openusd/*')
+  if [[ "${variant}" == pixar-core-tbb ]]; then
+    # The TBB substitution changes OpenSubdiv's package ID, so the stock
+    # remote binary cannot satisfy this diagnostic graph.
+    usd_build_patterns+=(--build='opensubdiv/*')
+  fi
   conan create "${root}/recipes/openusd" --version=25.05.01 \
     --user=diagnostic --channel=vfx2025 --profile:all="${profile}" \
     "${usd_dependency_options[@]}" "${usd_consumer_options[@]}" \
-    --build='openusd/*' \
+    "${usd_build_patterns[@]}" \
     2>&1 | tee "${root}/build-logs/openusd.log"
   conan install --requires="${usd_ref}" --profile:all="${profile}" \
     "${usd_dependency_options[@]}" --output-folder="${root}/results/generated" \
