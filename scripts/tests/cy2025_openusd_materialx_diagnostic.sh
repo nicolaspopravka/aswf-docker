@@ -9,7 +9,7 @@ root="${DIAGNOSTIC_ROOT:-${PWD}/diagnostic-artifacts}"
 image="${DIAGNOSTIC_IMAGE:-aswf/ci-vfxall:2025}"
 jobs="${DIAGNOSTIC_JOBS:-4}"
 
-case "${variant}" in pixar-parity|pixar-materialx|pixar-materialx-layout|pixar-core-tbb|stock-options) ;; *) echo "unknown variant: ${variant}" >&2; exit 2;; esac
+case "${variant}" in pixar-parity|pixar-materialx|pixar-materialx-layout|pixar-core-tbb|pixar-build-usd|stock-options) ;; *) echo "unknown variant: ${variant}" >&2; exit 2;; esac
 mkdir -p "${root}"/{build-logs,metadata,results}
 
 capacity() {
@@ -103,7 +103,54 @@ inner_reuse() {
   return "${smoke_status}"
 }
 
+inner_pixar_build_usd() {
+  source_url=https://github.com/PixarAnimationStudios/OpenUSD/archive/refs/tags/v25.05.01.tar.gz
+  source_sha=f424e8db26e063a1b005423ee52142e75c38185bbd4b8126ef64173e906dd50f
+  source_archive="${root}/openusd-v25.05.01.tar.gz"
+  source_root="${root}/openusd-source"
+  install_root="${root}/results/pixar-install"
+  rm -rf "${source_root}" "${install_root}"
+  curl -L --fail --retry 3 -o "${source_archive}" "${source_url}"
+  echo "${source_sha}  ${source_archive}" | sha256sum --check \
+    > "${root}/metadata/openusd-source-sha256.txt"
+  mkdir -p "${source_root}"
+  tar -xzf "${source_archive}" --strip-components=1 -C "${source_root}"
+  {
+    echo "source_url=${source_url}"
+    echo "source_sha256=${source_sha}"
+    gcc --version | head -1
+    g++ --version | head -1
+    cmake --version | head -1
+    python3 --version
+  } > "${root}/metadata/pixar-build-usd-inputs.txt"
+  python3 "${source_root}/build_scripts/build_usd.py" \
+    -j "${jobs}" \
+    --no-embree --no-prman \
+    --no-usdview --no-examples --no-tutorials \
+    --no-tests --no-docs --no-python-docs \
+    --materialx "${install_root}" \
+    2>&1 | tee "${root}/build-logs/pixar-build-usd.log"
+  rm -rf "${source_root}" "${source_archive}"
+  rm -rf "${install_root}/build" "${install_root}/src"
+  export PATH="${install_root}/bin:${PATH}"
+  export LD_LIBRARY_PATH="${install_root}/lib:${LD_LIBRARY_PATH:-}"
+  export PYTHONPATH="${install_root}/lib/python"
+  mtlx_library="$(find "${install_root}" -type d -path '*/libraries' -print -quit)"
+  [[ -n "${mtlx_library}" ]] || {
+    echo "Pixar control install is missing MaterialX libraries" >&2
+    return 1
+  }
+  export PXR_MTLX_STDLIB_SEARCH_PATHS="$(dirname "${mtlx_library}")"
+  export DIAGNOSTIC_REQUIRE_MATERIALX_PYTHON=0
+  install_software_gl
+  /src/scripts/tests/openusd_materialx_render_smoke.sh "${root}/results/smoke"
+}
+
 inner() {
+  if [[ "${variant}" == pixar-build-usd ]]; then
+    inner_pixar_build_usd
+    return
+  fi
   export ASWF_PKG_ORG=aswf
   export CMAKE_BUILD_PARALLEL_LEVEL="${jobs}"
   export CONAN_HOME="${root}/conan-home"
