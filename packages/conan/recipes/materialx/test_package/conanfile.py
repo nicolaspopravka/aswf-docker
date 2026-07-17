@@ -29,10 +29,11 @@ class TestMaterialXConan(ConanFile):
         if can_run(self):
             bin_path = os.path.join(self.cpp.build.bindir, "test_package")
             self.run(bin_path, env="conanrun")
-            self.run(
-                'python3 -c "import MaterialX as mx; print(mx.getVersionString())"',
-                env="conanrun",
-            )
+            if os.getenv("DIAGNOSTIC_SKIP_MATERIALX_PYTHON_TEST") != "1":
+                self.run(
+                    'python3 -c "import MaterialX as mx; print(mx.getVersionString())"',
+                    env="conanrun",
+                )
             self.run(
                 "python3 -c \"import os; p = os.environ['PXR_MTLX_STDLIB_SEARCH_PATHS']; "
                 "assert os.path.isfile(os.path.join(p, 'libraries', 'bxdf', "

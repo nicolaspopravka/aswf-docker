@@ -114,6 +114,7 @@ inner() {
   cp -a /src/packages/conan/recipes/materialx "${root}/recipes/materialx"
   cp -a /src/packages/conan/recipes/openusd "${root}/recipes/openusd"
   if [[ "${variant}" == pixar-materialx ]]; then
+    export DIAGNOSTIC_SKIP_MATERIALX_PYTHON_TEST=1
     sed -i -E \
       's#(tc\.variables\["MATERIALX_BUILD_PYTHON"\][[:space:]]*=[[:space:]]*)"ON"#\1"OFF"#' \
       "${root}/recipes/materialx/conanfile.py"
