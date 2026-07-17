@@ -29,6 +29,8 @@ versions:
     folder: all
   "2020.3.3":
     folder: "2020.x"
+  "2020.3.1":
+    folder: "2020.x"
   "2020.3":
     folder: "2020.x"
   "2020_u2":

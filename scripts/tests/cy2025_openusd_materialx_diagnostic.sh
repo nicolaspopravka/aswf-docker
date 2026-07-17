@@ -9,7 +9,7 @@ root="${DIAGNOSTIC_ROOT:-${PWD}/diagnostic-artifacts}"
 image="${DIAGNOSTIC_IMAGE:-aswf/ci-vfxall:2025}"
 jobs="${DIAGNOSTIC_JOBS:-4}"
 
-case "${variant}" in pixar-parity|pixar-materialx|pixar-materialx-layout|stock-options) ;; *) echo "unknown variant: ${variant}" >&2; exit 2;; esac
+case "${variant}" in pixar-parity|pixar-materialx|pixar-materialx-layout|pixar-core-tbb|stock-options) ;; *) echo "unknown variant: ${variant}" >&2; exit 2;; esac
 mkdir -p "${root}"/{build-logs,metadata,results}
 
 capacity() {
@@ -113,7 +113,10 @@ inner() {
   mkdir -p "${root}/recipes"
   cp -a /src/packages/conan/recipes/materialx "${root}/recipes/materialx"
   cp -a /src/packages/conan/recipes/openusd "${root}/recipes/openusd"
-  if [[ "${variant}" == pixar-materialx || "${variant}" == pixar-materialx-layout ]]; then
+  if [[ "${variant}" == pixar-core-tbb ]]; then
+    cp -a /src/packages/conan/recipes/onetbb/2020.x "${root}/recipes/onetbb"
+  fi
+  if [[ "${variant}" == pixar-materialx || "${variant}" == pixar-materialx-layout || "${variant}" == pixar-core-tbb ]]; then
     export DIAGNOSTIC_SKIP_MATERIALX_PYTHON_TEST=1
     sed -i -E \
       's#tc\.variables\["MATERIALX_BUILD_PYTHON"\][[:space:]]*=[[:space:]]*"ON"#tc.variables["MATERIALX_BUILD_PYTHON"] = "OFF"#' \
@@ -125,7 +128,7 @@ inner() {
         return 1
       }
   fi
-  if [[ "${variant}" == pixar-materialx-layout ]]; then
+  if [[ "${variant}" == pixar-materialx-layout || "${variant}" == pixar-core-tbb ]]; then
     sed -i -E \
       's#tc\.variables\["MATERIALX_INSTALL_STDLIB_PATH"\].*#tc.variables["MATERIALX_INSTALL_STDLIB_PATH"] = "libraries"#' \
       "${root}/recipes/materialx/conanfile.py"
@@ -162,11 +165,23 @@ inner() {
   sed -i -E \
     's#^openusd/\*:.*$#openusd/*: openusd/25.05.01@diagnostic/vfx2025#' \
     "${profile}"
+  if [[ "${variant}" == pixar-core-tbb ]]; then
+    sed -i -E \
+      's#^onetbb/\*:.*$#onetbb/*: onetbb/2020.3.1@diagnostic/vfx2025#' \
+      "${profile}"
+    grep -F 'onetbb/*: onetbb/2020.3.1@diagnostic/vfx2025' "${profile}" \
+      > "${root}/metadata/pixar-tbb-reference.txt"
+  fi
   cp "${profile}" "${root}/metadata/vfx2025-diagnostic.profile"
   env | sort > "${root}/metadata/environment.txt"
   git -c safe.directory=/src -C /src rev-parse HEAD > "${root}/metadata/aswf-docker-commit.txt"
   git -c safe.directory=/src -C /src status --short > "${root}/metadata/aswf-docker-status.txt"
   conan --version > "${root}/metadata/conan-version.txt"
+  if [[ "${variant}" == pixar-core-tbb ]]; then
+    conan create "${root}/recipes/onetbb" --version=2020.3.1 \
+      --user=diagnostic --channel=vfx2025 --profile:all="${profile}" \
+      --build='onetbb/*' 2>&1 | tee "${root}/build-logs/onetbb.log"
+  fi
   conan create "${root}/recipes/materialx" --version=1.39.3 \
     --user=diagnostic --channel=vfx2025 --profile:all="${profile}" \
     -o 'materialx/*:with_openimageio=False' --build='materialx/*' \
@@ -175,7 +190,7 @@ inner() {
     'shared=True' 'with_gpu=True' 'with_gl=True' 'with_python=True'
     'with_materialx=True' 'with_usdview=False'
   )
-  if [[ "${variant}" == pixar-parity || "${variant}" == pixar-materialx || "${variant}" == pixar-materialx-layout ]]; then
+  if [[ "${variant}" == pixar-parity || "${variant}" == pixar-materialx || "${variant}" == pixar-materialx-layout || "${variant}" == pixar-core-tbb ]]; then
     usd_option_names+=(
       'with_alembic=False' 'with_hdf5=False' 'with_opencolorio=False'
       'with_openimageio=False' 'with_openvdb=False' 'with_osl=False'
@@ -218,7 +233,7 @@ inner() {
   set +u
   source "${root}/results/generated/conanrun.sh"
   set -u
-  if [[ "${variant}" == pixar-materialx || "${variant}" == pixar-materialx-layout ]]; then
+  if [[ "${variant}" == pixar-materialx || "${variant}" == pixar-materialx-layout || "${variant}" == pixar-core-tbb ]]; then
     export DIAGNOSTIC_REQUIRE_MATERIALX_PYTHON=0
   fi
   install_software_gl
