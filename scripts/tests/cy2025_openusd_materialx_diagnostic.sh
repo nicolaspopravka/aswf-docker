@@ -69,6 +69,34 @@ reuse_container() {
 }
 
 inner_reuse() {
+  if [[ "${variant}" == pixar-build-usd ]]; then
+    install_root="${root}/results/pixar-install"
+    [[ -f "${install_root}/bin/usdrecord" ]] || {
+      echo "reused Pixar installation is missing usdrecord: ${install_root}/bin/usdrecord" >&2
+      return 1
+    }
+    [[ -d "${install_root}/lib/python/pxr" ]] || {
+      echo "reused Pixar installation is missing pxr modules" >&2
+      return 1
+    }
+    chmod +x "${install_root}/bin/usdrecord"
+    export PATH="${install_root}/bin:${PATH}"
+    export LD_LIBRARY_PATH="${install_root}/lib:${LD_LIBRARY_PATH:-}"
+    export PYTHONPATH="${install_root}/lib/python"
+    mtlx_library="$(find "${install_root}" -type d -path '*/libraries' -print -quit)"
+    [[ -n "${mtlx_library}" ]] || {
+      echo "reused Pixar installation is missing MaterialX libraries" >&2
+      return 1
+    }
+    export PXR_MTLX_STDLIB_SEARCH_PATHS="$(dirname "${mtlx_library}")"
+    export DIAGNOSTIC_REQUIRE_MATERIALX_PYTHON=0
+    printf '%s\n' "${DIAGNOSTIC_REUSE_RUN_ID:-unknown}" \
+      > "${root}/metadata/reused-run-id.txt"
+    rm -rf "${root}/results/smoke"
+    install_software_gl
+    /src/scripts/tests/openusd_materialx_render_smoke.sh "${root}/results/smoke"
+    return
+  fi
   deploy_root="${root}/results/deployed/full_deploy/host"
   usd_root="${deploy_root}/openusd/25.05.01/Release/x86_64"
   mtlx_root="${deploy_root}/materialx/1.39.3/Release/x86_64"

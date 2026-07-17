@@ -18,15 +18,12 @@ def Xform "World" {
     }
     def Scope "Looks" {
         def Material "Mat" {
-            token outputs:mtlx:surface.connect = </World/Looks/Mat/NG.outputs:out>
-            def NodeGraph "NG" {
-                token outputs:out.connect = </World/Looks/Mat/NG/SS.outputs:out>
-                def Shader "SS" {
-                    uniform token info:id = "ND_standard_surface_surfaceshader"
-                    float inputs:base = 1
-                    color3f inputs:base_color = (0.2, 0.6, 1.0)
-                    token outputs:out
-                }
+            token outputs:mtlx:surface.connect = </World/Looks/Mat/SS.outputs:surface>
+            def Shader "SS" {
+                uniform token info:id = "ND_standard_surface_surfaceshader"
+                float inputs:base = 1
+                color3f inputs:base_color = (0.2, 0.6, 1.0)
+                token outputs:surface
             }
         }
     }
