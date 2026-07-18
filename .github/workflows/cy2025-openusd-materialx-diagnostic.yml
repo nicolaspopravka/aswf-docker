@@ -26,6 +26,15 @@ on:
         options:
           - stock-xvfb
           - egl-noqt
+      materialx_stdlib_path_mode:
+        description: MaterialX stdlib path mode for ASWF Conan artifact reuse
+        required: true
+        default: parent
+        type: choice
+        options:
+          - parent
+          - libraries
+          - both
       reuse_run_id:
         description: Prior run whose deployed packages should be reused; leave empty for a full rebuild
         required: false
@@ -96,6 +105,7 @@ jobs:
           DIAGNOSTIC_VARIANT: ${{ inputs.variant }}
           DIAGNOSTIC_REUSE_RUN_ID: ${{ inputs.reuse_run_id }}
           DIAGNOSTIC_RENDER_CONTEXT: ${{ inputs.render_context }}
+          DIAGNOSTIC_MTLX_STDLIB_PATH_MODE: ${{ inputs.materialx_stdlib_path_mode }}
         run: |
           set -o pipefail
           mode=run

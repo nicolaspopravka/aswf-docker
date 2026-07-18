@@ -95,8 +95,48 @@ reuse_container() {
     -e DIAGNOSTIC_REUSE_RUN_ID="${DIAGNOSTIC_REUSE_RUN_ID:-}" \
     -e DIAGNOSTIC_ROOT=/evidence \
     -e DIAGNOSTIC_RENDER_CONTEXT="${DIAGNOSTIC_RENDER_CONTEXT:-stock-xvfb}" \
+    -e DIAGNOSTIC_MTLX_STDLIB_PATH_MODE="${DIAGNOSTIC_MTLX_STDLIB_PATH_MODE:-parent}" \
     -v "${PWD}:/src:ro" -v "${root}:/evidence" -w /src \
     "${image}" scripts/tests/cy2025_openusd_materialx_diagnostic.sh inner-reuse
+}
+
+run_reuse_smoke() {
+  local mode="$1"
+  local mtlx_root="$2"
+  local stdlib_path
+  case "${mode}" in
+    parent) stdlib_path="${mtlx_root}/share/MaterialX" ;;
+    libraries) stdlib_path="${mtlx_root}/share/MaterialX/libraries" ;;
+    *) echo "unknown MaterialX stdlib path mode: ${mode}" >&2; return 2 ;;
+  esac
+  [[ -d "${stdlib_path}" ]] || {
+    echo "MaterialX stdlib path is missing: ${stdlib_path}" >&2
+    return 1
+  }
+  export PXR_MTLX_STDLIB_SEARCH_PATHS="${stdlib_path}"
+  printf '%s\n' "${stdlib_path}" > "${root}/metadata/materialx-stdlib-path-${mode}.txt"
+  rm -rf "${root}/results/smoke-${mode}"
+  set +e
+  /src/scripts/tests/openusd_materialx_render_smoke.sh "${root}/results/smoke-${mode}"
+  local smoke_status=$?
+  set -e
+  return "${smoke_status}"
+}
+
+run_reuse_smoke_modes() {
+  local mtlx_root="$1"
+  local mode
+  local result=0
+  case "${DIAGNOSTIC_MTLX_STDLIB_PATH_MODE:-parent}" in
+    parent) modes=(parent) ;;
+    libraries) modes=(libraries) ;;
+    both) modes=(parent libraries) ;;
+    *) echo "unknown MaterialX stdlib path mode: ${DIAGNOSTIC_MTLX_STDLIB_PATH_MODE}" >&2; return 2 ;;
+  esac
+  for mode in "${modes[@]}"; do
+    run_reuse_smoke "${mode}" "${mtlx_root}" || result=1
+  done
+  return "${result}"
 }
 
 inner_reuse() {
@@ -171,13 +211,11 @@ inner_reuse() {
   export PATH="${path_entries}:${PATH}"
   export LD_LIBRARY_PATH="${lib_entries}:${LD_LIBRARY_PATH:-}"
   export PYTHONPATH="${usd_root}/lib/python:${mtlx_root}/share/MaterialX/python"
-  export PXR_MTLX_STDLIB_SEARCH_PATHS="${mtlx_root}/share/MaterialX"
   printf '%s\n' "${DIAGNOSTIC_REUSE_RUN_ID:-unknown}" \
     > "${root}/metadata/reused-run-id.txt"
-  rm -rf "${root}/results/smoke"
   install_software_gl
   set +e
-  /src/scripts/tests/openusd_materialx_render_smoke.sh "${root}/results/smoke"
+  run_reuse_smoke_modes "${mtlx_root}"
   smoke_status=$?
   set -e
   rm -rf "${root}/results/deployed" "${root}/results/generated"
