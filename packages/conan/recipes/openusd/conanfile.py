@@ -177,7 +177,7 @@ class OpenUSDConan(ConanFile):
         tc.variables["PXR_ENABLE_MATERIALX_SUPPORT"] = self.options.with_materialx   # ASWF: build MaterialX support
         if self.options.with_materialx:
             materialx_info = self.dependencies["materialx"]
-            tc.variables["MATERIALX_STDLIB_DIR"] = os.path.join(materialx_info.package_folder,"share","MaterialX")
+            tc.variables["MATERIALX_STDLIB_DIR"] = os.path.join(materialx_info.package_folder,"share","MaterialX","libraries")
             tc.variables["MaterialX_DIR"] = os.path.join(materialx_info.package_folder, "lib", "cmake", "MaterialX")
         tc.variables["PXR_BUILD_OPENCOLORIO_PLUGIN"] = self.options.with_opencolorio # ASWF: build OpenColorIO plugin
         tc.variables["PXR_BUILD_OPENIMAGEIO_PLUGIN"] = self.options.with_openimageio # ASWF: build OpenImageIO plugin

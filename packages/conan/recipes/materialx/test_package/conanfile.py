@@ -36,7 +36,7 @@ class TestMaterialXConan(ConanFile):
                 )
             self.run(
                 "python3 -c \"import os; p = os.environ['PXR_MTLX_STDLIB_SEARCH_PATHS']; "
-                "assert os.path.isfile(os.path.join(p, 'libraries', 'bxdf', "
+                "assert os.path.isfile(os.path.join(p, 'bxdf', "
                 "'standard_surface.mtlx')); print(p)\"",
                 env="conanrun",
             )
