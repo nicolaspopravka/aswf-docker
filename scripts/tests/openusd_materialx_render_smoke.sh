@@ -4,8 +4,17 @@
 set -euo pipefail
 root="${1:?evidence directory required}"
 mkdir -p "${root}"/{images,logs,metadata}
+render_context="${DIAGNOSTIC_RENDER_CONTEXT:-stock-xvfb}"
+case "${render_context}" in
+  stock-xvfb|egl-noqt) ;;
+  *) echo "unknown render context: ${render_context}" >&2; exit 2 ;;
+esac
 usdrecord_python="${DIAGNOSTIC_USDRECORD_PYTHON:-/usr/local/bin/python3}"
-usdrecord_script="$(command -v usdrecord)"
+if [[ "${render_context}" == egl-noqt ]]; then
+  usdrecord_script="${DIAGNOSTIC_USDRECORD_SCRIPT:-/src/scripts/tests/usdrecord_egl_noqt.py}"
+else
+  usdrecord_script="${DIAGNOSTIC_USDRECORD_SCRIPT:-$(command -v usdrecord)}"
+fi
 [[ -x "${usdrecord_python}" ]] || {
   echo "stock usdrecord Python is not executable: ${usdrecord_python}" >&2
   exit 1
@@ -14,17 +23,28 @@ usdrecord_script="$(command -v usdrecord)"
   echo "usdrecord script was not found: ${usdrecord_script}" >&2
   exit 1
 }
-export DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe
+export LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe
 unset MESA_LOADER_DRIVER_OVERRIDE
-Xvfb :99 -screen 0 640x480x24 +extension GLX +render -noreset >"${root}/metadata/xvfb.log" 2>&1 &
-xvfb_pid=$!
-trap 'kill "${xvfb_pid}" 2>/dev/null || true' EXIT
-sleep 2
+if [[ "${render_context}" == egl-noqt ]]; then
+  unset DISPLAY
+  export EGL_PLATFORM=surfaceless PXR_EGL_ALLOW_SOFTWARE_GL=1
+  echo "not used by egl-noqt" >"${root}/metadata/xvfb.log"
+else
+  export DISPLAY=:99
+  unset EGL_PLATFORM PXR_EGL_ALLOW_SOFTWARE_GL
+  Xvfb :99 -screen 0 640x480x24 +extension GLX +render -noreset >"${root}/metadata/xvfb.log" 2>&1 &
+  xvfb_pid=$!
+  trap 'kill "${xvfb_pid}" 2>/dev/null || true' EXIT
+  sleep 2
+fi
 {
+  echo "DIAGNOSTIC_RENDER_CONTEXT=${render_context}"
   echo "LIBGL_ALWAYS_SOFTWARE=${LIBGL_ALWAYS_SOFTWARE}"
   echo "GALLIUM_DRIVER=${GALLIUM_DRIVER}"
   echo "MESA_LOADER_DRIVER_OVERRIDE=${MESA_LOADER_DRIVER_OVERRIDE:-unset}"
-  echo "DISPLAY=${DISPLAY}"
+  echo "DISPLAY=${DISPLAY:-unset}"
+  echo "EGL_PLATFORM=${EGL_PLATFORM:-unset}"
+  echo "PXR_EGL_ALLOW_SOFTWARE_GL=${PXR_EGL_ALLOW_SOFTWARE_GL:-unset}"
   echo "PXR_MTLX_STDLIB_SEARCH_PATHS=${PXR_MTLX_STDLIB_SEARCH_PATHS:-unset}"
   echo "NVIDIA_CPU_ONLY=${NVIDIA_CPU_ONLY:-unset}"
   echo "NVIDIA_VISIBLE_DEVICES=${NVIDIA_VISIBLE_DEVICES:-unset}"
@@ -49,11 +69,13 @@ for utility in glxinfo eglinfo; do
     echo 127 >"${root}/metadata/${utility}.exit"
   fi
 done
-if [[ "$(<"${root}/metadata/glxinfo.exit")" != 0 ]] || \
-  ! grep -Eqi 'OpenGL renderer string:.*llvmpipe|Device: llvmpipe' \
-    "${root}/metadata/glxinfo.log"; then
-  echo "software GL preflight did not select LLVMpipe" >&2
-  exit 1
+if [[ "${render_context}" == stock-xvfb ]]; then
+  if [[ "$(<"${root}/metadata/glxinfo.exit")" != 0 ]] || \
+    ! grep -Eqi 'OpenGL renderer string:.*llvmpipe|Device: llvmpipe' \
+      "${root}/metadata/glxinfo.log"; then
+    echo "software GL preflight did not select LLVMpipe" >&2
+    exit 1
+  fi
 fi
 qxcb_plugin="$(find /usr /opt -type f -name 'libqxcb.so' -print -quit 2>/dev/null || true)"
 if [[ -n "${qxcb_plugin}" ]]; then
@@ -68,6 +90,9 @@ fi
   "${usdrecord_python}" -c 'import sys; print(sys.executable, sys.version)'
   "${usdrecord_python}" -c 'import PySide6; print(PySide6.__file__)'
   echo "usdrecord=${usdrecord_script}"
+  if [[ "${render_context}" == egl-noqt ]]; then
+    sha256sum "${usdrecord_script}"
+  fi
 } >"${root}/metadata/usdrecord-python.txt"
 "${usdrecord_python}" -c 'from pxr import Usd; print(Usd.GetVersion())' >"${root}/metadata/openusd.txt"
 set +e
@@ -92,6 +117,16 @@ for scene in usdpreview_control materialx_standard_surface; do
   echo "${status}" >"${root}/logs/${scene}.exit"
   [[ "${status}" == 0 && -s "${root}/images/${scene}.png" ]] || result=1
   grep -Eqi 'Failed to compile shader|Generated MaterialX Document does not have 1 material|Invalid port connection|Invalid info:id|undefined variable|undeclared' "${root}/logs/${scene}.log" && result=1 || true
+  if [[ "${render_context}" == egl-noqt ]] && \
+    ! grep -Eqi '^EGL [0-9]+\.[0-9]+$' "${root}/logs/${scene}.log"; then
+    echo "${scene}: EGL initialization was not recorded" >&2
+    result=1
+  fi
+  if [[ "${render_context}" == egl-noqt ]] && \
+    ! grep -Eqi '^GL_RENDERER:.*llvmpipe' "${root}/logs/${scene}.log"; then
+    echo "${scene}: EGL did not select LLVMpipe" >&2
+    result=1
+  fi
 done
 if [[ -n "${DIAGNOSTIC_OPENCHESSSET:-}" ]]; then
   [[ -f "${DIAGNOSTIC_OPENCHESSSET}" ]] || {
@@ -111,6 +146,16 @@ if [[ -n "${DIAGNOSTIC_OPENCHESSSET:-}" ]]; then
     [[ "${status}" == 0 && -s "${root}/images/openchessset.png" ]] || result=1
     grep -Eqi 'Failed to compile shader|Generated MaterialX Document does not have 1 material|Invalid port connection|Invalid info:id|undefined variable|undeclared' \
       "${root}/logs/openchessset.log" && result=1 || true
+    if [[ "${render_context}" == egl-noqt ]] && \
+      ! grep -Eqi '^EGL [0-9]+\.[0-9]+$' "${root}/logs/openchessset.log"; then
+      echo "OpenChessSet: EGL initialization was not recorded" >&2
+      result=1
+    fi
+    if [[ "${render_context}" == egl-noqt ]] && \
+      ! grep -Eqi '^GL_RENDERER:.*llvmpipe' "${root}/logs/openchessset.log"; then
+      echo "OpenChessSet: EGL did not select LLVMpipe" >&2
+      result=1
+    fi
   fi
 fi
 set +e

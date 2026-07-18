@@ -18,6 +18,14 @@ on:
           - pixar-build-usd
           - pixar-build-usd-ci-common5
           - stock-options
+      render_context:
+        description: OpenGL context used by the render smoke test
+        required: true
+        default: stock-xvfb
+        type: choice
+        options:
+          - stock-xvfb
+          - egl-noqt
       reuse_run_id:
         description: Prior run whose deployed packages should be reused; leave empty for a full rebuild
         required: false
@@ -87,6 +95,7 @@ jobs:
         env:
           DIAGNOSTIC_VARIANT: ${{ inputs.variant }}
           DIAGNOSTIC_REUSE_RUN_ID: ${{ inputs.reuse_run_id }}
+          DIAGNOSTIC_RENDER_CONTEXT: ${{ inputs.render_context }}
         run: |
           set -o pipefail
           mode=run

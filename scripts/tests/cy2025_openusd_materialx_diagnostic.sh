@@ -82,6 +82,7 @@ run_container() {
   docker run --rm \
     -e DIAGNOSTIC_INNER=1 -e DIAGNOSTIC_VARIANT="${variant}" \
     -e DIAGNOSTIC_JOBS="${jobs}" -e DIAGNOSTIC_ROOT=/evidence \
+    -e DIAGNOSTIC_RENDER_CONTEXT="${DIAGNOSTIC_RENDER_CONTEXT:-stock-xvfb}" \
     -v "${PWD}:/src:ro" -v "${root}:/evidence" -w /src \
     "${image}" scripts/tests/cy2025_openusd_materialx_diagnostic.sh inner
 }
@@ -93,6 +94,7 @@ reuse_container() {
     -e DIAGNOSTIC_INNER=1 -e DIAGNOSTIC_VARIANT="${variant}" \
     -e DIAGNOSTIC_REUSE_RUN_ID="${DIAGNOSTIC_REUSE_RUN_ID:-}" \
     -e DIAGNOSTIC_ROOT=/evidence \
+    -e DIAGNOSTIC_RENDER_CONTEXT="${DIAGNOSTIC_RENDER_CONTEXT:-stock-xvfb}" \
     -v "${PWD}:/src:ro" -v "${root}:/evidence" -w /src \
     "${image}" scripts/tests/cy2025_openusd_materialx_diagnostic.sh inner-reuse
 }
