@@ -9,9 +9,9 @@ root="${DIAGNOSTIC_ROOT:-${PWD}/diagnostic-artifacts}"
 image="${DIAGNOSTIC_IMAGE:-aswf/ci-vfxall:2025}"
 jobs="${DIAGNOSTIC_JOBS:-4}"
 
-case "${variant}" in pixar-parity|pixar-materialx|pixar-materialx-layout|pixar-core-tbb|pixar-build-usd|pixar-build-usd-ci-common6|stock-options) ;; *) echo "unknown variant: ${variant}" >&2; exit 2;; esac
-if [[ "${variant}" == pixar-build-usd-ci-common6 ]]; then
-  image="aswf/ci-common:6-clang20"
+case "${variant}" in pixar-parity|pixar-materialx|pixar-materialx-layout|pixar-core-tbb|pixar-build-usd|pixar-build-usd-ci-common5|stock-options) ;; *) echo "unknown variant: ${variant}" >&2; exit 2;; esac
+if [[ "${variant}" == pixar-build-usd-ci-common5 ]]; then
+  image="aswf/ci-common:5-clang19"
 fi
 mkdir -p "${root}"/{build-logs,metadata,results}
 
@@ -46,7 +46,7 @@ install_software_gl() {
   mkdir -p "${root}/metadata"
   gl_packages=(mesa-dri-drivers)
   gl_rpms=(mesa-dri-drivers mesa-libGL mesa-libEGL)
-  if [[ "${variant}" == pixar-build-usd-ci-common6 ]]; then
+  if [[ "${variant}" == pixar-build-usd-ci-common5 ]]; then
     gl_packages+=(xorg-x11-server-Xvfb glx-utils)
     gl_rpms+=(xorg-x11-server-Xvfb glx-utils)
   fi
@@ -56,7 +56,7 @@ install_software_gl() {
     > "${root}/metadata/mesa-packages.txt"
 }
 
-prepare_ci_common6_runtime() {
+prepare_ci_common5_runtime() {
   gcc_toolset_root=/opt/rh/gcc-toolset-14/root
   [[ -x "${gcc_toolset_root}/usr/bin/gcc" ]] || {
     echo "GCC toolset 14 is missing from ci-common: ${gcc_toolset_root}" >&2
@@ -73,7 +73,7 @@ prepare_ci_common6_runtime() {
     echo "gcc_toolset_root=${gcc_toolset_root}"
     python3 -c 'import sys; print(sys.executable, sys.version)'
     python3 -c 'import PySide6; print(PySide6.__file__, PySide6.__version__)'
-  } > "${root}/metadata/ci-common6-runtime.txt"
+  } > "${root}/metadata/ci-common5-runtime.txt"
 }
 
 run_container() {
@@ -98,9 +98,9 @@ reuse_container() {
 }
 
 inner_reuse() {
-  if [[ "${variant}" == pixar-build-usd || "${variant}" == pixar-build-usd-ci-common6 ]]; then
-    if [[ "${variant}" == pixar-build-usd-ci-common6 ]]; then
-      prepare_ci_common6_runtime
+  if [[ "${variant}" == pixar-build-usd || "${variant}" == pixar-build-usd-ci-common5 ]]; then
+    if [[ "${variant}" == pixar-build-usd-ci-common5 ]]; then
+      prepare_ci_common5_runtime
     fi
     install_root="${root}/results/pixar-install"
     [[ -f "${install_root}/bin/usdrecord" ]] || {
@@ -122,7 +122,7 @@ inner_reuse() {
     }
     export PXR_MTLX_STDLIB_SEARCH_PATHS="$(dirname "${mtlx_library}")"
     export DIAGNOSTIC_REQUIRE_MATERIALX_PYTHON=0
-    if [[ "${variant}" == pixar-build-usd-ci-common6 ]]; then
+    if [[ "${variant}" == pixar-build-usd-ci-common5 ]]; then
       export DIAGNOSTIC_USDRECORD_PYTHON="$(command -v python3)"
     fi
     printf '%s\n' "${DIAGNOSTIC_REUSE_RUN_ID:-unknown}" \
@@ -189,8 +189,8 @@ inner_pixar_build_usd() {
   source_root="${root}/openusd-source"
   install_root="${root}/results/pixar-install"
   rm -rf "${source_root}" "${install_root}"
-  if [[ "${variant}" == pixar-build-usd-ci-common6 ]]; then
-    prepare_ci_common6_runtime
+  if [[ "${variant}" == pixar-build-usd-ci-common5 ]]; then
+    prepare_ci_common5_runtime
   fi
   curl -L --fail --retry 3 -o "${source_archive}" "${source_url}"
   echo "${source_sha}  ${source_archive}" | sha256sum --check \
@@ -240,7 +240,7 @@ inner_pixar_build_usd() {
   }
   export PXR_MTLX_STDLIB_SEARCH_PATHS="$(dirname "${mtlx_library}")"
   export DIAGNOSTIC_REQUIRE_MATERIALX_PYTHON=0
-  if [[ "${variant}" == pixar-build-usd-ci-common6 ]]; then
+  if [[ "${variant}" == pixar-build-usd-ci-common5 ]]; then
     export DIAGNOSTIC_USDRECORD_PYTHON="$(command -v python3)"
   fi
   install_software_gl
@@ -248,7 +248,7 @@ inner_pixar_build_usd() {
 }
 
 inner() {
-  if [[ "${variant}" == pixar-build-usd || "${variant}" == pixar-build-usd-ci-common6 ]]; then
+  if [[ "${variant}" == pixar-build-usd || "${variant}" == pixar-build-usd-ci-common5 ]]; then
     inner_pixar_build_usd
     return
   fi
