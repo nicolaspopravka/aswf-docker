@@ -106,6 +106,16 @@ if [[ "${DIAGNOSTIC_REQUIRE_MATERIALX_PYTHON:-1}" == 1 && "${materialx_python_st
   exit 1
 fi
 result=0
+fixture_dir=/src/scripts/tests/fixtures/openusd-materialx
+sha256sum "${fixture_dir}/usdpreview_control.usda" \
+  "${fixture_dir}/materialx_standard_surface.usda" \
+  >"${root}/metadata/fixture-sha256.txt"
+expected_materialx_fixture_sha256="65a9b3bfa1fc4392e7ce49f7a55f923d7478f792cdb16a7bf89c1e17293d9f97"
+if ! sha256sum "${fixture_dir}/materialx_standard_surface.usda" \
+    | grep -Fq "${expected_materialx_fixture_sha256}"; then
+  echo "corrected direct-shader MaterialX fixture SHA-256 mismatch" >&2
+  result=1
+fi
 for scene in usdpreview_control materialx_standard_surface; do
   set +e
   timeout 120 "${usdrecord_python}" "${usdrecord_script}" \
