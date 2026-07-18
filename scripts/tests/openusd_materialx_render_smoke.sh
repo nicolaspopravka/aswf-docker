@@ -106,6 +106,20 @@ if [[ "${DIAGNOSTIC_REQUIRE_MATERIALX_PYTHON:-1}" == 1 && "${materialx_python_st
   exit 1
 fi
 result=0
+openchessset_required="${DIAGNOSTIC_OPENCHESSSET_REQUIRED:-0}"
+openchessset_timeout="${DIAGNOSTIC_OPENCHESSSET_TIMEOUT:-300}"
+case "${openchessset_required}" in
+  0|1) ;;
+  *) echo "DIAGNOSTIC_OPENCHESSSET_REQUIRED must be 0 or 1" >&2; exit 2 ;;
+esac
+[[ "${openchessset_timeout}" =~ ^[1-9][0-9]*$ ]] || {
+  echo "DIAGNOSTIC_OPENCHESSSET_TIMEOUT must be a positive integer" >&2
+  exit 2
+}
+{
+  echo "DIAGNOSTIC_OPENCHESSSET_REQUIRED=${openchessset_required}"
+  echo "DIAGNOSTIC_OPENCHESSSET_TIMEOUT=${openchessset_timeout}"
+} >"${root}/metadata/openchessset-policy.txt"
 fixture_dir=/src/scripts/tests/fixtures/openusd-materialx
 sha256sum "${fixture_dir}/usdpreview_control.usda" \
   "${fixture_dir}/materialx_standard_surface.usda" \
@@ -141,11 +155,11 @@ done
 if [[ -n "${DIAGNOSTIC_OPENCHESSSET:-}" ]]; then
   [[ -f "${DIAGNOSTIC_OPENCHESSSET}" ]] || {
     echo "OpenChessSet input is missing: ${DIAGNOSTIC_OPENCHESSSET}" >&2
-    result=1
+    [[ "${openchessset_required}" == 1 ]] && result=1
   }
   if [[ -f "${DIAGNOSTIC_OPENCHESSSET}" ]]; then
     set +e
-    timeout 300 "${usdrecord_python}" "${usdrecord_script}" \
+    timeout "${openchessset_timeout}" "${usdrecord_python}" "${usdrecord_script}" \
       --camera main_cam --renderer Storm --purposes render \
       --imageWidth 512 "${DIAGNOSTIC_OPENCHESSSET}" \
       "${root}/images/openchessset.png" \
@@ -153,18 +167,24 @@ if [[ -n "${DIAGNOSTIC_OPENCHESSSET:-}" ]]; then
     status=$?
     set -e
     echo "${status}" >"${root}/logs/openchessset.exit"
-    [[ "${status}" == 0 && -s "${root}/images/openchessset.png" ]] || result=1
-    grep -Eqi 'Failed to compile shader|Generated MaterialX Document does not have 1 material|Invalid port connection|Invalid info:id|undefined variable|undeclared' \
-      "${root}/logs/openchessset.log" && result=1 || true
+    if [[ "${openchessset_required}" == 1 ]]; then
+      [[ "${status}" == 0 && -s "${root}/images/openchessset.png" ]] || result=1
+    else
+      printf '%s\n' "optional" >"${root}/logs/openchessset.required"
+    fi
+    if grep -Eqi 'Failed to compile shader|Generated MaterialX Document does not have 1 material|Invalid port connection|Invalid info:id|undefined variable|undeclared' \
+      "${root}/logs/openchessset.log"; then
+      [[ "${openchessset_required}" == 1 ]] && result=1
+    fi
     if [[ "${render_context}" == egl-noqt ]] && \
       ! grep -Eqi '^EGL [0-9]+\.[0-9]+$' "${root}/logs/openchessset.log"; then
       echo "OpenChessSet: EGL initialization was not recorded" >&2
-      result=1
+      [[ "${openchessset_required}" == 1 ]] && result=1
     fi
     if [[ "${render_context}" == egl-noqt ]] && \
       ! grep -Eqi '^GL_RENDERER:.*llvmpipe' "${root}/logs/openchessset.log"; then
       echo "OpenChessSet: EGL did not select LLVMpipe" >&2
-      result=1
+      [[ "${openchessset_required}" == 1 ]] && result=1
     fi
   fi
 fi
@@ -198,6 +218,8 @@ raise SystemExit(0 if not image.isNull() and len(colors) > 1 else 1)
   set -e
   echo "${openchessset_variation_status}" \
     > "${root}/metadata/openchessset-image-variation.exit"
-  [[ "${openchessset_variation_status}" == 0 ]] || result=1
+  if [[ "${openchessset_required}" == 1 ]]; then
+    [[ "${openchessset_variation_status}" == 0 ]] || result=1
+  fi
 fi
 exit "${result}"

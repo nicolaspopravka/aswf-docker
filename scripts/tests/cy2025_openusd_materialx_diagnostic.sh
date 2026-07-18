@@ -83,6 +83,9 @@ run_container() {
     -e DIAGNOSTIC_INNER=1 -e DIAGNOSTIC_VARIANT="${variant}" \
     -e DIAGNOSTIC_JOBS="${jobs}" -e DIAGNOSTIC_ROOT=/evidence \
     -e DIAGNOSTIC_RENDER_CONTEXT="${DIAGNOSTIC_RENDER_CONTEXT:-stock-xvfb}" \
+    -e DIAGNOSTIC_INCLUDE_OPENCHESSSET="${DIAGNOSTIC_INCLUDE_OPENCHESSSET:-0}" \
+    -e DIAGNOSTIC_OPENCHESSSET_REQUIRED="${DIAGNOSTIC_OPENCHESSSET_REQUIRED:-0}" \
+    -e DIAGNOSTIC_OPENCHESSSET_TIMEOUT="${DIAGNOSTIC_OPENCHESSSET_TIMEOUT:-300}" \
     -v "${PWD}:/src:ro" -v "${root}:/evidence" -w /src \
     "${image}" scripts/tests/cy2025_openusd_materialx_diagnostic.sh inner
 }
@@ -95,6 +98,9 @@ reuse_container() {
     -e DIAGNOSTIC_REUSE_RUN_ID="${DIAGNOSTIC_REUSE_RUN_ID:-}" \
     -e DIAGNOSTIC_ROOT=/evidence \
     -e DIAGNOSTIC_RENDER_CONTEXT="${DIAGNOSTIC_RENDER_CONTEXT:-stock-xvfb}" \
+    -e DIAGNOSTIC_INCLUDE_OPENCHESSSET="${DIAGNOSTIC_INCLUDE_OPENCHESSSET:-0}" \
+    -e DIAGNOSTIC_OPENCHESSSET_REQUIRED="${DIAGNOSTIC_OPENCHESSSET_REQUIRED:-0}" \
+    -e DIAGNOSTIC_OPENCHESSSET_TIMEOUT="${DIAGNOSTIC_OPENCHESSSET_TIMEOUT:-300}" \
     -e DIAGNOSTIC_MTLX_STDLIB_PATH_MODE="${DIAGNOSTIC_MTLX_STDLIB_PATH_MODE:-parent}" \
     -v "${PWD}:/src:ro" -v "${root}:/evidence" -w /src \
     "${image}" scripts/tests/cy2025_openusd_materialx_diagnostic.sh inner-reuse
@@ -170,17 +176,19 @@ inner_reuse() {
     printf '%s\n' "${DIAGNOSTIC_REUSE_RUN_ID:-unknown}" \
       > "${root}/metadata/reused-run-id.txt"
     asset_root="${root}/input-assets"
-    rm -rf "${asset_root}"
-    git init "${asset_root}"
-    git -C "${asset_root}" remote add origin https://github.com/usd-wg/assets.git
-    git -C "${asset_root}" -c protocol.version=2 fetch --depth=1 \
-      --filter=blob:none origin 907d5f17bbe933fc14441a3f3ab69a5bd8abe32a
-    git -C "${asset_root}" sparse-checkout init --cone
-    git -C "${asset_root}" sparse-checkout set full_assets/OpenChessSet
-    git -C "${asset_root}" checkout --detach FETCH_HEAD
-    git -C "${asset_root}" rev-parse HEAD \
-      > "${root}/metadata/openchessset-commit.txt"
-    export DIAGNOSTIC_OPENCHESSSET="${asset_root}/full_assets/OpenChessSet/chess_set.usda"
+    if [[ "${DIAGNOSTIC_INCLUDE_OPENCHESSSET:-0}" == 1 ]]; then
+      rm -rf "${asset_root}"
+      git init "${asset_root}"
+      git -C "${asset_root}" remote add origin https://github.com/usd-wg/assets.git
+      git -C "${asset_root}" -c protocol.version=2 fetch --depth=1 \
+        --filter=blob:none origin 907d5f17bbe933fc14441a3f3ab69a5bd8abe32a
+      git -C "${asset_root}" sparse-checkout init --cone
+      git -C "${asset_root}" sparse-checkout set full_assets/OpenChessSet
+      git -C "${asset_root}" checkout --detach FETCH_HEAD
+      git -C "${asset_root}" rev-parse HEAD \
+        > "${root}/metadata/openchessset-commit.txt"
+      export DIAGNOSTIC_OPENCHESSSET="${asset_root}/full_assets/OpenChessSet/chess_set.usda"
+    fi
     rm -rf "${root}/results/smoke"
     install_software_gl
     set +e

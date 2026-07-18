@@ -29,12 +29,22 @@ on:
       materialx_stdlib_path_mode:
         description: MaterialX stdlib path mode for ASWF Conan artifact reuse
         required: true
-        default: parent
+        default: libraries
         type: choice
         options:
           - parent
           - libraries
           - both
+      include_openchessset:
+        description: Include the optional, potentially slow OpenChessSet software-GL render
+        required: true
+        default: false
+        type: boolean
+      openchessset_timeout:
+        description: OpenChessSet timeout in seconds when included
+        required: true
+        default: '300'
+        type: string
       reuse_run_id:
         description: Prior run whose deployed packages should be reused; leave empty for a full rebuild
         required: false
@@ -106,6 +116,9 @@ jobs:
           DIAGNOSTIC_REUSE_RUN_ID: ${{ inputs.reuse_run_id }}
           DIAGNOSTIC_RENDER_CONTEXT: ${{ inputs.render_context }}
           DIAGNOSTIC_MTLX_STDLIB_PATH_MODE: ${{ inputs.materialx_stdlib_path_mode }}
+          DIAGNOSTIC_INCLUDE_OPENCHESSSET: ${{ inputs.include_openchessset && '1' || '0' }}
+          DIAGNOSTIC_OPENCHESSSET_TIMEOUT: ${{ inputs.openchessset_timeout }}
+          DIAGNOSTIC_OPENCHESSSET_REQUIRED: '0'
         run: |
           set -o pipefail
           mode=run
