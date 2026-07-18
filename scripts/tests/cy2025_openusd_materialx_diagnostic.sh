@@ -57,9 +57,9 @@ install_software_gl() {
 }
 
 prepare_ci_common5_runtime() {
-  gcc_toolset_root=/opt/rh/gcc-toolset-14/root
+  gcc_toolset_root="/opt/rh/${ASWF_DTS_PREFIX:?missing ASWF_DTS_PREFIX}-${ASWF_DTS_VERSION:?missing ASWF_DTS_VERSION}/root"
   [[ -x "${gcc_toolset_root}/usr/bin/gcc" ]] || {
-    echo "GCC toolset 14 is missing from ci-common: ${gcc_toolset_root}" >&2
+    echo "Image-declared GCC toolset is missing from ci-common: ${gcc_toolset_root}" >&2
     return 1
   }
   export PATH="${gcc_toolset_root}/usr/bin:${PATH}"
