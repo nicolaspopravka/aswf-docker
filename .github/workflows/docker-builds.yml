@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - '*'
-      - '!codex/cy2025-openusd-materialx-render'
     paths-ignore:
       - '**.md'
   pull_request:
@@ -12,6 +11,10 @@ on:
       - '*'
     paths-ignore:
       - '**.md'
+
+permissions:
+  contents: read
+  packages: write
 
 jobs:
   build:
@@ -25,6 +28,13 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - group: vfx-2024
+            name: vfx-2024
+            common_version: 4-clang16
+            common_version_noclang: 4
+            version: 2024-clang16
+            version_noclang: 2024
+            test: ""
           - group: vfx-2026
             name: vfx-2026
             common_version: 6-clang20
@@ -383,3 +393,19 @@ jobs:
         fi
       name: Run test script ${{ matrix.version }}/test_${{ matrix.test }}.sh to check Docker image
       if: ${{ matrix.test != '' }}
+
+    - name: Log in to GitHub Container Registry
+      run: echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Publish fixed VFX-all image to GHCR
+      env:
+        SOURCE_IMAGE: docker.io/aswftesting/ci-vfxall:${{ matrix.version_noclang }}
+        TARGET_IMAGE: ghcr.io/${{ github.repository_owner }}/aswf-ci-vfxall:${{ matrix.version_noclang }}-openusd-fix-${{ github.sha }}
+      run: |
+        set -eux
+        docker image inspect "$SOURCE_IMAGE"
+        docker tag "$SOURCE_IMAGE" "$TARGET_IMAGE"
+        docker push "$TARGET_IMAGE"
+        docker buildx imagetools inspect "$TARGET_IMAGE" | tee "ghcr-${{ matrix.version_noclang }}-image.txt"
