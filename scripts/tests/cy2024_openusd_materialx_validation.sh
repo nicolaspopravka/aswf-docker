@@ -47,6 +47,11 @@ case "${render_context}" in
   *) echo "DIAGNOSTIC_RENDER_CONTEXT must be egl-noqt or stock-xvfb" >&2; exit 2 ;;
 esac
 export DIAGNOSTIC_RENDER_CONTEXT="${render_context}"
+if [[ "${render_context}" == egl-noqt ]]; then
+  export DIAGNOSTIC_RENDERER=GL
+else
+  export DIAGNOSTIC_RENDERER=Storm
+fi
 export DIAGNOSTIC_REQUIRE_MATERIALX_PYTHON=0
 export DIAGNOSTIC_OPENCHESSSET_REQUIRED="${DIAGNOSTIC_OPENCHESSSET_REQUIRED:-0}"
 export DIAGNOSTIC_OPENCHESSSET_TIMEOUT="${DIAGNOSTIC_OPENCHESSSET_TIMEOUT:-300}"
@@ -127,6 +132,7 @@ for mode in "${modes[@]}"; do
   rez env usd -- env \
     PXR_MTLX_STDLIB_SEARCH_PATHS="${stdlib_path_for_mode}" \
     DIAGNOSTIC_RENDER_CONTEXT="${render_context}" \
+    DIAGNOSTIC_RENDERER="${DIAGNOSTIC_RENDERER}" \
     DIAGNOSTIC_USDRECORD_PYTHON="${usdrecord_python}" \
     DIAGNOSTIC_USDRECORD_SCRIPT="${usdrecord_script}" \
     DIAGNOSTIC_LD_PRELOAD="${DIAGNOSTIC_LD_PRELOAD}" \

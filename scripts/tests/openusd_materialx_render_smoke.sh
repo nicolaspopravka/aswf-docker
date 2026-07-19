@@ -5,6 +5,7 @@ set -euo pipefail
 root="${1:?evidence directory required}"
 mkdir -p "${root}"/{images,logs,metadata}
 render_context="${DIAGNOSTIC_RENDER_CONTEXT:-stock-xvfb}"
+renderer="${DIAGNOSTIC_RENDERER:-Storm}"
 case "${render_context}" in
   stock-xvfb|egl-noqt) ;;
   *) echo "unknown render context: ${render_context}" >&2; exit 2 ;;
@@ -49,6 +50,7 @@ else
 fi
 {
   echo "DIAGNOSTIC_RENDER_CONTEXT=${render_context}"
+  echo "DIAGNOSTIC_RENDERER=${renderer}"
   echo "LIBGL_ALWAYS_SOFTWARE=${LIBGL_ALWAYS_SOFTWARE}"
   echo "GALLIUM_DRIVER=${GALLIUM_DRIVER}"
   echo "MESA_LOADER_DRIVER_OVERRIDE=${MESA_LOADER_DRIVER_OVERRIDE:-unset}"
@@ -175,7 +177,7 @@ fi
 for scene in usdpreview_control materialx_standard_surface; do
   set +e
   timeout 120 "${usdrecord_python}" "${usdrecord_script}" \
-    --camera /World/Camera --renderer Storm --purposes render \
+    --camera /World/Camera --renderer "${renderer}" --purposes render \
     --imageWidth 256 "/src/scripts/tests/fixtures/openusd-materialx/${scene}.usda" \
     "${root}/images/${scene}.png" >"${root}/logs/${scene}.log" 2>&1
   status=$?
@@ -202,7 +204,7 @@ if [[ -n "${DIAGNOSTIC_OPENCHESSSET:-}" ]]; then
   if [[ -f "${DIAGNOSTIC_OPENCHESSSET}" ]]; then
     set +e
     timeout "${openchessset_timeout}" "${usdrecord_python}" "${usdrecord_script}" \
-      --camera main_cam --renderer Storm --purposes render \
+      --camera main_cam --renderer "${renderer}" --purposes render \
       --imageWidth 512 "${DIAGNOSTIC_OPENCHESSSET}" \
       "${root}/images/openchessset.png" \
       >"${root}/logs/openchessset.log" 2>&1
