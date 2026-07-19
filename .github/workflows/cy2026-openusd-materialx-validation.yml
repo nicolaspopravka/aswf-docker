@@ -15,6 +15,11 @@ on:
         required: true
         default: '300'
         type: string
+      ld_preload:
+        description: Optional colon-separated preload libraries for runtime A/B diagnostics
+        required: false
+        default: ''
+        type: string
 
 jobs:
   validation:
@@ -30,6 +35,7 @@ jobs:
           DIAGNOSTIC_INCLUDE_OPENCHESSSET: ${{ inputs.include_openchessset && '1' || '0' }}
           DIAGNOSTIC_OPENCHESSSET_REQUIRED: '0'
           DIAGNOSTIC_OPENCHESSSET_TIMEOUT: ${{ inputs.openchessset_timeout }}
+          DIAGNOSTIC_LD_PRELOAD: ${{ inputs.ld_preload }}
         run: |
           set -o pipefail
           mkdir -p diagnostic-artifacts/metadata
@@ -41,6 +47,7 @@ jobs:
             -e DIAGNOSTIC_INCLUDE_OPENCHESSSET \
             -e DIAGNOSTIC_OPENCHESSSET_REQUIRED \
             -e DIAGNOSTIC_OPENCHESSSET_TIMEOUT \
+            -e DIAGNOSTIC_LD_PRELOAD \
             -e CY2026_IMAGE=aswf/ci-vfxall:2026 \
             -e CY2026_IMAGE_DIGEST \
             -v "${PWD}:/src:ro" \

@@ -25,6 +25,16 @@ fi
 }
 export LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe
 unset MESA_LOADER_DRIVER_OVERRIDE
+if [[ -n "${DIAGNOSTIC_LD_PRELOAD:-}" ]]; then
+  IFS=: read -r -a diagnostic_preload_entries <<< "${DIAGNOSTIC_LD_PRELOAD}"
+  for diagnostic_preload_entry in "${diagnostic_preload_entries[@]}"; do
+    [[ -f "${diagnostic_preload_entry}" ]] || {
+      echo "DIAGNOSTIC_LD_PRELOAD entry is not a file: ${diagnostic_preload_entry}" >&2
+      exit 2
+    }
+  done
+  export LD_PRELOAD="${DIAGNOSTIC_LD_PRELOAD}${LD_PRELOAD:+:${LD_PRELOAD}}"
+fi
 if [[ "${render_context}" == egl-noqt ]]; then
   unset DISPLAY
   export EGL_PLATFORM=surfaceless PXR_EGL_ALLOW_SOFTWARE_GL=1
@@ -46,6 +56,10 @@ fi
   echo "EGL_PLATFORM=${EGL_PLATFORM:-unset}"
   echo "PXR_EGL_ALLOW_SOFTWARE_GL=${PXR_EGL_ALLOW_SOFTWARE_GL:-unset}"
   echo "PXR_MTLX_STDLIB_SEARCH_PATHS=${PXR_MTLX_STDLIB_SEARCH_PATHS:-unset}"
+  echo "LD_PRELOAD=${LD_PRELOAD:-unset}"
+  echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH:-unset}"
+  echo "PYTHONPATH=${PYTHONPATH:-unset}"
+  echo "PXR_PLUGINPATH_NAME=${PXR_PLUGINPATH_NAME:-unset}"
   echo "NVIDIA_CPU_ONLY=${NVIDIA_CPU_ONLY:-unset}"
   echo "NVIDIA_VISIBLE_DEVICES=${NVIDIA_VISIBLE_DEVICES:-unset}"
   echo "NVIDIA_DRIVER_CAPABILITIES=${NVIDIA_DRIVER_CAPABILITIES:-unset}"
@@ -55,6 +69,34 @@ fi
   echo "GL/EGL libraries:"
   ldconfig -p 2>/dev/null | grep -E 'lib(GLX|GL|EGL|OSMesa)\.so' || true
 } >"${root}/metadata/mesa-runtime.txt"
+{
+  echo "LD_PRELOAD=${LD_PRELOAD:-unset}"
+  echo "DIAGNOSTIC_LD_PRELOAD=${DIAGNOSTIC_LD_PRELOAD:-unset}"
+  echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH:-unset}"
+  echo "PATH=${PATH:-unset}"
+  echo "PYTHONPATH=${PYTHONPATH:-unset}"
+  echo "PXR_PLUGINPATH_NAME=${PXR_PLUGINPATH_NAME:-unset}"
+  echo "PXR_MTLX_STDLIB_SEARCH_PATHS=${PXR_MTLX_STDLIB_SEARCH_PATHS:-unset}"
+  echo "preload libraries:"
+  if [[ -n "${LD_PRELOAD:-}" ]]; then
+    IFS=: read -r -a preload_entries <<< "${LD_PRELOAD}"
+    for preload_entry in "${preload_entries[@]}"; do
+      if [[ -f "${preload_entry}" ]]; then
+        sha256sum "${preload_entry}"
+      else
+        echo "missing: ${preload_entry}"
+      fi
+    done
+  else
+    echo "unset"
+  fi
+  echo "OpenImageIO/OSL candidates:"
+  while IFS= read -r candidate; do
+    sha256sum "${candidate}"
+  done < <(find /usr/local /opt -type f \(
+    -name 'libOpenImageIO*.so*' -o -name 'liboslquery*.so*' -o -name 'sdrOsl.so'
+  \) -print 2>/dev/null | sort)
+} >"${root}/metadata/runtime-provenance.txt"
 for utility in glxinfo eglinfo; do
   if command -v "${utility}" >/dev/null 2>&1; then
     utility_args=()

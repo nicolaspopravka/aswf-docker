@@ -45,6 +45,11 @@ on:
         required: true
         default: '300'
         type: string
+      ld_preload:
+        description: Optional colon-separated preload libraries for runtime A/B diagnostics
+        required: false
+        default: ''
+        type: string
       reuse_run_id:
         description: Prior run whose deployed packages should be reused; leave empty for a full rebuild
         required: false
@@ -118,6 +123,7 @@ jobs:
           DIAGNOSTIC_MTLX_STDLIB_PATH_MODE: ${{ inputs.materialx_stdlib_path_mode }}
           DIAGNOSTIC_INCLUDE_OPENCHESSSET: ${{ inputs.include_openchessset && '1' || '0' }}
           DIAGNOSTIC_OPENCHESSSET_TIMEOUT: ${{ inputs.openchessset_timeout }}
+          DIAGNOSTIC_LD_PRELOAD: ${{ inputs.ld_preload }}
           DIAGNOSTIC_OPENCHESSSET_REQUIRED: '0'
         run: |
           set -o pipefail

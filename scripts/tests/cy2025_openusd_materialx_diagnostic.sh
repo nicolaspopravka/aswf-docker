@@ -86,6 +86,7 @@ run_container() {
     -e DIAGNOSTIC_INCLUDE_OPENCHESSSET="${DIAGNOSTIC_INCLUDE_OPENCHESSSET:-0}" \
     -e DIAGNOSTIC_OPENCHESSSET_REQUIRED="${DIAGNOSTIC_OPENCHESSSET_REQUIRED:-0}" \
     -e DIAGNOSTIC_OPENCHESSSET_TIMEOUT="${DIAGNOSTIC_OPENCHESSSET_TIMEOUT:-300}" \
+    -e DIAGNOSTIC_LD_PRELOAD="${DIAGNOSTIC_LD_PRELOAD:-}" \
     -v "${PWD}:/src:ro" -v "${root}:/evidence" -w /src \
     "${image}" scripts/tests/cy2025_openusd_materialx_diagnostic.sh inner
 }
@@ -101,6 +102,7 @@ reuse_container() {
     -e DIAGNOSTIC_INCLUDE_OPENCHESSSET="${DIAGNOSTIC_INCLUDE_OPENCHESSSET:-0}" \
     -e DIAGNOSTIC_OPENCHESSSET_REQUIRED="${DIAGNOSTIC_OPENCHESSSET_REQUIRED:-0}" \
     -e DIAGNOSTIC_OPENCHESSSET_TIMEOUT="${DIAGNOSTIC_OPENCHESSSET_TIMEOUT:-300}" \
+    -e DIAGNOSTIC_LD_PRELOAD="${DIAGNOSTIC_LD_PRELOAD:-}" \
     -e DIAGNOSTIC_MTLX_STDLIB_PATH_MODE="${DIAGNOSTIC_MTLX_STDLIB_PATH_MODE:-parent}" \
     -v "${PWD}:/src:ro" -v "${root}:/evidence" -w /src \
     "${image}" scripts/tests/cy2025_openusd_materialx_diagnostic.sh inner-reuse
