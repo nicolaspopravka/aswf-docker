@@ -95,9 +95,10 @@ fi
   echo "OpenImageIO/OSL candidates:"
   while IFS= read -r candidate; do
     sha256sum "${candidate}"
-  done < <(find /usr/local /opt -type f \(
+  done < <(find /usr/local /opt -type f \
+    \( \
     -name 'libOpenImageIO*.so*' -o -name 'liboslquery*.so*' -o -name 'sdrOsl.so'
-  \) -print 2>/dev/null | sort)
+    \) -print 2>/dev/null | sort)
 } >"${root}/metadata/runtime-provenance.txt"
 for utility in glxinfo eglinfo; do
   if command -v "${utility}" >/dev/null 2>&1; then
