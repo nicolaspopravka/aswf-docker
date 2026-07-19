@@ -15,18 +15,18 @@ install_software_gl() {
 
 install_software_gl
 
-usdrecord_python="${DIAGNOSTIC_USDRECORD_PYTHON:-/usr/local/bin/python3}"
-usdrecord_script="${DIAGNOSTIC_USDRECORD_SCRIPT:-$(command -v usdrecord)}"
-[[ -x "${usdrecord_python}" ]] || {
-  echo "stock usdrecord Python is not executable: ${usdrecord_python}" >&2
+command -v rez >/dev/null 2>&1 || {
+  echo "CY2026 image has no Rez command" >&2
   exit 1
 }
-[[ -f "${usdrecord_script}" ]] || {
-  echo "usdrecord script was not found: ${usdrecord_script}" >&2
+usdrecord_python="$(rez env usd -- bash -lc 'command -v python3')"
+usdrecord_script="$(rez env usd -- bash -lc 'command -v usdrecord')"
+[[ -x "${usdrecord_python}" && -f "${usdrecord_script}" ]] || {
+  echo "Rez USD environment did not provide python3/usdrecord" >&2
   exit 1
 }
 
-stdlib_path="$(find /usr/local -type d -path '*/share/MaterialX/libraries' \
+stdlib_path="$(find /usr/local /opt -type d -path '*/share/MaterialX/libraries' \
   -print -quit 2>/dev/null || true)"
 [[ -n "${stdlib_path}" ]] || {
   echo "CY2026 image has no MaterialX libraries directory" >&2
@@ -47,8 +47,8 @@ export DIAGNOSTIC_OPENCHESSSET_TIMEOUT="${DIAGNOSTIC_OPENCHESSSET_TIMEOUT:-300}"
   nproc
   free -h
   "${usdrecord_python}" -c 'import sys; print(sys.executable, sys.version)'
-  "${usdrecord_python}" -c 'from pxr import Usd; print(Usd.GetVersion())'
-  "${usdrecord_python}" -c 'import MaterialX as mx; print(mx.getVersionString())'
+  rez env usd -- python3 -c 'from pxr import Usd; print(Usd.GetVersion())'
+  rez env usd -- python3 -c 'import MaterialX as mx; print(mx.getVersionString())'
   echo "PXR_MTLX_STDLIB_SEARCH_PATHS=${PXR_MTLX_STDLIB_SEARCH_PATHS}"
 } >"${root}/metadata/runtime.txt" 2>&1
 
@@ -66,7 +66,12 @@ if [[ "${DIAGNOSTIC_INCLUDE_OPENCHESSSET:-0}" == 1 ]]; then
 fi
 
 set +e
-/src/scripts/tests/openusd_materialx_render_smoke.sh "${root}/results/smoke"
+PXR_MTLX_STDLIB_SEARCH_PATHS="${PXR_MTLX_STDLIB_SEARCH_PATHS}" \
+DIAGNOSTIC_RENDER_CONTEXT=stock-xvfb \
+DIAGNOSTIC_USDRECORD_PYTHON="${usdrecord_python}" \
+DIAGNOSTIC_USDRECORD_SCRIPT="${usdrecord_script}" \
+rez env usd -- /src/scripts/tests/openusd_materialx_render_smoke.sh \
+  "${root}/results/smoke"
 status=$?
 set -e
 echo "${status}" >"${root}/metadata/smoke.exit"
