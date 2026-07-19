@@ -35,6 +35,13 @@ jobs:
             version: 2024-clang16
             version_noclang: 2024
             test: ""
+          - group: vfx-2025
+            name: vfx-2025
+            common_version: 5-clang19
+            common_version_noclang: 5
+            version: 2025-clang19
+            version_noclang: 2025
+            test: ""
           - group: vfx-2026
             name: vfx-2026
             common_version: 6-clang20
