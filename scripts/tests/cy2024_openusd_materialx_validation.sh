@@ -49,7 +49,6 @@ esac
 export DIAGNOSTIC_RENDER_CONTEXT="${render_context}"
 if [[ "${render_context}" == egl-noqt ]]; then
   export DIAGNOSTIC_RENDERER=GL
-  export LD_LIBRARY_PATH="/usr/lib64:/usr/lib:${LD_LIBRARY_PATH:-}"
 else
   export DIAGNOSTIC_RENDERER=Storm
 fi

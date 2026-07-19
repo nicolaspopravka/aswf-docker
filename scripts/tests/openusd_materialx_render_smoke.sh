@@ -37,6 +37,13 @@ if [[ -n "${DIAGNOSTIC_LD_PRELOAD:-}" ]]; then
   export LD_PRELOAD="${DIAGNOSTIC_LD_PRELOAD}${LD_PRELOAD:+:${LD_PRELOAD}}"
 fi
 if [[ "${render_context}" == egl-noqt ]]; then
+  system_llvm="$(find /usr/lib64 -maxdepth 1 -type f -name 'libLLVM-*.so.*' \
+    -print -quit 2>/dev/null || true)"
+  if [[ -n "${system_llvm}" ]]; then
+    export LD_PRELOAD="${system_llvm}:${LD_PRELOAD:-}"
+  fi
+fi
+if [[ "${render_context}" == egl-noqt ]]; then
   unset DISPLAY
   export EGL_PLATFORM=surfaceless PXR_EGL_ALLOW_SOFTWARE_GL=1
   echo "not used by egl-noqt" >"${root}/metadata/xvfb.log"
