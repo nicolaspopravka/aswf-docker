@@ -34,6 +34,7 @@ jobs:
             common_version_noclang: 4
             version: 2024-clang16
             version_noclang: 2024
+            materialx_variant: cy2024-mtlx-1.38.10
             test: ""
           - group: vfx-2025
             name: vfx-2025
@@ -41,6 +42,7 @@ jobs:
             common_version_noclang: 5
             version: 2025-clang19
             version_noclang: 2025
+            materialx_variant: cy2025-mtlx-1.39.3
             test: ""
           - group: vfx-2026
             name: vfx-2026
@@ -48,10 +50,45 @@ jobs:
             common_version_noclang: 6
             version: 2026-clang20
             version_noclang: 2026
+            materialx_variant: cy2026-mtlx-1.39.4
+            materialx_override: ""
+            test: ""
+          - group: vfx-2026
+            name: vfx-2026-pixar-materialx
+            common_version: 6-clang20
+            common_version_noclang: 6
+            version: 2026-clang20
+            version_noclang: 2026
+            materialx_variant: cy2026-mtlx-1.39.3
+            materialx_override: "1.39.3"
             test: ""
 
     steps:
     - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+    - name: Apply MaterialX override
+      if: matrix.materialx_override != ''
+      env:
+        MATERIALX_VERSION: ${{ matrix.materialx_override }}
+      run: |
+        set -eux
+        python3 - <<'PY'
+        import os
+        from pathlib import Path
+
+        path = Path("python/aswfdocker/data/versions.yaml")
+        text = path.read_text()
+        start = text.index('      ASWF_VFXPLATFORM_VERSION: "2026"')
+        end = text.index('\n  "2026-clang19":', start)
+        block = text[start:end]
+        old = '      ASWF_MATERIALX_VERSION: "1.39.4"'
+        new = f'      ASWF_MATERIALX_VERSION: "{os.environ["MATERIALX_VERSION"]}"'
+        if block.count(old) != 1:
+            raise SystemExit("expected exactly one CY2026 MaterialX version")
+        path.write_text(text[:start] + block.replace(old, new) + text[end:])
+        print(new)
+        PY
+        rg -n -A2 -B2 'ASWF_VFXPLATFORM_VERSION: "2026"|ASWF_MATERIALX_VERSION' python/aswfdocker/data/versions.yaml | tail -n 12
 
     - name: Activate Docker buildx
       uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
@@ -409,10 +446,10 @@ jobs:
     - name: Publish fixed VFX-all image to GHCR
       env:
         SOURCE_IMAGE: docker.io/aswftesting/ci-vfxall:${{ matrix.version_noclang }}
-        TARGET_IMAGE: ghcr.io/${{ github.repository_owner }}/aswf-ci-vfxall:${{ matrix.version_noclang }}-openusd-fix-${{ github.sha }}
+        TARGET_IMAGE: ghcr.io/${{ github.repository_owner }}/aswf-ci-vfxall:${{ matrix.materialx_variant }}-openusd-fix-${{ github.sha }}
       run: |
         set -eux
         docker image inspect "$SOURCE_IMAGE"
         docker tag "$SOURCE_IMAGE" "$TARGET_IMAGE"
         docker push "$TARGET_IMAGE"
-        docker buildx imagetools inspect "$TARGET_IMAGE" | tee "ghcr-${{ matrix.version_noclang }}-image.txt"
+        docker buildx imagetools inspect "$TARGET_IMAGE" | tee "ghcr-${{ matrix.materialx_variant }}-image.txt"
