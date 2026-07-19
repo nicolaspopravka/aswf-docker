@@ -1,0 +1,59 @@
+# Copyright (c) Contributors to the aswf-docker Project. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+name: CY2026 OpenUSD MaterialX validation
+
+on:
+  workflow_dispatch:
+    inputs:
+      include_openchessset:
+        description: Include the optional, potentially slow OpenChessSet software-GL render
+        required: true
+        default: false
+        type: boolean
+      openchessset_timeout:
+        description: OpenChessSet timeout in seconds when included
+        required: true
+        default: '300'
+        type: string
+
+jobs:
+  validation:
+    if: github.repository_owner != 'AcademySoftwareFoundation'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Run CY2026 minimal validation
+        env:
+          DIAGNOSTIC_INCLUDE_OPENCHESSSET: ${{ inputs.include_openchessset && '1' || '0' }}
+          DIAGNOSTIC_OPENCHESSSET_REQUIRED: '0'
+          DIAGNOSTIC_OPENCHESSSET_TIMEOUT: ${{ inputs.openchessset_timeout }}
+        run: |
+          set -o pipefail
+          mkdir -p diagnostic-artifacts/metadata
+          docker pull aswf/ci-vfxall:2026
+          docker image inspect aswf/ci-vfxall:2026 \
+            --format '{{index .RepoDigests 0}}' \
+            > diagnostic-artifacts/metadata/base-image-digest.txt
+          docker run --rm \
+            -e DIAGNOSTIC_INCLUDE_OPENCHESSSET \
+            -e DIAGNOSTIC_OPENCHESSSET_REQUIRED \
+            -e DIAGNOSTIC_OPENCHESSSET_TIMEOUT \
+            -e CY2026_IMAGE=aswf/ci-vfxall:2026 \
+            -e CY2026_IMAGE_DIGEST \
+            -v "${PWD}:/src:ro" \
+            -v "${PWD}/diagnostic-artifacts:/evidence" \
+            -w /src \
+            aswf/ci-vfxall:2026 \
+            scripts/tests/cy2026_openusd_materialx_validation.sh /evidence \
+            2>&1 | tee diagnostic-artifacts/driver.log
+      - name: Upload CY2026 evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: cy2026-openusd-materialx-${{ github.run_id }}
+          path: diagnostic-artifacts
+          if-no-files-found: warn
+          retention-days: 14
