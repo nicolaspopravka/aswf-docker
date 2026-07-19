@@ -15,6 +15,34 @@ install_software_gl() {
 
 install_software_gl
 
+dnf -y install python3-pip \
+  >"${root}/metadata/rez-install.log" 2>&1
+python3 -m pip install --no-cache-dir rez \
+  >>"${root}/metadata/rez-install.log" 2>&1
+python_bin="$(command -v python3)"
+for tool in usdrecord usdchecker usdcat usdresolve; do
+  if [[ -f "/usr/local/bin/${tool}" ]] &&
+    head -n 1 "/usr/local/bin/${tool}" | grep -q "/opt/conan_home/.*python"; then
+    sed -i "1s|^#!.*python.*$|#!${python_bin}|" "/usr/local/bin/${tool}"
+  fi
+done
+
+rez_root="${root}/rez-packages"
+mkdir -p "${rez_root}/usd/26.03"
+cat >"${rez_root}/usd/26.03/package.py" <<PY
+name = "usd"
+version = "26.03"
+
+def commands():
+    path = "/usr/local"
+    env.PYTHONPATH.append(path + "/lib/python")
+    env.PATH.append(path + "/bin")
+    env.PXR_MTLX_STDLIB_SEARCH_PATHS.set(path + "/share/MaterialX/libraries")
+PY
+export REZ_PACKAGES_PATH="${rez_root}"
+export PATH="/usr/local/bin:${PATH}"
+export PYTHONPATH="/usr/local/lib/python:${PYTHONPATH:-}"
+
 command -v rez >/dev/null 2>&1 || {
   echo "CY2026 image has no Rez command" >&2
   exit 1
