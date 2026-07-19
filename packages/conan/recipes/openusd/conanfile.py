@@ -104,7 +104,12 @@ class OpenUSDConan(ConanFile):
         if self.options.with_hdf5:
             self.requires("hdf5/1.14.6")
         if self.options.with_materialx:
-            self.requires("materialx/1.39.4")
+            # OpenUSD 24.08's official build_usd.py lane uses MaterialX
+            # 1.38.10. The 1.39 compatibility backport is incomplete for
+            # Hydra/Storm MaterialX document generation and must not be used
+            # for that release.
+            materialx_version = "1.38.10" if Version(self.version) == "24.08" else "1.39.4"
+            self.requires(f"materialx/{materialx_version}")
         if self.options.with_opencolorio:
             self.requires("opencolorio/2.5.1")
         if self.options.with_openimageio:

@@ -89,8 +89,12 @@ index d99dd79ac..bfda2778a 100644
      INCLUDE_DIRS
          ${OSL_INCLUDE_DIR}
 -        ${OIIO_INCLUDE_DIRS}
-+        ${OpenImageIO_INCLUDE_DIRS}
++        ${OpenImageIO_INCLUDE_DIR}
          ${__OSL_IMATH_INCLUDE}
++
++    LIBRARIES
++        OpenImageIO::OpenImageIO_Util
++        OSL::OSL
 
      PUBLIC_CLASSES
 --- pxr/imaging/hioOpenVDB/CMakeLists.txt
