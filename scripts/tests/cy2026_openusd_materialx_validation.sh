@@ -76,7 +76,9 @@ export DIAGNOSTIC_OPENCHESSSET_TIMEOUT="${DIAGNOSTIC_OPENCHESSSET_TIMEOUT:-300}"
   free -h
   "${usdrecord_python}" -c 'import sys; print(sys.executable, sys.version)'
   rez env usd -- python3 -c 'from pxr import Usd; print(Usd.GetVersion())'
-  rez env usd -- python3 -c 'import MaterialX as mx; print(mx.getVersionString())'
+  if ! rez env usd -- python3 -c 'import MaterialX as mx; print(mx.getVersionString())'; then
+    echo "MaterialX Python bindings unavailable (optional for this render gate)"
+  fi
   echo "PXR_MTLX_STDLIB_SEARCH_PATHS=${PXR_MTLX_STDLIB_SEARCH_PATHS}"
 } >"${root}/metadata/runtime.txt" 2>&1
 
