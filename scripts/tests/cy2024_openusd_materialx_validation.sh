@@ -6,9 +6,11 @@ set -euo pipefail
 root="${1:?evidence directory required}"
 mkdir -p "${root}"/{metadata,results}
 
-dnf -y install mesa-dri-drivers xorg-x11-server-Xvfb glx-utils \
+dnf -y install mesa-dri-drivers mesa-libGL mesa-libEGL mesa-libGLU \
+  xorg-x11-server-Xvfb glx-utils \
   >"${root}/metadata/mesa-dri-install.log" 2>&1
-rpm -q mesa-dri-drivers xorg-x11-server-Xvfb glx-utils \
+rpm -q mesa-dri-drivers mesa-libGL mesa-libEGL mesa-libGLU \
+  xorg-x11-server-Xvfb glx-utils \
   >"${root}/metadata/mesa-packages.txt"
 
 dnf -y install python3-pip >"${root}/metadata/rez-install.log" 2>&1
@@ -38,7 +40,13 @@ PY
 export REZ_PACKAGES_PATH="${rez_root}"
 export PATH="/usr/local/bin:${PATH}"
 export PYTHONPATH="/usr/local/lib/python:${PYTHONPATH:-}"
-export DIAGNOSTIC_RENDER_CONTEXT=stock-xvfb
+render_context="${DIAGNOSTIC_RENDER_CONTEXT:-egl-noqt}"
+case "${render_context}" in
+  egl-noqt) usdrecord_script="/src/scripts/tests/usdrecord_egl_noqt.py" ;;
+  stock-xvfb) usdrecord_script="" ;;
+  *) echo "DIAGNOSTIC_RENDER_CONTEXT must be egl-noqt or stock-xvfb" >&2; exit 2 ;;
+esac
+export DIAGNOSTIC_RENDER_CONTEXT="${render_context}"
 export DIAGNOSTIC_REQUIRE_MATERIALX_PYTHON=0
 export DIAGNOSTIC_OPENCHESSSET_REQUIRED="${DIAGNOSTIC_OPENCHESSSET_REQUIRED:-0}"
 export DIAGNOSTIC_OPENCHESSSET_TIMEOUT="${DIAGNOSTIC_OPENCHESSSET_TIMEOUT:-300}"
@@ -49,9 +57,11 @@ command -v rez >/dev/null 2>&1 || {
   exit 1
 }
 usdrecord_python="$(rez env usd -- bash -lc 'command -v python3')"
-usdrecord_script="$(rez env usd -- bash -lc 'command -v usdrecord')"
+if [[ -z "${usdrecord_script}" ]]; then
+  usdrecord_script="$(rez env usd -- bash -lc 'command -v usdrecord')"
+fi
 [[ -x "${usdrecord_python}" && -f "${usdrecord_script}" ]] || {
-  echo "Rez USD environment did not provide python3/usdrecord" >&2
+  echo "Rez USD environment did not provide python3/usdrecord script" >&2
   exit 1
 }
 
@@ -69,6 +79,7 @@ stdlib_parent="$(dirname "${stdlib_path}")"
   echo "openusd=24.08"
   echo "materialx=1.39.1"
   echo "renderer=GL"
+  echo "render_context=${render_context}"
   uname -a
   nproc
   free -h
@@ -115,7 +126,7 @@ for mode in "${modes[@]}"; do
   set +e
   rez env usd -- env \
     PXR_MTLX_STDLIB_SEARCH_PATHS="${stdlib_path_for_mode}" \
-    DIAGNOSTIC_RENDER_CONTEXT=stock-xvfb \
+    DIAGNOSTIC_RENDER_CONTEXT="${render_context}" \
     DIAGNOSTIC_USDRECORD_PYTHON="${usdrecord_python}" \
     DIAGNOSTIC_USDRECORD_SCRIPT="${usdrecord_script}" \
     DIAGNOSTIC_LD_PRELOAD="${DIAGNOSTIC_LD_PRELOAD}" \
