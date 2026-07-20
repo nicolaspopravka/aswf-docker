@@ -9,11 +9,16 @@ year="${ASWF_VFXPLATFORM_VERSION:?missing ASWF_VFXPLATFORM_VERSION}"
 usd_version="${ASWF_OPENUSD_VERSION:?missing ASWF_OPENUSD_VERSION}"
 materialx_version="${ASWF_MATERIALX_VERSION:?missing ASWF_MATERIALX_VERSION}"
 jobs="${ASWF_BUILD_JOBS:-$(nproc)}"
+case "${year}" in
+  20[0-9][0-9]) ci_common_version="${year: -1}" ;;
+  *) echo "Unsupported VFX Platform year: ${year}" >&2; exit 1 ;;
+esac
 
 # Stock ci-vfxall profiles resolve their prebuilt dependency graph from the
 # ASWF Conan namespace. The two rebuilt recipes themselves remain under the
 # diagnostic user/channel below.
 export ASWF_PKG_ORG=aswf
+export CI_COMMON_VERSION="${ci_common_version}"
 export CMAKE_BUILD_PARALLEL_LEVEL="${jobs}"
 export CONAN_HOME=/out/conan-home
 profile="${CONAN_HOME}/profiles/targeted-vfx${year}"
