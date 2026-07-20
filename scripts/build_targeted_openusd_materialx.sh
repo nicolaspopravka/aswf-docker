@@ -8,6 +8,22 @@ set -euo pipefail
 year="${ASWF_VFXPLATFORM_VERSION:?missing ASWF_VFXPLATFORM_VERSION}"
 usd_version="${ASWF_OPENUSD_VERSION:?missing ASWF_OPENUSD_VERSION}"
 materialx_version="${ASWF_MATERIALX_VERSION:?missing ASWF_MATERIALX_VERSION}"
+oiio_version="${ASWF_OPENIMAGEIO_VERSION:-}"
+osl_version="${ASWF_OSL_VERSION:-}"
+case "${year}" in
+  2024)
+    oiio_version="${oiio_version:-2.5.19.1}"
+    osl_version="${osl_version:-1.13.11.0}"
+    ;;
+  2025)
+    oiio_version="${oiio_version:-3.1.6.2}"
+    osl_version="${osl_version:-1.14.11.0}"
+    ;;
+  2026)
+    oiio_version="${oiio_version:-3.1.14.1}"
+    osl_version="${osl_version:-1.15.5.0}"
+    ;;
+esac
 jobs="${ASWF_BUILD_JOBS:-$(nproc)}"
 case "${year}" in
   20[0-9][0-9]) ci_common_version="${year: -1}" ;;
@@ -47,6 +63,21 @@ sed -i -E \
   "s#materialx_version = .* if Version\\(self.version\\) == \"24\\.08\" else .*#materialx_version = \"${materialx_version}\"#" \
   "${recipe_root}/openusd/conanfile.py"
 
+# Keep optional OpenUSD plugins ABI-compatible with the stock image.  The
+# stock profile can enable OSL/OIIO even though the derived image only changes
+# OpenUSD and MaterialX; the recipe's historical fixed versions otherwise
+# produce plugins linked against a different OIIO/OSL ABI than the base image.
+if [[ -n "${oiio_version}" ]]; then
+  sed -i -E \
+    "s#self\\.requires\\(\\\"openimageio/[^\\\"]+\\\"\\)#self.requires(\\\"openimageio/${oiio_version}\\\")#" \
+    "${recipe_root}/openusd/conanfile.py"
+fi
+if [[ -n "${osl_version}" ]]; then
+  sed -i -E \
+    "s#self\\.requires\\(\\\"osl/[^\\\"]+\\\"\\)#self.requires(\\\"osl/${osl_version}\\\")#" \
+    "${recipe_root}/openusd/conanfile.py"
+fi
+
 conan create "${recipe_root}/materialx" \
   --version="${materialx_version}" \
   --user=diagnostic --channel="vfx${year}" \
@@ -73,10 +104,34 @@ mtlx_dir="$(find "${deploy_root}" -type d -path '*/materialx/*' -name x86_64 -pr
 cp -a "${usd_dir}/." /out/root/usr/local/
 cp -a "${mtlx_dir}/." /out/root/usr/local/
 
+# OpenUSD's sdrOsl plugin is part of the OpenUSD deploy when the stock profile
+# enables OSL, but its runtime DSOs are transitive Conan packages.  Carry the
+# matching packages into the derived image instead of resolving them from the
+# stock image at runtime.
+for package_name in openimageio osl; do
+  while IFS= read -r package_dir; do
+    cp -a "${package_dir}/." /out/root/usr/local/
+  done < <(find "${deploy_root}" -type d \
+    -path "*/${package_name}/*" -name x86_64 -print)
+done
+
+if [[ -f /out/root/usr/local/plugin/usd/sdrOsl.so ]]; then
+  unresolved="$(LD_LIBRARY_PATH=/out/root/usr/local/lib:/usr/local/lib \
+    ldd /out/root/usr/local/plugin/usd/sdrOsl.so 2>&1 | \
+    sed -n '/=> not found/p')"
+  if [[ -n "${unresolved}" ]]; then
+    echo "sdrOsl has unresolved runtime dependencies:" >&2
+    echo "${unresolved}" >&2
+    exit 1
+  fi
+fi
+
 {
   echo "vfxplatform=${year}"
   echo "openusd=${usd_version}"
   echo "materialx=${materialx_version}"
+  echo "openimageio=${oiio_version:-stock-profile}"
+  echo "osl=${osl_version:-stock-profile}"
   echo "jobs=${jobs}"
   conan --version
 } > /out/targeted-build-provenance.txt

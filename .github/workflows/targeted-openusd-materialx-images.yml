@@ -77,6 +77,8 @@ jobs:
           {
             echo "FROM ${STOCK_IMAGE}"
             echo "COPY root/ /usr/local/"
+            echo 'ENV PXR_MTLX_STDLIB_SEARCH_PATHS=/usr/local/share/MaterialX/libraries'
+            echo 'ENV LD_LIBRARY_PATH=/usr/local/lib'
           } > "$image_root/Dockerfile"
           docker build -t "$TARGET_IMAGE" "$image_root"
           echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
