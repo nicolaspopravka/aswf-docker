@@ -82,12 +82,15 @@ conan create "${recipe_root}/materialx" \
   --version="${materialx_version}" \
   --user=diagnostic --channel="vfx${year}" \
   --profile:all="${profile}" \
+  -o "materialx/*:with_openimageio=True" \
   --build='materialx/*'
 
 conan create "${recipe_root}/openusd" \
   --version="${usd_version}" \
   --user=diagnostic --channel="vfx${year}" \
   --profile:all="${profile}" \
+  -o "openusd/*:with_openimageio=True" \
+  -o "openusd/*:with_osl=True" \
   --build='openusd/*'
 
 conan install \
@@ -104,21 +107,18 @@ mtlx_dir="$(find "${deploy_root}" -type d -path '*/materialx/*' -name x86_64 -pr
 cp -a "${usd_dir}/." /out/root/usr/local/
 cp -a "${mtlx_dir}/." /out/root/usr/local/
 
-# OpenUSD's sdrOsl plugin is part of the OpenUSD deploy when the stock profile
-# enables OSL, but its runtime DSOs are transitive Conan packages.  Carry the
-# matching packages into the derived image instead of resolving them from the
-# stock image at runtime.
-for package_name in openimageio osl; do
-  while IFS= read -r package_dir; do
-    cp -a "${package_dir}/." /out/root/usr/local/
-  done < <(find "${deploy_root}" -type d \
-    -path "*/${package_name}/*" -name x86_64 -print)
-done
+# OpenUSD's OIIO/OSL plugins must run with the exact dependency closure that
+# built them.  Overlay every host package from full_deploy, not just the two
+# top-level packages: OSL and OIIO depend on Imath, OpenEXR, fmt, LLVM and
+# other DSOs whose ABI must remain consistent as well.
+while IFS= read -r package_dir; do
+  cp -a "${package_dir}/." /out/root/usr/local/
+done < <(find "${deploy_root}" -type d -name x86_64 -print)
 
 if [[ -f /out/root/usr/local/plugin/usd/sdrOsl.so ]]; then
   unresolved="$(LD_LIBRARY_PATH=/out/root/usr/local/lib:/usr/local/lib \
-    ldd /out/root/usr/local/plugin/usd/sdrOsl.so 2>&1 | \
-    sed -n '/=> not found/p')"
+    ldd -r /out/root/usr/local/plugin/usd/sdrOsl.so 2>&1 | \
+    sed -n -E '/not found|undefined symbol/p')"
   if [[ -n "${unresolved}" ]]; then
     echo "sdrOsl has unresolved runtime dependencies:" >&2
     echo "${unresolved}" >&2
@@ -130,8 +130,8 @@ fi
   echo "vfxplatform=${year}"
   echo "openusd=${usd_version}"
   echo "materialx=${materialx_version}"
-  echo "openimageio=${oiio_version:-stock-profile}"
-  echo "osl=${osl_version:-stock-profile}"
+  echo "openimageio=${oiio_version:-stock-profile} enabled=true"
+  echo "osl=${osl_version:-stock-profile} enabled=true"
   echo "jobs=${jobs}"
   conan --version
 } > /out/targeted-build-provenance.txt
