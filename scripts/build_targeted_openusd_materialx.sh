@@ -119,12 +119,29 @@ while IFS= read -r package_dir; do
 done < <(find "${deploy_root}" -type d -name x86_64 -print)
 
 if [[ -f /out/root/usr/local/plugin/usd/sdrOsl.so ]]; then
-  unresolved="$(LD_LIBRARY_PATH=/out/root/usr/local/lib:/usr/local/lib \
-    ldd -r /out/root/usr/local/plugin/usd/sdrOsl.so 2>&1 | \
-    sed -n -E '/not found|undefined symbol/p')"
-  if [[ -n "${unresolved}" ]]; then
-    echo "sdrOsl has unresolved runtime dependencies:" >&2
-    echo "${unresolved}" >&2
+  audit=/out/sdrOsl-runtime-audit.txt
+  set +e
+  {
+    echo "=== sdrOsl dynamic section ==="
+    readelf -d /out/root/usr/local/plugin/usd/sdrOsl.so
+    echo "=== sdrOsl undefined symbols ==="
+    nm -D --undefined-only /out/root/usr/local/plugin/usd/sdrOsl.so || true
+    echo "=== OIIO ustring providers ==="
+    find /out/root/usr/local/lib -maxdepth 1 -type f \
+      -name 'libOpenImageIO*.so*' -print -exec nm -D {} \; 2>/dev/null | \
+      grep -E 'libOpenImageIO|empty_std_string' || true
+    echo "=== ldd -r ==="
+    LD_LIBRARY_PATH=/out/root/usr/local/lib:/usr/local/lib \
+      ldd -r /out/root/usr/local/plugin/usd/sdrOsl.so 2>&1 || true
+    echo "=== no-preload dlopen ==="
+    LD_LIBRARY_PATH=/out/root/usr/local/lib:/usr/local/lib \
+      python3 -c 'import ctypes; ctypes.CDLL("/out/root/usr/local/plugin/usd/sdrOsl.so", mode=ctypes.RTLD_LOCAL); print("dlopen succeeded")'
+  } >"${audit}" 2>&1
+  audit_status=$?
+  set -e
+  cat "${audit}"
+  if [[ "${audit_status}" != 0 ]] || ! grep -q 'dlopen succeeded' "${audit}"; then
+    echo "sdrOsl no-preload dlopen failed; see audit above" >&2
     exit 1
   fi
 fi
