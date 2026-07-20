@@ -66,8 +66,8 @@ conan install \
   --deployer=full_deploy \
   --build=never
 
-usd_dir="$(find "${deploy_root}/host/openusd" -type d -name x86_64 -print -quit)"
-mtlx_dir="$(find "${deploy_root}/host/materialx" -type d -name x86_64 -print -quit)"
+usd_dir="$(find "${deploy_root}" -type d -path '*/openusd/*' -name x86_64 -print -quit)"
+mtlx_dir="$(find "${deploy_root}" -type d -path '*/materialx/*' -name x86_64 -print -quit)"
 [[ -n "${usd_dir}" && -d "${usd_dir}" ]] || { echo "OpenUSD deploy missing" >&2; exit 1; }
 [[ -n "${mtlx_dir}" && -d "${mtlx_dir}" ]] || { echo "MaterialX deploy missing" >&2; exit 1; }
 cp -a "${usd_dir}/." /out/root/usr/local/
