@@ -55,7 +55,7 @@ index d99dd79ac..bfda2778a 100644
  pxr_library(hdx
 --- pxr/usd/plugin/sdrOsl/CMakeLists.txt
 +++ pxr/usd/plugin/sdrOsl/CMakeLists.txt
-@@ -26,7 +26,7 @@
+@@ -26,7 +26,11 @@
 
      INCLUDE_DIRS
          ${OSL_INCLUDE_DIR}
