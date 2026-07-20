@@ -24,6 +24,7 @@ cp -a /src/packages/conan/recipes/materialx "${recipe_root}/materialx"
 cp -a /src/packages/conan/recipes/openusd "${recipe_root}/openusd"
 
 profile="${CONAN_HOME}/profiles/targeted-vfx${year}"
+cp "${CONAN_HOME}/profiles/vfx${year}" "${profile}"
 sed -i -E \
   "s#^materialx/\\*:.*\$#materialx/*: materialx/${materialx_version}@diagnostic/vfx${year}#" \
   "${profile}"
