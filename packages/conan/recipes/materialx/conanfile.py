@@ -137,7 +137,11 @@ class MaterialXConan(ConanFile):
         cmake = CMake(self)
         cmake.install()
 
-        python_root = os.path.join(self.package_folder, "share", "MaterialX", "python")
+        python_root = (
+            os.path.join(self.package_folder, "python")
+            if Version(self.version) < "1.39"
+            else os.path.join(self.package_folder, "share", "MaterialX", "python")
+        )
         python_package = os.path.join(python_root, "MaterialX")
         for pattern in ("PyMaterialX*.so*", "PyMaterialX*.pyd"):
             copy(self, pattern, src=python_root, dst=python_package, keep_path=False)
@@ -161,7 +165,9 @@ class MaterialXConan(ConanFile):
         self.cpp_info.requires.append("pybind11::pybind11")
         self.runenv_info.prepend_path(
             "PYTHONPATH",
-            os.path.join(self.package_folder, "share", "MaterialX", "python"),
+            os.path.join(self.package_folder, "python")
+            if Version(self.version) < "1.39"
+            else os.path.join(self.package_folder, "share", "MaterialX", "python"),
         )
         self.runenv_info.prepend_path(
             "PXR_MTLX_STDLIB_SEARCH_PATHS",
