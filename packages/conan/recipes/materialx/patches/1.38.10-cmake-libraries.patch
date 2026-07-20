@@ -1,8 +1,6 @@
 --- cmake/modules/MaterialXConfig.cmake.in
 +++ cmake/modules/MaterialXConfig.cmake.in
-@@ -5,10 +5,10 @@
- # MATERIALX_RESOURCES_DIR    Path to MaterialX Resources (sample data, mtlx etc)
-
+@@ -20,8 +20,8 @@
  set_and_check(MATERIALX_BASE_DIR "@PACKAGE_CMAKE_INSTALL_PREFIX@")
 -set_and_check(MATERIALX_STDLIB_DIR "@PACKAGE_CMAKE_INSTALL_PREFIX@/libraries")
 +set_and_check(MATERIALX_STDLIB_DIR "@PACKAGE_CMAKE_INSTALL_PREFIX@/@MATERIALX_INSTALL_STDLIB_PATH@")
