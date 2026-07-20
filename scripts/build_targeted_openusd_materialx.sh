@@ -25,10 +25,10 @@ cp -a /src/packages/conan/recipes/openusd "${recipe_root}/openusd"
 
 profile="${CONAN_HOME}/profiles/targeted-vfx${year}"
 sed -i -E \
-  "s#^materialx/\\*:.*$#materialx/*: materialx/${materialx_version}@diagnostic/vfx${year}#" \
+  "s#^materialx/\\*:.*\$#materialx/*: materialx/${materialx_version}@diagnostic/vfx${year}#" \
   "${profile}"
 sed -i -E \
-  "s#^openusd/\\*:.*$#openusd/*: openusd/${usd_version}@diagnostic/vfx${year}#" \
+  "s#^openusd/\\*:.*\$#openusd/*: openusd/${usd_version}@diagnostic/vfx${year}#" \
   "${profile}"
 
 # Keep the recipe dependency and the profile override in agreement for the
