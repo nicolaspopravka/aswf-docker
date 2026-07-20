@@ -35,8 +35,8 @@ index d99dd79ac..bfda2778a 100644
 
  endif()
 
-+get_target_property(MATERIALX_CORE_LIBS MaterialX::MaterialXCore INTERFACE_LINK_LIBRARIES)
-+get_target_property(MATERIALX_FORMAT_LIBS MaterialX::MaterialXFormat INTERFACE_LINK_LIBRARIES)
++get_target_property(MATERIALX_CORE_LIBS MaterialXCore INTERFACE_LINK_LIBRARIES)
++get_target_property(MATERIALX_FORMAT_LIBS MaterialXFormat INTERFACE_LINK_LIBRARIES)
 +
  pxr_library(usdMtlx
      INCLUDE_SCHEMA_FILES
