@@ -78,10 +78,10 @@ patches:
       patch_description: "Add find_dependency(OpenImageIO) to MaterialXConfig.cmake.in when built with OIIO"
       patch_type: "conan"
   "1.38.10":
-    - patch_file: "patches/1.38.7-pybind11-cmake.patch"
+    - patch_file: "patches/1.38.10-pybind11-cmake.patch"
       patch_description: "CMake: Must call find_package() on Python3 before pybind11"
       patch_type: "conan"
-    - patch_file: "patches/1.39.3-cmake-libraries.patch"
+    - patch_file: "patches/1.38.7-cmake-libraries.patch"
       patch_descriptions: "MaterialX support files in share/MaterialX"
       patch_type: "conan"
   "1.38.7":
