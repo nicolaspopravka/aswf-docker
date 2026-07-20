@@ -30,6 +30,7 @@ mkdir -p "${CONAN_HOME}" "${recipe_root}" /out/root/usr/local
 cp -a /src/packages/conan/settings/. "${CONAN_HOME}/"
 cp -a /src/packages/conan/recipes/materialx "${recipe_root}/materialx"
 cp -a /src/packages/conan/recipes/openusd "${recipe_root}/openusd"
+cd /out
 
 profile="${CONAN_HOME}/profiles/targeted-vfx${year}"
 cp "${CONAN_HOME}/profiles/vfx${year}" "${profile}"
