@@ -10,7 +10,10 @@ usd_version="${ASWF_OPENUSD_VERSION:?missing ASWF_OPENUSD_VERSION}"
 materialx_version="${ASWF_MATERIALX_VERSION:?missing ASWF_MATERIALX_VERSION}"
 jobs="${ASWF_BUILD_JOBS:-$(nproc)}"
 
-export ASWF_PKG_ORG=diagnostic
+# Stock ci-vfxall profiles resolve their prebuilt dependency graph from the
+# ASWF Conan namespace. The two rebuilt recipes themselves remain under the
+# diagnostic user/channel below.
+export ASWF_PKG_ORG=aswf
 export CMAKE_BUILD_PARALLEL_LEVEL="${jobs}"
 export CONAN_HOME=/out/conan-home
 profile="${CONAN_HOME}/profiles/targeted-vfx${year}"
