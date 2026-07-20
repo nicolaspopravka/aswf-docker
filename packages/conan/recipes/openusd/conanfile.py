@@ -370,6 +370,7 @@ class OpenUSDConan(ConanFile):
         if self.options.with_python:
             if Version(self.version) < "25.05":
                 self.cpp_info.components["usd_tf"].requires.append("boost::python")
+                self.cpp_info.requires.append("cpython::cpython")
             else:
                 self.cpp_info.components["usd_boost"].libs = ["usd_boost"]
                 self.cpp_info.components["usd_tf"].requires.append("usd_python")
