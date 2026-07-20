@@ -96,6 +96,9 @@ conan create "${recipe_root}/openusd" \
 conan install \
   --requires="openusd/${usd_version}@diagnostic/vfx${year}" \
   --profile:all="${profile}" \
+  -o "materialx/*:with_openimageio=True" \
+  -o "openusd/*:with_openimageio=True" \
+  -o "openusd/*:with_osl=True" \
   --deployer-folder="${deploy_root}" \
   --deployer=full_deploy \
   --build=never
