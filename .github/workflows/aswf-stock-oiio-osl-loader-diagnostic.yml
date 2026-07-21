@@ -1,0 +1,61 @@
+# Copyright (c) Contributors to the aswf-docker Project. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+name: Stock ASWF OIIO OSL loader diagnostic
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnostic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - year: 2024
+            image: aswf/ci-vfxall:2024
+          - year: 2025
+            image: aswf/ci-vfxall:2025
+          - year: 2026
+            image: aswf/ci-vfxall:2026
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Pull and inspect stock image
+        env:
+          IMAGE: ${{ matrix.image }}
+        run: |
+          set -eux
+          mkdir -p "diagnostic-artifacts/${{ matrix.year }}"
+          docker pull "${IMAGE}"
+          docker image inspect "${IMAGE}" \
+            --format '{{index .RepoDigests 0}}' \
+            >"diagnostic-artifacts/${{ matrix.year }}/image-digest.txt"
+
+      - name: Run stock loader diagnostic
+        env:
+          IMAGE: ${{ matrix.image }}
+        run: |
+          set -o pipefail
+          docker run --rm \
+            -e IMAGE_YEAR=${{ matrix.year }} \
+            -e DIAGNOSTIC_IMAGE="${IMAGE}" \
+            -v "${PWD}:/src:ro" \
+            -v "${PWD}/diagnostic-artifacts/${{ matrix.year }}:/evidence" \
+            -w /src \
+            "${IMAGE}" \
+            bash scripts/tests/aswf_oiio_osl_loader_diagnostic.sh /evidence \
+            2>&1 | tee "diagnostic-artifacts/${{ matrix.year }}/driver.log"
+
+      - name: Upload stock loader evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: aswf-stock-oiio-osl-loader-${{ matrix.year }}-${{ github.run_id }}
+          path: diagnostic-artifacts/${{ matrix.year }}
+          if-no-files-found: warn
+          retention-days: 14
