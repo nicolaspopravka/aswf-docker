@@ -111,6 +111,13 @@ class OpenShadingLanguageConan(ConanFile):
         if Version(os.environ['ASWF_CUDA_VERSION']) >= "13": # ASWF FIXME: should have CUDA wrapper package
             tc.variables["CUDA_TARGET_ARCH"] = "sm_75" # CUDA 13 drops pre-Turing archs
 
+        # Keep the installed OSL package relocatable.  Build-time Conan paths
+        # must not remain as runtime providers when the package is overlaid
+        # onto a stock ASWF image.
+        tc.cache_variables["CMAKE_INSTALL_RPATH_USE_LINK_PATH"] = False
+        tc.cache_variables["CMAKE_INSTALL_RPATH"] = (
+            "$ORIGIN;$ORIGIN/../lib;$ORIGIN/../../lib"
+        )
         tc.generate()
         cd = CMakeDeps(self)
         cd.generate()

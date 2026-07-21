@@ -210,6 +210,15 @@ class OpenUSDConan(ConanFile):
                 path.replace("\\", "/") for path in osl_info.cpp_info.includedirs
             )
             tc.variables["OSL_QUERY_LIBRARY"] = "OSL::OSL"
+
+        # Keep installed binaries relocatable.  CMake otherwise adds the
+        # absolute Conan dependency directories used during the build to the
+        # installed RUNPATH.  Those paths can point at a different ABI when
+        # this package is overlaid onto a stock ASWF image.
+        tc.cache_variables["CMAKE_INSTALL_RPATH_USE_LINK_PATH"] = False
+        tc.cache_variables["CMAKE_INSTALL_RPATH"] = (
+            "$ORIGIN;$ORIGIN/../lib;$ORIGIN/../../lib"
+        )
        
         tc.variables["OPENSUBDIV_LIBRARIES"] = "OpenSubdiv::osdcpu;OpenSubdiv::osdgpu"
         tc.variables["OPENSUBDIV_INCLUDE_DIR"] = self.dependencies['opensubdiv'].cpp_info.includedirs[0].replace("\\", "/")

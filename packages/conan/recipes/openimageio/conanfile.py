@@ -282,6 +282,13 @@ class OpenImageIOConan(ConanFile):
             # note: should not be needed if CMakeConfigDeps is used
             libdirs_host = [l for dependency in self.dependencies.host.values() for l in dependency.cpp_info.aggregated_components().libdirs]
             tc.cache_variables["CMAKE_BUILD_RPATH"] = ";".join(libdirs_host)
+            # Do not encode the temporary Conan dependency graph into the
+            # installed package.  The package is deployed into /usr/local in
+            # ASWF images, and its consumers must use the colocated closure.
+            tc.cache_variables["CMAKE_INSTALL_RPATH_USE_LINK_PATH"] = False
+            tc.cache_variables["CMAKE_INSTALL_RPATH"] = (
+                "$ORIGIN;$ORIGIN/../lib;$ORIGIN/../../lib"
+            )
         tc.generate()
         deps = CMakeDeps(self)
         deps.set_property("fmt", "cmake_additional_variables_prefixes", ["FMT"])

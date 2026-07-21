@@ -84,9 +84,8 @@ jobs:
             echo 'RUN rm -f /usr/local/lib/libOpenImageIO*.so* /usr/local/lib/libosl*.so* /usr/local/lib/libOSL*.so*'
             echo "COPY root/ /usr/local/"
             echo 'ENV PXR_MTLX_STDLIB_SEARCH_PATHS=/usr/local/share/MaterialX/libraries'
-            echo 'ENV LD_LIBRARY_PATH=/usr/local/lib'
             echo 'ENV PYTHONPATH=/usr/local/lib/python'
-            echo 'RUN python3 -c '\''import ctypes; import pxr.Usd; ctypes.CDLL("/usr/local/plugin/usd/sdrOsl.so", mode=ctypes.RTLD_LOCAL); print("final-image sdrOsl dlopen succeeded")'\'''
+            echo 'RUN env -u LD_LIBRARY_PATH -u LD_PRELOAD PXR_PLUGINPATH_NAME=/usr/local/plugin/usd python3 -c '\''import ctypes; import pxr.Usd; ctypes.CDLL("/usr/local/plugin/usd/sdrOsl.so", mode=ctypes.RTLD_LOCAL); print("final-image sdrOsl dlopen succeeded")'\'''
           } > "$image_root/Dockerfile"
           docker build -t "$TARGET_IMAGE" "$image_root"
           echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin

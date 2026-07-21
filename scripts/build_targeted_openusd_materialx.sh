@@ -134,13 +134,21 @@ if [[ -f /out/root/usr/local/plugin/usd/sdrOsl.so ]]; then
     LD_LIBRARY_PATH=/out/root/usr/local/lib:/usr/local/lib \
       ldd -r /out/root/usr/local/plugin/usd/sdrOsl.so 2>&1 || true
     echo "=== no-preload dlopen ==="
-    LD_LIBRARY_PATH=/out/root/usr/local/lib:/usr/local/lib \
+    env -u LD_LIBRARY_PATH -u LD_PRELOAD \
+      PYTHONPATH=/out/root/usr/local/lib/python \
+      PXR_PLUGINPATH_NAME=/out/root/usr/local/plugin/usd \
       python3 -c 'import ctypes; ctypes.CDLL("/out/root/usr/local/plugin/usd/sdrOsl.so", mode=ctypes.RTLD_LOCAL); print("dlopen succeeded")'
+    echo "=== pxr.Usd then sdrOsl, no preload, no LD_LIBRARY_PATH ==="
+    env -u LD_LIBRARY_PATH -u LD_PRELOAD \
+      PYTHONPATH=/out/root/usr/local/lib/python \
+      PXR_PLUGINPATH_NAME=/out/root/usr/local/plugin/usd \
+      python3 -c 'import ctypes; import pxr.Usd; ctypes.CDLL("/out/root/usr/local/plugin/usd/sdrOsl.so", mode=ctypes.RTLD_LOCAL); print("pxr.Usd then sdrOsl succeeded")'
   } >"${audit}" 2>&1
   audit_status=$?
   set -e
   cat "${audit}"
-  if [[ "${audit_status}" != 0 ]] || ! grep -q 'dlopen succeeded' "${audit}"; then
+  if [[ "${audit_status}" != 0 ]] || ! grep -q 'dlopen succeeded' "${audit}" || \
+     ! grep -q 'pxr.Usd then sdrOsl succeeded' "${audit}"; then
     echo "sdrOsl no-preload dlopen failed; see audit above" >&2
     exit 1
   fi
