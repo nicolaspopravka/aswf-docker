@@ -76,9 +76,16 @@ jobs:
           image_root="$RUNNER_TEMP/targeted-${{ matrix.name }}"
           {
             echo "FROM ${STOCK_IMAGE}"
+            # The stock image may already contain OIIO/OSL DSOs with the same
+            # SONAMEs but a different ABI.  Remove those providers before the
+            # targeted build's matching closure is layered in; otherwise the
+            # dynamic loader can satisfy sdrOsl's DT_NEEDED entries with the
+            # stale, already-loaded stock libraries.
+            echo 'RUN find /usr/local/lib -maxdepth 1 -type f \( -name "libOpenImageIO*.so*" -o -name "libosl*.so*" -o -name "libOSL*.so*" \) -delete'
             echo "COPY root/ /usr/local/"
             echo 'ENV PXR_MTLX_STDLIB_SEARCH_PATHS=/usr/local/share/MaterialX/libraries'
             echo 'ENV LD_LIBRARY_PATH=/usr/local/lib'
+            echo 'RUN python3 -c '\''import ctypes; import pxr.Usd; ctypes.CDLL("/usr/local/plugin/usd/sdrOsl.so", mode=ctypes.RTLD_LOCAL); print("final-image sdrOsl dlopen succeeded")'\'''
           } > "$image_root/Dockerfile"
           docker build -t "$TARGET_IMAGE" "$image_root"
           echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
