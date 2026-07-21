@@ -191,6 +191,25 @@ class OpenUSDConan(ConanFile):
         tc.variables["PXR_ENABLE_PTEX_SUPPORT"] = self.options.with_ptex             # ASWF: build Ptex support
         tc.variables["PXR_ENABLE_PYTHON_SUPPORT"] = self.options.with_python         # ASWF: build Python support
         tc.variables["PXR_PYTHON_SHEBANG"] = "/usr/bin/env python3"                  # ASWF: don't bake Conan paths into Python scripts
+
+        # OpenUSD's native FindOpenImageIO/FindOSL modules expose these
+        # variables and the upstream sdrOsl CMakeLists.txt consumes them.
+        # CMakeDeps provides Conan targets instead, so bridge the Conan
+        # package metadata without patching OpenUSD's source CMake file.
+        if self.options.with_openimageio:
+            oiio_info = self.dependencies["openimageio"]
+            tc.variables["OIIO_INCLUDE_DIRS"] = ";".join(
+                path.replace("\\", "/") for path in oiio_info.cpp_info.includedirs
+            )
+            tc.variables["OIIO_LIBRARIES"] = (
+                "OpenImageIO::OpenImageIO;OpenImageIO::OpenImageIO_Util"
+            )
+        if self.options.with_osl:
+            osl_info = self.dependencies["osl"]
+            tc.variables["OSL_INCLUDE_DIR"] = ";".join(
+                path.replace("\\", "/") for path in osl_info.cpp_info.includedirs
+            )
+            tc.variables["OSL_QUERY_LIBRARY"] = "OSL::OSL"
        
         tc.variables["OPENSUBDIV_LIBRARIES"] = "OpenSubdiv::osdcpu;OpenSubdiv::osdgpu"
         tc.variables["OPENSUBDIV_INCLUDE_DIR"] = self.dependencies['opensubdiv'].cpp_info.includedirs[0].replace("\\", "/")
