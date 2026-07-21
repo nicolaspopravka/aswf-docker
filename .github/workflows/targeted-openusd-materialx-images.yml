@@ -85,6 +85,7 @@ jobs:
             echo "COPY root/ /usr/local/"
             echo 'ENV PXR_MTLX_STDLIB_SEARCH_PATHS=/usr/local/share/MaterialX/libraries'
             echo 'ENV LD_LIBRARY_PATH=/usr/local/lib'
+            echo 'ENV PYTHONPATH=/usr/local/lib/python'
             echo 'RUN python3 -c '\''import ctypes; import pxr.Usd; ctypes.CDLL("/usr/local/plugin/usd/sdrOsl.so", mode=ctypes.RTLD_LOCAL); print("final-image sdrOsl dlopen succeeded")'\'''
           } > "$image_root/Dockerfile"
           docker build -t "$TARGET_IMAGE" "$image_root"
