@@ -6,7 +6,7 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 helper="${repo_root}/scripts/vfx/build_usd.sh"
 harness="${repo_root}/scripts/matrix/build_openusd_path_image.sh"
-workflow="${repo_root}/.github/workflows/openusd-build-path-images.yml"
+workflow="${repo_root}/.github/workflows/targeted-openusd-materialx-images.yml"
 expected_helper_sha="1247e6fb475885c414687813b93afd2e83d49b89566905be801fe998bd767ab2"
 
 hash_file() {
