@@ -1,0 +1,266 @@
+name: Build OpenUSD build-path matrix images
+
+on:
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: Images to build and publish
+        required: true
+        default: pilot
+        type: choice
+        options:
+          - pilot
+          - remaining
+          - all
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: openusd-build-path-images-${{ github.ref }}-${{ inputs.scope }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 330
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        include:
+          - name: pixar-cy2023
+            path: pixar-build-usd
+            cy: 2023
+            base: aswf/ci-usd:2023.4@sha256:a9e7ec17ce8a921269f6bdc28e8693e4e095bed009382f030a74839e7c651b91
+            openusd: "23.08"
+            materialx: "1.38.7"
+            source_revision: 10b62439e9242a55101cf8b200f2c7e02420e1b0
+            source_sha256: 6b7f00588c451e09ab32838993487343665223c2ac533d5ad102bbc7394713b7
+            script_sha256: 2504632b90e2fcac0b67cb6ab34846cc02d92a3ce04dac22a61ab55865ec8c25
+            gcc_major: 11
+            install_prefix: /opt/openusd
+          - name: aswf-cy2023
+            path: aswf-docker-build-usd
+            cy: 2023
+            base: aswf/ci-usd:2023.4@sha256:a9e7ec17ce8a921269f6bdc28e8693e4e095bed009382f030a74839e7c651b91
+            openusd: "23.08"
+            materialx: "1.38.7"
+            source_revision: 10b62439e9242a55101cf8b200f2c7e02420e1b0
+            source_sha256: 6b7f00588c451e09ab32838993487343665223c2ac533d5ad102bbc7394713b7
+            script_sha256: 1247e6fb475885c414687813b93afd2e83d49b89566905be801fe998bd767ab2
+            gcc_major: 11
+            install_prefix: /usr/local
+          - name: pixar-cy2024
+            path: pixar-build-usd
+            cy: 2024
+            base: aswf/ci-usd:2024.8@sha256:df2a17348ada054cb013ddfe658852e88b1ddf6cad7615d41c34ad247ed8bb43
+            openusd: "24.08"
+            materialx: "1.38.10"
+            source_revision: 59992d2178afcebd89273759f2bddfe730e59aa8
+            source_sha256: 6640bb184bf602c6df14fa4a83af6ac5ae1ab8d1d38cf7bb7decfaa9a7ad5d06
+            script_sha256: 55e8af4581d9d7f3206765799d9e533a5678e5139f1918d9f8a994d193e9210a
+            gcc_major: 11
+            install_prefix: /opt/openusd
+          - name: aswf-cy2024
+            path: aswf-docker-build-usd
+            cy: 2024
+            base: aswf/ci-usd:2024.8@sha256:df2a17348ada054cb013ddfe658852e88b1ddf6cad7615d41c34ad247ed8bb43
+            openusd: "24.08"
+            materialx: "1.39.1"
+            source_revision: 59992d2178afcebd89273759f2bddfe730e59aa8
+            source_sha256: 6640bb184bf602c6df14fa4a83af6ac5ae1ab8d1d38cf7bb7decfaa9a7ad5d06
+            script_sha256: 1247e6fb475885c414687813b93afd2e83d49b89566905be801fe998bd767ab2
+            gcc_major: 11
+            install_prefix: /usr/local
+          - name: pixar-cy2025
+            path: pixar-build-usd
+            cy: 2025
+            base: aswf/ci-usd:2025.7@sha256:19d24d241bdd9527d0d09eac3b8c5de1afba53b591572ef9ac2b2ee3c19b2678
+            openusd: "25.05.01"
+            materialx: "1.39.3"
+            source_revision: 1595c62ea8381b5b22eb8621afc8652f89b6136d
+            source_sha256: f424e8db26e063a1b005423ee52142e75c38185bbd4b8126ef64173e906dd50f
+            script_sha256: b53a004a6536e24fad54de9fc263b6e2090aefbb23061a638d84c749160b4068
+            gcc_major: 11
+            install_prefix: /opt/openusd
+          - name: aswf-cy2025
+            path: aswf-docker-build-usd
+            cy: 2025
+            base: aswf/ci-usd:2025.7@sha256:19d24d241bdd9527d0d09eac3b8c5de1afba53b591572ef9ac2b2ee3c19b2678
+            openusd: "25.05.01"
+            materialx: "1.39.3"
+            source_revision: 1595c62ea8381b5b22eb8621afc8652f89b6136d
+            source_sha256: f424e8db26e063a1b005423ee52142e75c38185bbd4b8126ef64173e906dd50f
+            script_sha256: 1247e6fb475885c414687813b93afd2e83d49b89566905be801fe998bd767ab2
+            gcc_major: 11
+            install_prefix: /usr/local
+          - name: pixar-cy2026
+            path: pixar-build-usd
+            cy: 2026
+            base: aswf/ci-usd:2026.5@sha256:476f4005993361e5fd97b72891497a94a76f65612ede8062b12b866899f3ff44
+            openusd: "26.03"
+            materialx: "1.39.3"
+            source_revision: 1818e14bae0036ac4bc7b4e60826b5797076a4fe
+            source_sha256: 590ea75ffa3ac0c35fdd080df04d61a696733b8f3d6a79bdc3f13f8077162d36
+            script_sha256: 268cdd366edfcbf6e8759553c94aff8f1e6b92e484cb809591aaeb47b668f8a9
+            gcc_major: 14
+            install_prefix: /opt/openusd
+          - name: aswf-cy2026
+            path: aswf-docker-build-usd
+            cy: 2026
+            base: aswf/ci-usd:2026.5@sha256:476f4005993361e5fd97b72891497a94a76f65612ede8062b12b866899f3ff44
+            openusd: "26.03"
+            materialx: "1.39.4"
+            source_revision: 1818e14bae0036ac4bc7b4e60826b5797076a4fe
+            source_sha256: 590ea75ffa3ac0c35fdd080df04d61a696733b8f3d6a79bdc3f13f8077162d36
+            script_sha256: 1247e6fb475885c414687813b93afd2e83d49b89566905be801fe998bd767ab2
+            gcc_major: 14
+            install_prefix: /usr/local
+          - name: pixar-cy2027
+            path: pixar-build-usd
+            cy: 2027
+            base: aswf/ci-usd:2027.0@sha256:4e4ad68fc0d678d638623ffc47aff714e2b6046c90d01e91a889979b225e5c92
+            openusd: "26.05"
+            materialx: "1.39.4"
+            source_revision: 2095fafafd033fa23386d7ec6d58c7cc33974518
+            source_sha256: bf514f62ac9508d3c5b121dc1107f3b29bf3c954473b9b0bf8324b7cf04c64c1
+            script_sha256: 258c2bd80974154c00b8cb7d6ca19257d6e1878bdbdce6501ddf18a5e230c629
+            gcc_major: 14
+            install_prefix: /opt/openusd
+          - name: aswf-cy2027
+            path: aswf-docker-build-usd
+            cy: 2027
+            base: aswf/ci-usd:2027.0@sha256:4e4ad68fc0d678d638623ffc47aff714e2b6046c90d01e91a889979b225e5c92
+            openusd: "26.05"
+            materialx: "1.39.5"
+            source_revision: 2095fafafd033fa23386d7ec6d58c7cc33974518
+            source_sha256: bf514f62ac9508d3c5b121dc1107f3b29bf3c954473b9b0bf8324b7cf04c64c1
+            script_sha256: 1247e6fb475885c414687813b93afd2e83d49b89566905be801fe998bd767ab2
+            gcc_major: 14
+            install_prefix: /usr/local
+
+    steps:
+      - name: Select requested scope
+        id: select
+        env:
+          SCOPE: ${{ inputs.scope }}
+          CY: ${{ matrix.cy }}
+        run: |
+          selected=false
+          if [[ "$SCOPE" == all ]] \
+            || [[ "$SCOPE" == pilot && "$CY" == 2025 ]] \
+            || [[ "$SCOPE" == remaining && "$CY" != 2025 ]]; then
+            selected=true
+          fi
+          echo "selected=$selected" >> "$GITHUB_OUTPUT"
+
+      - if: steps.select.outputs.selected == 'true'
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Validate immutable inputs
+        if: steps.select.outputs.selected == 'true'
+        run: bash scripts/matrix/validate_openusd_build_path_images.sh
+
+      - name: Reclaim runner disk
+        if: steps.select.outputs.selected == 'true'
+        run: |
+          set -eux
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /usr/local/share/powershell /usr/share/swift /usr/local/.ghcup \
+            /usr/local/aws-cli /usr/local/aws-sam-cli /usr/local/julia* \
+            /usr/lib/jvm
+          sudo apt-get clean
+          docker system prune -af
+          df -h /
+
+      - name: Prepare minimal build context
+        if: steps.select.outputs.selected == 'true'
+        env:
+          CONTEXT: ${{ runner.temp }}/openusd-${{ matrix.name }}
+        run: |
+          set -eux
+          mkdir -p "$CONTEXT"
+          cp scripts/matrix/Dockerfile.openusd-build-path "$CONTEXT/Dockerfile"
+          cp scripts/matrix/build_openusd_path_image.sh "$CONTEXT/"
+          cp scripts/vfx/build_usd.sh "$CONTEXT/aswf-build_usd.sh"
+
+      - name: Build immutable image
+        if: steps.select.outputs.selected == 'true'
+        env:
+          CONTEXT: ${{ runner.temp }}/openusd-${{ matrix.name }}
+          TARGET_IMAGE: ghcr.io/${{ github.repository_owner }}/openusd-build-paths:${{ matrix.name }}-${{ github.sha }}
+          ASWF_SOURCE_COMMIT: 2c8484137a2f056a0abfd504dd5ad166240ab47e
+        run: |
+          set -euxo pipefail
+          docker build --progress=plain \
+            --tag "$TARGET_IMAGE" \
+            --build-arg BASE_IMAGE="${{ matrix.base }}" \
+            --build-arg BUILD_PATH="${{ matrix.path }}" \
+            --build-arg CY="${{ matrix.cy }}" \
+            --build-arg OPENUSD_VERSION="${{ matrix.openusd }}" \
+            --build-arg MATERIALX_VERSION="${{ matrix.materialx }}" \
+            --build-arg SOURCE_REVISION="${{ matrix.source_revision }}" \
+            --build-arg SOURCE_SHA256="${{ matrix.source_sha256 }}" \
+            --build-arg SCRIPT_SHA256="${{ matrix.script_sha256 }}" \
+            --build-arg EXPECTED_GCC_MAJOR="${{ matrix.gcc_major }}" \
+            --build-arg INSTALL_PREFIX="${{ matrix.install_prefix }}" \
+            --build-arg BUILD_JOBS=4 \
+            --build-arg ASWF_SOURCE_COMMIT="$ASWF_SOURCE_COMMIT" \
+            --build-arg WORKFLOW_REVISION="$GITHUB_SHA" \
+            "$CONTEXT" \
+            2>&1 | tee "${{ runner.temp }}/${{ matrix.name }}-docker-build.log"
+
+      - name: Authenticate to GHCR
+        if: steps.select.outputs.selected == 'true'
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+
+      - name: Publish and verify immutable image
+        if: steps.select.outputs.selected == 'true'
+        env:
+          TARGET_IMAGE: ghcr.io/${{ github.repository_owner }}/openusd-build-paths:${{ matrix.name }}-${{ github.sha }}
+        run: |
+          set -euxo pipefail
+          docker push "$TARGET_IMAGE" \
+            2>&1 | tee "${{ runner.temp }}/${{ matrix.name }}-docker-push.log"
+          docker image inspect "$TARGET_IMAGE" \
+            > "${{ runner.temp }}/${{ matrix.name }}-local-image.json"
+          docker buildx imagetools inspect "$TARGET_IMAGE" \
+            | tee "${{ runner.temp }}/${{ matrix.name }}-remote-image.txt"
+          digest="$(sed -n 's/^Digest:[[:space:]]*//p' \
+            "${{ runner.temp }}/${{ matrix.name }}-remote-image.txt" | head -1)"
+          [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          printf '%s@%s\n' "$TARGET_IMAGE" "$digest" \
+            > "${{ runner.temp }}/${{ matrix.name }}-immutable-image.txt"
+
+      - name: Extract embedded build evidence
+        if: steps.select.outputs.selected == 'true' && success()
+        env:
+          TARGET_IMAGE: ghcr.io/${{ github.repository_owner }}/openusd-build-paths:${{ matrix.name }}-${{ github.sha }}
+          EVIDENCE: ${{ runner.temp }}/${{ matrix.name }}-evidence
+        run: |
+          set -eux
+          container="$(docker create "$TARGET_IMAGE")"
+          trap 'docker rm -f "$container" >/dev/null 2>&1 || true' EXIT
+          mkdir -p "$EVIDENCE"
+          docker cp "$container:/opt/openusd-build-evidence/." "$EVIDENCE/"
+          find "$EVIDENCE" -type f -print | sort
+
+      - name: Upload build evidence
+        if: always() && steps.select.outputs.selected == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: openusd-build-path-${{ matrix.name }}-${{ github.run_attempt }}
+          if-no-files-found: warn
+          retention-days: 30
+          path: |
+            ${{ runner.temp }}/${{ matrix.name }}-docker-build.log
+            ${{ runner.temp }}/${{ matrix.name }}-docker-push.log
+            ${{ runner.temp }}/${{ matrix.name }}-local-image.json
+            ${{ runner.temp }}/${{ matrix.name }}-remote-image.txt
+            ${{ runner.temp }}/${{ matrix.name }}-immutable-image.txt
+            ${{ runner.temp }}/${{ matrix.name }}-evidence

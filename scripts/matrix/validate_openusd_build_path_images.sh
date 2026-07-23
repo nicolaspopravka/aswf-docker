@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+helper="${repo_root}/scripts/vfx/build_usd.sh"
+harness="${repo_root}/scripts/matrix/build_openusd_path_image.sh"
+workflow="${repo_root}/.github/workflows/openusd-build-path-images.yml"
+expected_helper_sha="1247e6fb475885c414687813b93afd2e83d49b89566905be801fe998bd767ab2"
+
+hash_file() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1" | awk '{print $1}'
+  else
+    shasum -a 256 "$1" | awk '{print $1}'
+  fi
+}
+
+[[ "$(hash_file "${helper}")" == "${expected_helper_sha}" ]]
+bash -n "${harness}"
+bash -n "$0"
+
+[[ "$(grep -c 'name: .*cy20' "${workflow}")" == 10 ]]
+grep -Fq 'ghcr.io/${{ github.repository_owner }}/openusd-build-paths' "${workflow}"
+grep -Fq 'permissions:' "${workflow}"
+grep -Fq 'packages: write' "${workflow}"
+grep -Fq 'scope:' "${workflow}"
+
+common=(
+  CY=2025
+  OPENUSD_VERSION=25.05.01
+  SOURCE_REVISION=1595c62ea8381b5b22eb8621afc8652f89b6136d
+  SOURCE_SHA256=f424e8db26e063a1b005423ee52142e75c38185bbd4b8126ef64173e906dd50f
+  EXPECTED_GCC_MAJOR=11
+  BUILD_JOBS=4
+  ASWF_SOURCE_COMMIT=2c8484137a2f056a0abfd504dd5ad166240ab47e
+  WORKFLOW_REVISION=local-dry-run
+)
+
+env "${common[@]}" \
+  BUILD_PATH=pixar-build-usd \
+  MATERIALX_VERSION=1.39.3 \
+  SCRIPT_SHA256=b53a004a6536e24fad54de9fc263b6e2090aefbb23061a638d84c749160b4068 \
+  INSTALL_PREFIX=/opt/openusd \
+  "${harness}" dry-run >/dev/null
+
+env "${common[@]}" \
+  BUILD_PATH=aswf-docker-build-usd \
+  MATERIALX_VERSION=1.39.3 \
+  SCRIPT_SHA256="${expected_helper_sha}" \
+  INSTALL_PREFIX=/usr/local \
+  "${harness}" dry-run >/dev/null
+
+echo "OpenUSD build-path image inputs are valid."
