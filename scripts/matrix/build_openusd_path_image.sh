@@ -169,7 +169,7 @@ record_inputs() {
 
 download_source() {
   source_archive="$1"
-  curl --fail --location --retry 3 --retry-all-errors \
+  curl --fail --location --retry 3 \
     --output "${source_archive}" "${source_url}"
   printf '%s  %s\n' "${SOURCE_SHA256}" "${source_archive}" \
     | sha256sum --check
@@ -254,7 +254,7 @@ prepare_cy2024_patch_shim() {
   patch_url="https://patch-diff.githubusercontent.com/raw/PixarAnimationStudios/OpenUSD/pull/3159.diff"
   patch_sha="10cd7b7df805202d62acea21d5bffb8ce91ad21f1005b958291dff5827825703"
   patch_file="${downloads_root}/openusd-pr3159.diff"
-  curl --fail --location --retry 3 --retry-all-errors \
+  curl --fail --location --retry 3 \
     --output "${patch_file}" "${patch_url}"
   printf '%s  %s\n' "${patch_sha}" "${patch_file}" | sha256sum --check
   mkdir -p "${work_root}/curl-shim"

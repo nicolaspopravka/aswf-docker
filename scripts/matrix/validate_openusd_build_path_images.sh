@@ -20,6 +20,10 @@ hash_file() {
 [[ "$(hash_file "${helper}")" == "${expected_helper_sha}" ]]
 bash -n "${harness}"
 bash -n "$0"
+if grep -Fq -- '--retry-all-errors' "${harness}"; then
+  echo "The stock ci-usd curl is too old for --retry-all-errors." >&2
+  exit 1
+fi
 
 [[ "$(grep -c 'name: .*cy20' "${workflow}")" == 10 ]]
 grep -Fq 'ghcr.io/${{ github.repository_owner }}/openusd-build-paths' "${workflow}"
