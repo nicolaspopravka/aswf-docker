@@ -63,9 +63,10 @@ harness verifies the unmodified script hash, changes only that URL to the
 same-content `archives.boost.io` endpoint, and records the executed script,
 its hash, and the exact diff.
 
-ASWF's CY2024 helper downloads PR3159 at execution time. The harness downloads
-that patch, verifies its pinned SHA-256, and interposes a narrow `curl` shim so
-the unchanged helper consumes the verified bytes.
+ASWF's CY2024 helper downloads PR3159 at execution time. The harness reconstructs
+the final PR diff from its immutable base and head commits, verifies its pinned
+SHA-256, and interposes a narrow `curl` shim so the unchanged helper consumes
+those verified bytes when it requests the live PR URL.
 
 The stock ASWF helper runs an unversioned `pip3 install` and removes its source
 and build directory after installation. The image records the pip inventory

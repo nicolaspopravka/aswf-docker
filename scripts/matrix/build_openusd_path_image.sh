@@ -265,8 +265,8 @@ PY
 }
 
 prepare_cy2024_patch_shim() {
-  patch_url="https://patch-diff.githubusercontent.com/raw/PixarAnimationStudios/OpenUSD/pull/3159.diff"
-  patch_sha="10cd7b7df805202d62acea21d5bffb8ce91ad21f1005b958291dff5827825703"
+  patch_url="https://github.com/PixarAnimationStudios/OpenUSD/compare/1a85ea7262b387a893271101069cc1fef87b838c...ebd684d830ebb869a5f99f54938b8957dcca12c6.diff"
+  patch_sha="585a5f6904eeb2c664fecd7ab6ab5c9606ae99b3d5c0c52ab36832f8c7c7b94d"
   patch_file="${downloads_root}/openusd-pr3159.diff"
   curl --fail --location --retry 3 \
     --output "${patch_file}" "${patch_url}"
