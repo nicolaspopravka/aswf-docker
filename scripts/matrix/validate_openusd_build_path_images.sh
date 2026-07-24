@@ -42,6 +42,11 @@ grep -Fq '|| [[ "$SCOPE" == "$NAME" ]]' "${workflow}"
 grep -Fq '|| [[ "$SCOPE" == pixar && "$NAME" == pixar-* ]]' "${workflow}"
 [[ "$(grep -c 'base: aswf/ci-common:.*@sha256:' "${workflow}")" == 5 ]]
 [[ "$(grep -c 'base: aswf/ci-usd:.*@sha256:' "${workflow}")" == 5 ]]
+[[ "$(grep -c 'install_prefix: /usr/local' "${workflow}")" == 10 ]]
+if grep -Fq 'install_prefix: /opt/openusd' "${workflow}"; then
+  echo "All build paths must share the /usr/local runtime layout." >&2
+  exit 1
+fi
 grep -Fq 'absent ASWF_OPENUSD_VERSION: Pixar base is not ci-usd' "${harness}"
 
 common=(
@@ -59,7 +64,7 @@ env "${common[@]}" \
   BUILD_PATH=pixar-build-usd \
   MATERIALX_VERSION=1.39.3 \
   SCRIPT_SHA256=b53a004a6536e24fad54de9fc263b6e2090aefbb23061a638d84c749160b4068 \
-  INSTALL_PREFIX=/opt/openusd \
+  INSTALL_PREFIX=/usr/local \
   "${harness}" dry-run >/dev/null
 
 env "${common[@]}" \

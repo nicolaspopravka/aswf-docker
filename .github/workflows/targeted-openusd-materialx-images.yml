@@ -52,7 +52,7 @@ jobs:
             source_sha256: 6b7f00588c451e09ab32838993487343665223c2ac533d5ad102bbc7394713b7
             script_sha256: 2504632b90e2fcac0b67cb6ab34846cc02d92a3ce04dac22a61ab55865ec8c25
             gcc_major: 11
-            install_prefix: /opt/openusd
+            install_prefix: /usr/local
           - name: aswf-cy2023
             path: aswf-docker-build-usd
             cy: 2023
@@ -74,7 +74,7 @@ jobs:
             source_sha256: 6640bb184bf602c6df14fa4a83af6ac5ae1ab8d1d38cf7bb7decfaa9a7ad5d06
             script_sha256: 55e8af4581d9d7f3206765799d9e533a5678e5139f1918d9f8a994d193e9210a
             gcc_major: 11
-            install_prefix: /opt/openusd
+            install_prefix: /usr/local
           - name: aswf-cy2024
             path: aswf-docker-build-usd
             cy: 2024
@@ -96,7 +96,7 @@ jobs:
             source_sha256: f424e8db26e063a1b005423ee52142e75c38185bbd4b8126ef64173e906dd50f
             script_sha256: b53a004a6536e24fad54de9fc263b6e2090aefbb23061a638d84c749160b4068
             gcc_major: 11
-            install_prefix: /opt/openusd
+            install_prefix: /usr/local
           - name: aswf-cy2025
             path: aswf-docker-build-usd
             cy: 2025
@@ -118,7 +118,7 @@ jobs:
             source_sha256: 590ea75ffa3ac0c35fdd080df04d61a696733b8f3d6a79bdc3f13f8077162d36
             script_sha256: 268cdd366edfcbf6e8759553c94aff8f1e6b92e484cb809591aaeb47b668f8a9
             gcc_major: 14
-            install_prefix: /opt/openusd
+            install_prefix: /usr/local
           - name: aswf-cy2026
             path: aswf-docker-build-usd
             cy: 2026
@@ -140,7 +140,7 @@ jobs:
             source_sha256: bf514f62ac9508d3c5b121dc1107f3b29bf3c954473b9b0bf8324b7cf04c64c1
             script_sha256: 258c2bd80974154c00b8cb7d6ca19257d6e1878bdbdce6501ddf18a5e230c629
             gcc_major: 14
-            install_prefix: /opt/openusd
+            install_prefix: /usr/local
           - name: aswf-cy2027
             path: aswf-docker-build-usd
             cy: 2027

@@ -205,7 +205,7 @@ build_pixar() {
   source_archive="${downloads_root}/openusd-v${OPENUSD_VERSION}.tar.gz"
   source_root="${work_root}/OpenUSD-${OPENUSD_VERSION}"
   download_source "${source_archive}"
-  rm -rf "${source_root}" "${INSTALL_PREFIX}"
+  rm -rf "${source_root}"
   mkdir -p "${source_root}" "${INSTALL_PREFIX}"
   tar -xzf "${source_archive}" --strip-components=1 -C "${source_root}"
 

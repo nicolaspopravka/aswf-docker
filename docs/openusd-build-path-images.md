@@ -10,8 +10,8 @@ It does not rebuild or copy the prebuilt `aswf/ci-vfxall` row.
 
 Each Pixar job starts from the matching digest-pinned `aswf/ci-common`
 toolchain image so `build_usd.py` constructs its own dependency stack under
-`/opt/openusd`. Each ASWF-script job starts from the matching digest-pinned
-`aswf/ci-usd` dependency image and installs under `/usr/local`. The harness
+`/usr/local`. Each ASWF-script job starts from the matching digest-pinned
+`aswf/ci-usd` dependency image and also installs under `/usr/local`. The harness
 fails a Pixar job if the base exposes `ASWF_OPENUSD_VERSION`, then proves that
 `usdrecord`, `usdcat`, the `pxr` Python package, and installed OpenUSD
 libraries are absent. It selects the matching VFX Platform GCC toolset
