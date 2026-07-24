@@ -2,7 +2,7 @@
 # Copyright (c) Contributors to the aswf-docker Project.
 # SPDX-License-Identifier: Apache-2.0
 #
-# Build one OpenUSD matrix image inside a digest-pinned ci-usd base.
+# Build one OpenUSD matrix image inside its digest-pinned build-path base.
 
 set -Eeuo pipefail
 
@@ -87,6 +87,19 @@ sha256_file() {
 record_clean_base() {
   {
     echo "base clean-room assertions"
+    if [[ "${BUILD_PATH}" == pixar-build-usd ]]; then
+      if [[ -n "${ASWF_OPENUSD_VERSION:-}" ]]; then
+        echo "unexpected ci-usd OpenUSD environment in Pixar base" >&2
+        return 1
+      fi
+      echo "absent ASWF_OPENUSD_VERSION: Pixar base is not ci-usd"
+    else
+      [[ "${ASWF_OPENUSD_VERSION:-}" == "${OPENUSD_VERSION}" ]] || {
+        echo "ASWF ci-usd version mismatch: ${ASWF_OPENUSD_VERSION:-unset}" >&2
+        return 1
+      }
+      echo "matching ASWF_OPENUSD_VERSION=${ASWF_OPENUSD_VERSION}"
+    fi
     for command_name in usdrecord usdcat; do
       if command -v "${command_name}"; then
         echo "unexpected preinstalled command: ${command_name}" >&2

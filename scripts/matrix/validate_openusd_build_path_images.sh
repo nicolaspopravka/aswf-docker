@@ -39,6 +39,10 @@ grep -Fq 'permissions:' "${workflow}"
 grep -Fq 'packages: write' "${workflow}"
 grep -Fq 'scope:' "${workflow}"
 grep -Fq '|| [[ "$SCOPE" == "$NAME" ]]' "${workflow}"
+grep -Fq '|| [[ "$SCOPE" == pixar && "$NAME" == pixar-* ]]' "${workflow}"
+[[ "$(grep -c 'base: aswf/ci-common:.*@sha256:' "${workflow}")" == 5 ]]
+[[ "$(grep -c 'base: aswf/ci-usd:.*@sha256:' "${workflow}")" == 5 ]]
+grep -Fq 'absent ASWF_OPENUSD_VERSION: Pixar base is not ci-usd' "${harness}"
 
 common=(
   CY=2025

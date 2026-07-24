@@ -8,13 +8,16 @@ source-built OCI images required by the USD benchmark matrix:
 
 It does not rebuild or copy the prebuilt `aswf/ci-vfxall` row.
 
-Every job starts from the exact linux/amd64 `aswf/ci-usd` digest recorded in
-the workflow. The harness first proves that `usdrecord`, `usdcat`, the `pxr`
-Python package, and installed OpenUSD libraries are absent. It then selects the
-image's matching GCC toolset explicitly, verifies source and script hashes,
-builds OpenUSD, verifies that the runtime resolves from the intended install
-prefix, embeds the evidence below `/opt/openusd-build-evidence`, and publishes
-the image to:
+Each Pixar job starts from the matching digest-pinned `aswf/ci-common`
+toolchain image so `build_usd.py` constructs its own dependency stack under
+`/opt/openusd`. Each ASWF-script job starts from the matching digest-pinned
+`aswf/ci-usd` dependency image and installs under `/usr/local`. The harness
+fails a Pixar job if the base exposes `ASWF_OPENUSD_VERSION`, then proves that
+`usdrecord`, `usdcat`, the `pxr` Python package, and installed OpenUSD
+libraries are absent. It selects the matching VFX Platform GCC toolset
+explicitly, verifies source and script hashes, builds OpenUSD, verifies that
+the runtime resolves from the intended install prefix, embeds the evidence
+below `/opt/openusd-build-evidence`, and publishes the image to:
 
 ```text
 ghcr.io/nicolaspopravka/openusd-build-paths:<path>-cy<year>-<workflow-commit>
