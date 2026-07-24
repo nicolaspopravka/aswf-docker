@@ -38,6 +38,7 @@ grep -Fq 'ghcr.io/${{ github.repository_owner }}/openusd-build-paths' "${workflo
 grep -Fq 'permissions:' "${workflow}"
 grep -Fq 'packages: write' "${workflow}"
 grep -Fq 'scope:' "${workflow}"
+grep -Fq '|| [[ "$SCOPE" == "$NAME" ]]' "${workflow}"
 
 common=(
   CY=2025

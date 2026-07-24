@@ -204,20 +204,34 @@ build_pixar() {
   }
   cp "${pixar_script}" "${evidence_root}/build_usd.py.original"
 
-  if [[ "${OPENUSD_VERSION}" == 24.08 ]]; then
-    python3 - "${pixar_script}" <<'PY'
+  if [[ "${OPENUSD_VERSION}" == 23.08 || "${OPENUSD_VERSION}" == 24.08 ]]; then
+    python3 - "${pixar_script}" "${OPENUSD_VERSION}" <<'PY'
 from pathlib import Path
 import sys
 
 path = Path(sys.argv[1])
-old = (
-    "https://boostorg.jfrog.io/artifactory/main/release/"
-    "1.82.0/source/boost_1_82_0.zip"
-)
-new = "https://archives.boost.io/release/1.82.0/source/boost_1_82_0.zip"
+version = sys.argv[2]
+replacements = {
+    "23.08": (
+        "https://boostorg.jfrog.io/artifactory/main/release/"
+        "1.78.0/source/boost_1_78_0.zip",
+        "https://archives.boost.io/release/1.78.0/source/boost_1_78_0.zip",
+        3,
+    ),
+    "24.08": (
+        "https://boostorg.jfrog.io/artifactory/main/release/"
+        "1.82.0/source/boost_1_82_0.zip",
+        "https://archives.boost.io/release/1.82.0/source/boost_1_82_0.zip",
+        1,
+    ),
+}
+old, new, expected_count = replacements[version]
 text = path.read_text()
-if text.count(old) != 1:
-    raise SystemExit("expected exactly one obsolete Boost 1.82 URL")
+if text.count(old) != expected_count:
+    raise SystemExit(
+        f"expected {expected_count} obsolete Boost URL(s), found "
+        f"{text.count(old)}"
+    )
 path.write_text(text.replace(old, new))
 PY
     diff -u "${evidence_root}/build_usd.py.original" "${pixar_script}" \

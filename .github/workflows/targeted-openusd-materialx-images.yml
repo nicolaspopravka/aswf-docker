@@ -12,6 +12,16 @@ on:
           - pilot
           - remaining
           - all
+          - pixar-cy2023
+          - aswf-cy2023
+          - pixar-cy2024
+          - aswf-cy2024
+          - pixar-cy2025
+          - aswf-cy2025
+          - pixar-cy2026
+          - aswf-cy2026
+          - pixar-cy2027
+          - aswf-cy2027
 
 permissions:
   contents: read
@@ -148,11 +158,13 @@ jobs:
         env:
           SCOPE: ${{ inputs.scope }}
           CY: ${{ matrix.cy }}
+          NAME: ${{ matrix.name }}
         run: |
           selected=false
           if [[ "$SCOPE" == all ]] \
             || [[ "$SCOPE" == pilot && "$CY" == 2025 ]] \
-            || [[ "$SCOPE" == remaining && "$CY" != 2025 ]]; then
+            || [[ "$SCOPE" == remaining && "$CY" != 2025 ]] \
+            || [[ "$SCOPE" == "$NAME" ]]; then
             selected=true
           fi
           echo "selected=$selected" >> "$GITHUB_OUTPUT"

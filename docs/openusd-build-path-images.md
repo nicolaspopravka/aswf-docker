@@ -36,6 +36,8 @@ The workflow has three scopes:
   accepted.
 - `all`: rebuild all ten only when a new immutable workflow revision requires
   it.
+- Any exact matrix cell name, such as `pixar-cy2023`: retry only that cell
+  without rebuilding successful images from the same batch.
 
 The intended sequence is `pilot`, evidence audit, then `remaining`. GPU
 rendering is a separate phase and must use the exact published digest rather
