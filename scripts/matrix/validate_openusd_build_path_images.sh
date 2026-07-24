@@ -24,6 +24,12 @@ if grep -Fq -- '--retry-all-errors' "${harness}"; then
   echo "The stock ci-usd curl is too old for --retry-all-errors." >&2
   exit 1
 fi
+grep -Fq 'plugin_names=' "${harness}"
+grep -Fq "grep -R -l -F '\"HdStormRendererPlugin\"'" "${harness}"
+if grep -Fq 'HdStormRendererPlugin=True' "${harness}"; then
+  echo "Plug package names must not be confused with renderer type names." >&2
+  exit 1
+fi
 
 [[ "$(grep -c 'name: .*cy20' "${workflow}")" == 10 ]]
 grep -Fq 'ghcr.io/${{ github.repository_owner }}/openusd-build-paths' "${workflow}"

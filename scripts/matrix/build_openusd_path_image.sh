@@ -341,12 +341,13 @@ print("usd_version=" + ".".join(str(part) for part in Usd.GetVersion()))
 registry = Plug.Registry()
 plugins = sorted(plugin.name for plugin in registry.GetAllPlugins())
 print("plugin_count=" + str(len(plugins)))
-print("HdStormRendererPlugin=" + str("HdStormRendererPlugin" in plugins))
+print("plugin_names=" + ",".join(plugins))
 PY
   grep -F "pxr_file=${INSTALL_PREFIX}/" \
     "${evidence_root}/runtime/python-pxr.txt"
-  grep -F "HdStormRendererPlugin=True" \
-    "${evidence_root}/runtime/python-pxr.txt"
+  grep -R -l -F '"HdStormRendererPlugin"' \
+    "${INSTALL_PREFIX}/plugin/usd" "${INSTALL_PREFIX}/lib/usd" \
+    > "${evidence_root}/runtime/storm-plugin-metadata.txt"
 
   usdrecord --help > "${evidence_root}/runtime/usdrecord-help.txt"
   usdcat --version > "${evidence_root}/runtime/usdcat-version.txt" 2>&1 || true
