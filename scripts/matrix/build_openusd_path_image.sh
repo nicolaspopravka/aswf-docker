@@ -12,6 +12,7 @@ work_root="/opt/openusd-build-work"
 downloads_root="/opt/openusd-downloads"
 source_repository="${SOURCE_REPOSITORY:-https://github.com/PixarAnimationStudios/OpenUSD}"
 source_url="${source_repository}/archive/refs/tags/v${OPENUSD_VERSION:?missing OPENUSD_VERSION}.tar.gz"
+python_source_url=""
 
 required_names=(
   BUILD_PATH CY OPENUSD_VERSION MATERIALX_VERSION SOURCE_REVISION
@@ -25,6 +26,12 @@ for name in "${required_names[@]}"; do
     exit 2
   }
 done
+
+if [[ "${BUILD_PATH}" == pixar-build-usd ]]; then
+  : "${PYTHON_VERSION:?missing PYTHON_VERSION for Pixar build}"
+  : "${PYTHON_SHA256:?missing PYTHON_SHA256 for Pixar build}"
+  python_source_url="https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tgz"
+fi
 
 case "${BUILD_PATH}" in
   pixar-build-usd|aswf-docker-build-usd) ;;
@@ -48,6 +55,9 @@ if [[ "${mode}" == dry-run ]]; then
     "cy=${CY}" \
     "openusd=${OPENUSD_VERSION}" \
     "materialx=${MATERIALX_VERSION}" \
+    "python=${PYTHON_VERSION:-base-image}" \
+    "python_sha256=${PYTHON_SHA256:-base-image}" \
+    "python_source_url=${python_source_url:-base-image}" \
     "source_revision=${SOURCE_REVISION}" \
     "source_sha256=${SOURCE_SHA256}" \
     "script_sha256=${SCRIPT_SHA256}" \
@@ -151,6 +161,7 @@ select_compiler() {
     "${CC}" --version
     "${CXX}" --version
     cmake --version
+    echo -n "base_python3="
     python3 --version
     echo "nproc=$(nproc)"
     echo "requested_build_jobs=${BUILD_JOBS}"
@@ -164,6 +175,9 @@ record_inputs() {
       "cy=${CY}" \
       "openusd_version=${OPENUSD_VERSION}" \
       "materialx_version=${MATERIALX_VERSION}" \
+      "python_version=${PYTHON_VERSION:-base-image}" \
+      "python_source_url=${python_source_url:-base-image}" \
+      "python_sha256=${PYTHON_SHA256:-base-image}" \
       "source_repository=${source_repository}" \
       "source_url=${source_url}" \
       "source_revision=${SOURCE_REVISION}" \
@@ -190,6 +204,56 @@ download_source() {
     > "${evidence_root}/source-sha256.txt"
 }
 
+install_pixar_python() {
+  python_archive="${downloads_root}/Python-${PYTHON_VERSION}.tgz"
+  python_source_root="${work_root}/Python-${PYTHON_VERSION}"
+  curl --fail --location --retry 3 \
+    --output "${python_archive}" "${python_source_url}"
+  printf '%s  %s\n' "${PYTHON_SHA256}" "${python_archive}" \
+    | sha256sum --check
+  printf '%s  %s\n' "${PYTHON_SHA256}" "${python_source_url}" \
+    > "${evidence_root}/python-source-sha256.txt"
+
+  rm -rf "${python_source_root}"
+  mkdir -p "${python_source_root}"
+  tar -xzf "${python_archive}" --strip-components=1 -C "${python_source_root}"
+  python_configure=(
+    "${python_source_root}/configure"
+    "--prefix=${INSTALL_PREFIX}"
+    --enable-shared
+    --with-ensurepip=no
+  )
+  printf '%q ' "${python_configure[@]}" \
+    > "${evidence_root}/python-configure-argv.txt"
+  printf '\n' >> "${evidence_root}/python-configure-argv.txt"
+  (
+    cd "${python_source_root}"
+    "${python_configure[@]}"
+  ) 2>&1 | tee "${evidence_root}/python-configure.log"
+  make -C "${python_source_root}" -j "${BUILD_JOBS}" \
+    2>&1 | tee "${evidence_root}/python-build.log"
+  make -C "${python_source_root}" install \
+    2>&1 | tee "${evidence_root}/python-install.log"
+
+  export PATH="${INSTALL_PREFIX}/bin:${PATH}"
+  export LD_LIBRARY_PATH="${INSTALL_PREFIX}/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
+  hash -r
+  pixar_python="${INSTALL_PREFIX}/bin/python3"
+  [[ -x "${pixar_python}" ]]
+  observed_python="$("${pixar_python}" -c \
+    'import platform; print(platform.python_version())')"
+  [[ "${observed_python}" == "${PYTHON_VERSION}" ]] || {
+    echo "expected Python ${PYTHON_VERSION}, observed ${observed_python}" >&2
+    return 1
+  }
+  {
+    echo "executable=${pixar_python}"
+    "${pixar_python}" -VV
+    "${pixar_python}" -c \
+      'import platform, sys, sysconfig; print("platform=" + platform.platform()); print("prefix=" + sys.prefix); print("libdir=" + str(sysconfig.get_config_var("LIBDIR"))); print("ldlibrary=" + str(sysconfig.get_config_var("LDLIBRARY")))'
+  } > "${evidence_root}/python-runtime.txt"
+}
+
 preserve_cmake_caches() {
   search_root="$1"
   while IFS= read -r -d '' cache; do
@@ -202,6 +266,8 @@ preserve_cmake_caches() {
 }
 
 build_pixar() {
+  install_pixar_python
+  pixar_python="${INSTALL_PREFIX}/bin/python3"
   source_archive="${downloads_root}/openusd-v${OPENUSD_VERSION}.tar.gz"
   source_root="${work_root}/OpenUSD-${OPENUSD_VERSION}"
   download_source "${source_archive}"
@@ -218,7 +284,7 @@ build_pixar() {
   cp "${pixar_script}" "${evidence_root}/build_usd.py.original"
 
   if [[ "${OPENUSD_VERSION}" == 23.08 || "${OPENUSD_VERSION}" == 24.08 ]]; then
-    python3 - "${pixar_script}" "${OPENUSD_VERSION}" <<'PY'
+    "${pixar_python}" - "${pixar_script}" "${OPENUSD_VERSION}" <<'PY'
 from pathlib import Path
 import sys
 
@@ -255,7 +321,7 @@ PY
   sha256_file "${pixar_script}" > "${evidence_root}/build_usd.py.executed.sha256"
 
   command=(
-    python3 "${pixar_script}"
+    "${pixar_python}" "${pixar_script}"
     -j "${BUILD_JOBS}"
     --no-embree
     --no-prman
@@ -266,7 +332,7 @@ PY
     --no-docs
     --no-python-docs
     --build-args
-    "USD,-DCMAKE_IGNORE_PATH=/usr/local/lib/cmake/TBB -DTBB_ROOT_DIR=${INSTALL_PREFIX} -DTBB_INCLUDE_DIR=${INSTALL_PREFIX}/include -DTBB_LIBRARY=${INSTALL_PREFIX}/lib/libtbb.so -DTBB_tbb_LIBRARY_RELEASE=${INSTALL_PREFIX}/lib/libtbb.so"
+    "USD,-DCMAKE_IGNORE_PATH=/usr/local/lib/cmake/TBB -DTBB_ROOT_DIR=${INSTALL_PREFIX} -DTBB_INCLUDE_DIR=${INSTALL_PREFIX}/include -DTBB_LIBRARY=${INSTALL_PREFIX}/lib/libtbb.so -DTBB_tbb_LIBRARY_RELEASE=${INSTALL_PREFIX}/lib/libtbb.so -DPython3_EXECUTABLE=${pixar_python} -DPYTHON_EXECUTABLE=${pixar_python}"
     --materialx
     "${INSTALL_PREFIX}"
   )
@@ -350,6 +416,14 @@ configure_runtime() {
   export PXR_MTLX_STDLIB_SEARCH_PATHS="${INSTALL_PREFIX}/share/MaterialX"
 }
 
+runtime_python() {
+  if [[ "${BUILD_PATH}" == pixar-build-usd ]]; then
+    printf '%s\n' "${INSTALL_PREFIX}/bin/python3"
+  else
+    command -v python3
+  fi
+}
+
 record_runtime() {
   command -v usdrecord > "${evidence_root}/runtime/usdrecord-path.txt"
   command -v usdcat > "${evidence_root}/runtime/usdcat-path.txt"
@@ -360,7 +434,8 @@ record_runtime() {
       return 1
       ;;
   esac
-  python3 - <<'PY' > "${evidence_root}/runtime/python-pxr.txt"
+  selected_python="$(runtime_python)"
+  "${selected_python}" - <<'PY' > "${evidence_root}/runtime/python-pxr.txt"
 from pxr import Plug, Usd
 import pxr
 print("pxr_file=" + pxr.__file__)
@@ -370,6 +445,15 @@ plugins = sorted(plugin.name for plugin in registry.GetAllPlugins())
 print("plugin_count=" + str(len(plugins)))
 print("plugin_names=" + ",".join(plugins))
 PY
+  {
+    echo "executable=${selected_python}"
+    "${selected_python}" -VV
+  } > "${evidence_root}/runtime/python-version.txt"
+  if [[ "${BUILD_PATH}" == pixar-build-usd ]]; then
+    observed_python="$("${selected_python}" -c \
+      'import platform; print(platform.python_version())')"
+    [[ "${observed_python}" == "${PYTHON_VERSION}" ]]
+  fi
   grep -F "pxr_file=${INSTALL_PREFIX}/" \
     "${evidence_root}/runtime/python-pxr.txt"
   grep -R -l -F '"HdStormRendererPlugin"' \
@@ -415,6 +499,7 @@ PY
     cd "${evidence_root}"
     sha256sum \
       runtime/usdrecord-path.txt \
+      runtime/python-version.txt \
       runtime/python-pxr.txt \
       install-inventory.txt \
       > runtime/evidence-sha256.txt

@@ -43,15 +43,22 @@ grep -Fq '|| [[ "$SCOPE" == pixar && "$NAME" == pixar-* ]]' "${workflow}"
 [[ "$(grep -c 'base: aswf/ci-common:.*@sha256:' "${workflow}")" == 5 ]]
 [[ "$(grep -c 'base: aswf/ci-usd:.*@sha256:' "${workflow}")" == 5 ]]
 [[ "$(grep -c 'install_prefix: /usr/local' "${workflow}")" == 10 ]]
+[[ "$(grep -c 'python: "' "${workflow}")" == 5 ]]
+[[ "$(grep -c 'python_sha256: [0-9a-f]' "${workflow}")" == 5 ]]
 if grep -Fq 'install_prefix: /opt/openusd' "${workflow}"; then
   echo "All build paths must share the /usr/local runtime layout." >&2
   exit 1
 fi
 grep -Fq 'absent ASWF_OPENUSD_VERSION: Pixar base is not ci-usd' "${harness}"
+grep -Fq 'https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tgz' "${harness}"
+grep -Fq '"${pixar_python}" "${pixar_script}"' "${harness}"
+grep -Fq 'observed_python' "${harness}"
 
 common=(
   CY=2025
   OPENUSD_VERSION=25.05.01
+  PYTHON_VERSION=3.11.15
+  PYTHON_SHA256=f4de1b10bd6c70cbb9fa1cd71fc5038b832747a74ee59d599c69ce4846defb50
   SOURCE_REVISION=1595c62ea8381b5b22eb8621afc8652f89b6136d
   SOURCE_SHA256=f424e8db26e063a1b005423ee52142e75c38185bbd4b8126ef64173e906dd50f
   EXPECTED_GCC_MAJOR=11
@@ -69,6 +76,8 @@ env "${common[@]}" \
 
 env "${common[@]}" \
   BUILD_PATH=aswf-docker-build-usd \
+  PYTHON_VERSION= \
+  PYTHON_SHA256= \
   MATERIALX_VERSION=1.39.3 \
   SCRIPT_SHA256="${expected_helper_sha}" \
   INSTALL_PREFIX=/usr/local \

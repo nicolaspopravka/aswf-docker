@@ -8,6 +8,8 @@ ARG BUILD_PATH
 ARG CY
 ARG OPENUSD_VERSION
 ARG MATERIALX_VERSION
+ARG PYTHON_VERSION
+ARG PYTHON_SHA256
 ARG SOURCE_REVISION
 ARG SOURCE_SHA256
 ARG SCRIPT_SHA256
@@ -42,6 +44,8 @@ LABEL org.opencontainers.image.source="https://github.com/nicolaspopravka/aswf-d
       io.openusd-matrix.cy="${CY}" \
       io.openusd-matrix.openusd-version="${OPENUSD_VERSION}" \
       io.openusd-matrix.materialx-version="${MATERIALX_VERSION}" \
+      io.openusd-matrix.python-version="${PYTHON_VERSION}" \
+      io.openusd-matrix.python-source-sha256="${PYTHON_SHA256}" \
       io.openusd-matrix.base-image="${BASE_IMAGE}" \
       io.openusd-matrix.source-repository="${SOURCE_REPOSITORY}" \
       io.openusd-matrix.source-revision="${SOURCE_REVISION}" \
