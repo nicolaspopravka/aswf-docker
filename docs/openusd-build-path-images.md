@@ -23,7 +23,9 @@ ghcr.io/nicolaspopravka/openusd-build-paths:<path>-cy<year>-<workflow-commit>
 The published digest, Docker build log, image inspection, build inputs,
 configure/build log, compiler identity, CMake caches when retained, install
 inventory, and runtime dependency inventory are also uploaded as a GitHub
-Actions artifact.
+Actions artifact. Runtime checksum paths are relative to the extracted
+evidence directory so `sha256sum --check runtime/evidence-sha256.txt` works
+after download.
 
 ## Dispatch order
 

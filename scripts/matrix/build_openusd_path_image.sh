@@ -368,9 +368,9 @@ PY
   done < "${evidence_root}/runtime/openusd-libraries.txt"
 
   materialx_header="$(find "${INSTALL_PREFIX}" -type f \
-    -path '*/MaterialXCore/Library.h' -print -quit)"
+    -path '*/MaterialXCore/Generated.h' -print -quit)"
   [[ -n "${materialx_header}" ]] || {
-    echo "MaterialX Library.h not found below ${INSTALL_PREFIX}" >&2
+    echo "MaterialX Generated.h not found below ${INSTALL_PREFIX}" >&2
     return 1
   }
   {
@@ -384,11 +384,14 @@ PY
     printf 'PXR_PLUGINPATH_NAME=%q\n' "${PXR_PLUGINPATH_NAME}"
     printf 'PXR_MTLX_STDLIB_SEARCH_PATHS=%q\n' "${PXR_MTLX_STDLIB_SEARCH_PATHS}"
   } > "${evidence_root}/runtime/environment.sh"
-  sha256sum \
-    "${evidence_root}/runtime/usdrecord-path.txt" \
-    "${evidence_root}/runtime/python-pxr.txt" \
-    "${evidence_root}/install-inventory.txt" \
-    > "${evidence_root}/runtime/evidence-sha256.txt"
+  (
+    cd "${evidence_root}"
+    sha256sum \
+      runtime/usdrecord-path.txt \
+      runtime/python-pxr.txt \
+      install-inventory.txt \
+      > runtime/evidence-sha256.txt
+  )
 }
 
 record_clean_base
