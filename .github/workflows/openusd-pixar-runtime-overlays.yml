@@ -1,9 +1,6 @@
 name: Build OpenUSD Pixar runtime overlays
 
 on:
-  push:
-    branches:
-      - codex/matrix/openusd-pixar-runtime-overlays
   workflow_dispatch:
     inputs:
       scope:
@@ -43,7 +40,7 @@ jobs:
       - name: Select requested overlays
         id: select
         env:
-          SCOPE: ${{ inputs.scope || 'pilot' }}
+          SCOPE: ${{ inputs.scope }}
         run: |
           set -euo pipefail
           matrix="$(
