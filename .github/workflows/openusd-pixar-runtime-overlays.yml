@@ -1,0 +1,156 @@
+name: Build OpenUSD Pixar runtime overlays
+
+on:
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: Runtime overlays to build and publish
+        required: true
+        default: pilot
+        type: choice
+        options:
+          - pilot
+          - all
+          - pixar-cy2023
+          - pixar-cy2024
+          - pixar-cy2025
+          - pixar-cy2026
+          - pixar-cy2027
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: openusd-pixar-runtime-overlays-${{ github.ref }}-${{ inputs.scope }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-22.04
+    outputs:
+      matrix: ${{ steps.select.outputs.matrix }}
+    steps:
+      - name: Check out exact workflow revision
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Validate runtime overlay inputs
+        run: bash scripts/matrix/validate_openusd_pixar_runtime_overlays.sh
+
+      - name: Select requested overlays
+        id: select
+        env:
+          SCOPE: ${{ inputs.scope }}
+        run: |
+          set -euo pipefail
+          matrix="$(
+            python3 scripts/matrix/openusd_pixar_runtime_overlays.py \
+              select --scope "$SCOPE"
+          )"
+          printf 'matrix=%s\n' "$matrix" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: prepare
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+    steps:
+      - name: Check out exact workflow revision
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Reclaim runner disk
+        run: |
+          set -eux
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /usr/local/share/powershell /usr/share/swift /usr/local/.ghcup \
+            /usr/local/aws-cli /usr/local/aws-sam-cli /usr/local/julia* \
+            /usr/lib/jvm
+          sudo apt-get clean
+          docker system prune -af
+          df -h /
+
+      - name: Prepare minimal runtime-overlay context
+        env:
+          CONTEXT: ${{ runner.temp }}/${{ matrix.name }}
+        run: |
+          set -eux
+          mkdir -p "$CONTEXT"
+          cp scripts/matrix/Dockerfile.openusd-pixar-runtime \
+            "$CONTEXT/Dockerfile"
+          cp scripts/matrix/install_openusd_pixar_runtime.sh "$CONTEXT/"
+          cp scripts/matrix/pyside6-6.5.3-linux-x86_64.lock "$CONTEXT/"
+          cp scripts/matrix/pyside6-6.8.3-linux-x86_64.lock "$CONTEXT/"
+
+      - name: Build immutable runtime overlay
+        env:
+          CONTEXT: ${{ runner.temp }}/${{ matrix.name }}
+          PARENT_IMAGE: ${{ matrix.parent_image }}
+          TARGET_IMAGE: ghcr.io/${{ github.repository_owner }}/openusd-build-paths:${{ matrix.name }}-${{ github.sha }}
+        run: |
+          set -euxo pipefail
+          docker build --progress=plain \
+            --tag "$TARGET_IMAGE" \
+            --build-arg PARENT_IMAGE="$PARENT_IMAGE" \
+            --build-arg CY="${{ matrix.cy }}" \
+            --build-arg PYTHON_VERSION="${{ matrix.python_version }}" \
+            --build-arg PYSIDE_VERSION="${{ matrix.pyside_version }}" \
+            --build-arg PYSIDE_LOCK="${{ matrix.pyside_lock }}" \
+            --build-arg WORKFLOW_REVISION="$GITHUB_SHA" \
+            "$CONTEXT" \
+            2>&1 | tee "${{ runner.temp }}/${{ matrix.name }}-docker-build.log"
+
+      - name: Authenticate to GHCR
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+
+      - name: Publish and verify immutable runtime overlay
+        env:
+          TARGET_IMAGE: ghcr.io/${{ github.repository_owner }}/openusd-build-paths:${{ matrix.name }}-${{ github.sha }}
+        run: |
+          set -euxo pipefail
+          docker push "$TARGET_IMAGE" \
+            2>&1 | tee "${{ runner.temp }}/${{ matrix.name }}-docker-push.log"
+          docker image inspect "$TARGET_IMAGE" \
+            > "${{ runner.temp }}/${{ matrix.name }}-local-image.json"
+          docker buildx imagetools inspect "$TARGET_IMAGE" \
+            | tee "${{ runner.temp }}/${{ matrix.name }}-remote-image.txt"
+          digest="$(sed -n 's/^Digest:[[:space:]]*//p' \
+            "${{ runner.temp }}/${{ matrix.name }}-remote-image.txt" | head -1)"
+          [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          printf '%s@%s\n' "$TARGET_IMAGE" "$digest" \
+            > "${{ runner.temp }}/${{ matrix.name }}-immutable-image.txt"
+
+      - name: Extract embedded runtime evidence
+        env:
+          TARGET_IMAGE: ghcr.io/${{ github.repository_owner }}/openusd-build-paths:${{ matrix.name }}-${{ github.sha }}
+          EVIDENCE: ${{ runner.temp }}/${{ matrix.name }}-evidence
+        run: |
+          set -eux
+          container="$(docker create "$TARGET_IMAGE")"
+          trap 'docker rm -f "$container" >/dev/null 2>&1 || true' EXIT
+          mkdir -p "$EVIDENCE"
+          docker cp "$container:/opt/openusd-runtime-evidence/." "$EVIDENCE/"
+          (
+            cd "$EVIDENCE"
+            sha256sum --check evidence-sha256.txt
+          )
+
+      - name: Upload runtime-overlay evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: openusd-pixar-runtime-${{ matrix.name }}-${{ github.run_attempt }}
+          if-no-files-found: warn
+          retention-days: 30
+          path: |
+            ${{ runner.temp }}/${{ matrix.name }}-docker-build.log
+            ${{ runner.temp }}/${{ matrix.name }}-docker-push.log
+            ${{ runner.temp }}/${{ matrix.name }}-local-image.json
+            ${{ runner.temp }}/${{ matrix.name }}-remote-image.txt
+            ${{ runner.temp }}/${{ matrix.name }}-immutable-image.txt
+            ${{ runner.temp }}/${{ matrix.name }}-evidence

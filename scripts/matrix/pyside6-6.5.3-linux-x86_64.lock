@@ -1,0 +1,4 @@
+PySide6==6.5.3 --hash=sha256:84f3d3e278e5ea00f1558ac7e1eeb382bba1df7732bdb025ee654e7b4b3cd451
+PySide6-Addons==6.5.3 --hash=sha256:e5bc1fa95351182dc2c003e07320d5509218ccc0840d10197d7d452aa5de5d2e
+PySide6-Essentials==6.5.3 --hash=sha256:45580138be91f5fdcefb4d28dadb56d3640eb658575af97b49057e10c22a024d
+shiboken6==6.5.3 --hash=sha256:4cdda98df511243c40f1dd4d9eac25a7191c2583ac673147ecdae0ffa3b9223f

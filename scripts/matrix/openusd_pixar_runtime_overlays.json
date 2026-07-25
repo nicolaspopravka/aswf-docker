@@ -1,0 +1,47 @@
+{
+  "schema_version": "openusd-pixar-runtime-overlays/v1",
+  "registry": "ghcr.io/nicolaspopravka/openusd-build-paths",
+  "parent_workflow_revision": "8d6250b12344c85a874dc943da33ca886ff77dc5",
+  "entries": [
+    {
+      "name": "pixar-cy2023-runtime",
+      "cy": 2023,
+      "python_version": "3.10.20",
+      "parent_digest": "sha256:46e617b2c1de1a8e449ac0889fd804f8f202b4137a18090a462c5a22181d351f",
+      "pyside_version": null,
+      "pyside_lock": null
+    },
+    {
+      "name": "pixar-cy2024-runtime",
+      "cy": 2024,
+      "python_version": "3.11.15",
+      "parent_digest": "sha256:14e5bc979cbcb988700bece94b63f568e3faecc7886aeea3645ab5d4e73eb5a3",
+      "pyside_version": null,
+      "pyside_lock": null
+    },
+    {
+      "name": "pixar-cy2025-runtime",
+      "cy": 2025,
+      "python_version": "3.11.15",
+      "parent_digest": "sha256:b95ba42dd10a4e0af41a316e8aad74ed7fca59699af5e9312d9c6c5a8c51f279",
+      "pyside_version": "6.5.3",
+      "pyside_lock": "pyside6-6.5.3-linux-x86_64.lock"
+    },
+    {
+      "name": "pixar-cy2026-runtime",
+      "cy": 2026,
+      "python_version": "3.13.14",
+      "parent_digest": "sha256:69c38205e0b936d9c82651ea77f794fefe6bf58ae1682040e8ab4163ac143729",
+      "pyside_version": "6.8.3",
+      "pyside_lock": "pyside6-6.8.3-linux-x86_64.lock"
+    },
+    {
+      "name": "pixar-cy2027-runtime",
+      "cy": 2027,
+      "python_version": "3.13.14",
+      "parent_digest": "sha256:d3f274c6a41c85277a11a5c87998aa0908ed5bafd1fe07b84d8b55f08a062dfa",
+      "pyside_version": "6.8.3",
+      "pyside_lock": "pyside6-6.8.3-linux-x86_64.lock"
+    }
+  ]
+}

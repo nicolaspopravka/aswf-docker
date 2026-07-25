@@ -1,0 +1,34 @@
+# syntax=docker/dockerfile:1
+
+ARG PARENT_IMAGE
+FROM ${PARENT_IMAGE}
+
+ARG PARENT_IMAGE
+ARG CY
+ARG PYTHON_VERSION
+ARG PYSIDE_VERSION
+ARG PYSIDE_LOCK
+ARG WORKFLOW_REVISION
+
+COPY install_openusd_pixar_runtime.sh \
+  /opt/openusd-runtime/install_openusd_pixar_runtime.sh
+COPY pyside6-6.5.3-linux-x86_64.lock \
+  pyside6-6.8.3-linux-x86_64.lock \
+  /opt/openusd-runtime/
+
+RUN chmod 0755 /opt/openusd-runtime/install_openusd_pixar_runtime.sh \
+    && /opt/openusd-runtime/install_openusd_pixar_runtime.sh \
+      "${CY}" \
+      "${PYTHON_VERSION}" \
+      "${PYSIDE_VERSION}" \
+      "${PYSIDE_LOCK}" \
+      "${PARENT_IMAGE}"
+
+LABEL org.opencontainers.image.source="https://github.com/nicolaspopravka/aswf-docker" \
+      org.opencontainers.image.revision="${WORKFLOW_REVISION}" \
+      org.opencontainers.image.title="OpenUSD Pixar runtime overlay CY${CY}" \
+      io.openusd-matrix.runtime-overlay="ensurepip-and-vfx-pyside" \
+      io.openusd-matrix.runtime-parent="${PARENT_IMAGE}" \
+      io.openusd-matrix.runtime-cy="${CY}" \
+      io.openusd-matrix.runtime-python-version="${PYTHON_VERSION}" \
+      io.openusd-matrix.runtime-pyside-version="${PYSIDE_VERSION}"

@@ -46,6 +46,39 @@ The intended sequence is `pilot`, evidence audit, then `remaining`. GPU
 rendering is a separate phase and must use the exact published digest rather
 than the mutable tag.
 
+## Pixar runtime overlays
+
+The accepted Pixar images intentionally install exact VFX Platform CPython
+with `--with-ensurepip=no` and build OpenUSD with `--no-usdview`. This keeps
+the `build_usd.py` dependency boundary clean, but the benchmark launcher needs
+an installed `pip` to install Rez. The established CY2025-CY2027 EGL wrapper
+also imports `PySide6.QtWidgets.QApplication`; the CY2023-CY2024 wrappers do
+not.
+
+The separate `Build OpenUSD Pixar runtime overlays` workflow derives thin
+runtime images from the accepted tag-plus-digest Pixar parents without
+rebuilding or changing OpenUSD. All five overlays install pip only from the
+CPython-bundled, locally hashed `ensurepip` wheels. CY2025 additionally
+installs hash-locked PySide6 6.5.3, and CY2026-CY2027 install hash-locked
+PySide6 6.8.3. Those versions are within their matching VFX Platform `6.5.x`
+and `6.8.x` families. CY2023-CY2024 install no PySide because their
+established wrappers require none.
+
+Each overlay proves that the parent image is the accepted immutable digest,
+records the pip and PySide inputs, and compares hashes of the installed
+OpenUSD libraries, tools, plugin metadata, and `pxr` package before and after
+the runtime addition. Any OpenUSD change fails the build. Runtime evidence is
+embedded below `/opt/openusd-runtime-evidence` with portable checksums and is
+uploaded with the image inspection and immutable published digest.
+
+Validate and dry-run the matrix without building or publishing:
+
+```bash
+bash scripts/matrix/validate_openusd_pixar_runtime_overlays.sh
+python3 scripts/matrix/openusd_pixar_runtime_overlays.py select --scope pilot
+python3 scripts/matrix/openusd_pixar_runtime_overlays.py select --scope all
+```
+
 ## Local validation
 
 Run:
