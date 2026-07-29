@@ -18,7 +18,7 @@ env:
   IMAGE_NAME: ci-moonray-cy2026-hdMoonray
   BASE_IMAGE: aswf/ci-moonray:2026
   MOONRAY_TAG: openmoonray-3.6.0.1
-  MOONRAY_INSTALL: /opt/openmoonray
+  MOONRAY_ROOT: /opt/MoonRay
 
 jobs:
   build:
@@ -49,56 +49,46 @@ jobs:
           # System packages needed beyond what ci-moonray:2026 provides
           dnf install -y cppunit-devel log4cplus-devel git
 
-          # Clone openmoonray superproject
+          # Create upstream directory layout
+          mkdir -p $MOONRAY_ROOT/{installs,build,build-deps,source}
+
+          # Step 2: Clone openmoonray
           git clone --recursive --branch ${MOONRAY_TAG} \
               https://github.com/OpenMoonRay/openmoonray.git \
-              /opt/openmoonray/src
+              $MOONRAY_ROOT/source/openmoonray
 
-          # Build internal deps (Rocky9 superbuild)
-          # NOTE: Patch Embree to add CMAKE_POLICY_VERSION_MINIMUM=3.5
-          # (CMake 4 rejects cmake_minimum_required(VERSION < 3.5))
+          # Step 3: Install OS packages (already satisfied by ci-moonray:2026 base)
+          # Step 4: Build internal deps from source
+          cd $MOONRAY_ROOT/build-deps
+          # NOTE: Upstream assumes CMake 3.23.1; ci-moonray:2026 has CMake 4
+          # which rejects cmake_minimum_required(VERSION < 3.5). Patch Embree.
           sed -i 's/ExternalProject_Add(embree/ExternalProject_Add(embree\n    CMAKE_CACHE_ARGS -DCMAKE_POLICY_VERSION_MINIMUM:STRING=3.5/' \
-              /opt/openmoonray/src/building/Rocky9/CMakeLists.txt
-          mkdir -p /opt/openmoonray/build-deps
-          cmake -S /opt/openmoonray/src/building/Rocky9 \
-              -B /opt/openmoonray/build-deps \
+              $MOONRAY_ROOT/source/openmoonray/building/Rocky9/CMakeLists.txt
+          cmake $MOONRAY_ROOT/source/openmoonray/building/Rocky9 \
               -DCMAKE_POLICY_VERSION_MINIMUM=3.5
-          cmake --build /opt/openmoonray/build-deps -- -j $(nproc)
-          cmake --install /opt/openmoonray/build-deps \
-              --prefix /opt/openmoonray/deps
+          cmake --build . -- -j $(nproc)
 
-          # Build MoonRay superproject (including hdMoonray)
-          cd /opt/openmoonray/src
-          cmake -B /opt/openmoonray/build \
-              -DPYTHON_EXECUTABLE=python3 \
-              -DBOOST_PYTHON_COMPONENT_NAME=python313 \
-              -DABI_VERSION=0 \
-              -DBUILD_QT_APPS=NO \
-              -DMOONRAY_USE_OPTIX=NO \
-              -DMOONRAY_USE_HOUDINI=NO \
-              -DCMAKE_BUILD_TYPE=Release \
-              -DCMAKE_INSTALL_PREFIX=$MOONRAY_INSTALL \
-              -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
-              -DUSD_ROOT=/usr/local \
-              -DBoost_NO_BOOST_CMAKE=ON
-          cmake --build /opt/openmoonray/build -- -j $(nproc)
-          cmake --install /opt/openmoonray/build
+          # Step 5: Build MoonRay (incl. hdMoonray) per upstream rocky9-release preset
+          cd $MOONRAY_ROOT/source/openmoonray
+          cmake --preset rocky9-release
+          cmake --build --preset rocky9-release -- -j $(nproc)
 
-          # Generate shader JSON (required at runtime)
-          $MOONRAY_INSTALL/bin/rdl2_json_exporter \
-              --out $MOONRAY_INSTALL/shader_json/ --sparse
+          # Step 6: Generate shader JSON (required at runtime)
+          $MOONRAY_ROOT/installs/openmoonray/bin/rdl2_json_exporter \
+              --out $MOONRAY_ROOT/installs/openmoonray/shader_json/ --sparse
 
           # Verify the delegate
-          ls -la $MOONRAY_INSTALL/plugin/pxr/
+          ls -la $MOONRAY_ROOT/installs/openmoonray/plugin/pxr/
 
-          # Copy installed output to mounted volume for Dockerfile layer
-          mkdir -p /out/opt
-          cp -a $MOONRAY_INSTALL /out/opt/openmoonray
+          # Copy installed output to volume for Dockerfile layer
+          # Include both the MoonRay install and dep libraries for runtime
+          mkdir -p /out/opt/MoonRay
+          cp -a $MOONRAY_ROOT/installs /out/opt/MoonRay/installs
           BUILDSCRIPT
 
           docker run --rm \
             -e MOONRAY_TAG \
-            -e MOONRAY_INSTALL \
+            -e MOONRAY_ROOT \
             -v "$RUNNER_TEMP/moonray-build:/build:ro" \
             -v "$RUNNER_TEMP/moonray-build/out:/out" \
             ${{ env.BASE_IMAGE }} \
@@ -111,12 +101,13 @@ jobs:
           set -eux
           {
             echo "FROM ${{ env.BASE_IMAGE }}"
-            echo "COPY out/opt/openmoonray ${{ env.MOONRAY_INSTALL }}"
-            echo "ENV RDL2_DSO_PATH=${{ env.MOONRAY_INSTALL }}/rdl2dso.proxy:${{ env.MOONRAY_INSTALL }}/rdl2dso"
-            echo "ENV MOONRAY_CLASS_PATH=${{ env.MOONRAY_INSTALL }}/shader_json"
-            echo "ENV ARRAS_SESSION_PATH=${{ env.MOONRAY_INSTALL }}/sessions"
-            echo "ENV PATH=${{ env.MOONRAY_INSTALL }}/bin:\${PATH}"
-            echo "ENV PXR_PLUGINPATH_NAME=${{ env.MOONRAY_INSTALL }}/plugin/pxr:\${PXR_PLUGINPATH_NAME}"
+            echo "COPY out/opt/MoonRay /opt/MoonRay"
+            echo "ENV RDL2_DSO_PATH=/opt/MoonRay/installs/openmoonray/rdl2dso.proxy:/opt/MoonRay/installs/openmoonray/rdl2dso"
+            echo "ENV MOONRAY_CLASS_PATH=/opt/MoonRay/installs/openmoonray/shader_json"
+            echo "ENV ARRAS_SESSION_PATH=/opt/MoonRay/installs/openmoonray/sessions"
+            echo "ENV PATH=/opt/MoonRay/installs/openmoonray/bin:\${PATH}"
+            echo "ENV PXR_PLUGINPATH_NAME=/opt/MoonRay/installs/openmoonray/plugin/pxr:\${PXR_PLUGINPATH_NAME}"
+            echo "ENV LD_LIBRARY_PATH=/opt/MoonRay/installs/lib:\${LD_LIBRARY_PATH}"
           } > "$RUNNER_TEMP/moonray-build/Dockerfile"
           docker build -t "$TARGET_IMAGE" "$RUNNER_TEMP/moonray-build"
 
