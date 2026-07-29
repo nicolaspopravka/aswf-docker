@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   build:
-    name: openusd-26.03-relwithdebinfo
+    name: openusd-26.03-ptex-safety-relwithdebinfo
     runs-on: ubuntu-22.04
     timeout-minutes: 330
 
@@ -43,12 +43,15 @@ jobs:
           cp scripts/matrix/Dockerfile.openusd-build-path "$CONTEXT/Dockerfile"
           cp scripts/matrix/build_openusd_path_image.sh "$CONTEXT/"
           cp scripts/matrix/run_moana_storm_debug.sh "$CONTEXT/"
+          cp scripts/matrix/openusd-ptex-buffer-size-overflow.patch "$CONTEXT/"
+          cp scripts/matrix/test_openusd_ptex_buffer_size.cpp "$CONTEXT/"
+          cp scripts/matrix/validate_ptex_file.cpp "$CONTEXT/"
           cp scripts/vfx/build_usd.sh "$CONTEXT/aswf-build_usd.sh"
 
       - name: Build immutable debug image
         env:
           CONTEXT: ${{ runner.temp }}/openusd-moana-debug
-          TARGET_IMAGE: ghcr.io/${{ github.repository_owner }}/openusd-moana-debug:openusd-26.03-relwithdebinfo-${{ github.sha }}
+          TARGET_IMAGE: ghcr.io/${{ github.repository_owner }}/openusd-moana-debug:openusd-26.03-ptex-safety-relwithdebinfo-${{ github.sha }}
           ASWF_SOURCE_COMMIT: 2c8484137a2f056a0abfd504dd5ad166240ab47e
         run: |
           set -euxo pipefail
@@ -70,12 +73,13 @@ jobs:
             --build-arg ASWF_SOURCE_COMMIT="$ASWF_SOURCE_COMMIT" \
             --build-arg WORKFLOW_REVISION="$GITHUB_SHA" \
             --build-arg DEBUG_BUILD="1" \
+            --build-arg PTEX_BUFFER_PATCH_SHA256="1992f7c6433f7b117d85c898dd00936f9ecc8ee3a425be6836a3a50471bb5140" \
             "$CONTEXT" \
             2>&1 | tee "${{ runner.temp }}/openusd-moana-debug-docker-build.log"
 
       - name: Validate debug image
         env:
-          TARGET_IMAGE: ghcr.io/${{ github.repository_owner }}/openusd-moana-debug:openusd-26.03-relwithdebinfo-${{ github.sha }}
+          TARGET_IMAGE: ghcr.io/${{ github.repository_owner }}/openusd-moana-debug:openusd-26.03-ptex-safety-relwithdebinfo-${{ github.sha }}
         run: |
           set -euxo pipefail
           docker run --rm "$TARGET_IMAGE" \
@@ -89,7 +93,7 @@ jobs:
 
       - name: Publish and verify immutable image
         env:
-          TARGET_IMAGE: ghcr.io/${{ github.repository_owner }}/openusd-moana-debug:openusd-26.03-relwithdebinfo-${{ github.sha }}
+          TARGET_IMAGE: ghcr.io/${{ github.repository_owner }}/openusd-moana-debug:openusd-26.03-ptex-safety-relwithdebinfo-${{ github.sha }}
         run: |
           set -euxo pipefail
           docker push "$TARGET_IMAGE" \
@@ -107,7 +111,7 @@ jobs:
       - name: Extract embedded build evidence
         if: success()
         env:
-          TARGET_IMAGE: ghcr.io/${{ github.repository_owner }}/openusd-moana-debug:openusd-26.03-relwithdebinfo-${{ github.sha }}
+          TARGET_IMAGE: ghcr.io/${{ github.repository_owner }}/openusd-moana-debug:openusd-26.03-ptex-safety-relwithdebinfo-${{ github.sha }}
           EVIDENCE: ${{ runner.temp }}/openusd-moana-debug-evidence
         run: |
           set -eux

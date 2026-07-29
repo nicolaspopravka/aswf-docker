@@ -68,6 +68,7 @@ if [[ "${mode}" == dry-run ]]; then
     "aswf_source_commit=${ASWF_SOURCE_COMMIT}" \
     "workflow_revision=${WORKFLOW_REVISION}" \
     "debug_build=${debug_build}" \
+    "ptex_buffer_patch_sha256=${PTEX_BUFFER_PATCH_SHA256:-none}" \
     "build_variant=$([[ "${debug_build}" == 1 ]] && echo relwithdebuginfo || echo release)" \
     "source_url=${source_url}"
   exit 0
@@ -192,6 +193,9 @@ record_inputs() {
       "aswf_source_commit=${ASWF_SOURCE_COMMIT}" \
       "workflow_revision=${WORKFLOW_REVISION}" \
       "debug_build=${debug_build}"
+    if [[ -n "${PTEX_BUFFER_PATCH_SHA256:-}" ]]; then
+      echo "ptex_buffer_patch_sha256=${PTEX_BUFFER_PATCH_SHA256}"
+    fi
     env | LC_ALL=C sort | grep -E \
       '^(ASWF_|CC=|CXX=|PATH=|LD_LIBRARY_PATH=|PYTHONPATH=|PXR_|CMAKE_)' \
       || true
@@ -279,6 +283,32 @@ build_pixar() {
   mkdir -p "${source_root}" "${INSTALL_PREFIX}"
   tar -xzf "${source_archive}" --strip-components=1 -C "${source_root}"
 
+  if [[ -n "${PTEX_BUFFER_PATCH_SHA256:-}" ]]; then
+    ptex_buffer_patch="/opt/openusd-matrix/openusd-ptex-buffer-size-overflow.patch"
+    ptex_buffer_test="/opt/openusd-matrix/test_openusd_ptex_buffer_size.cpp"
+    ptex_validator="/opt/openusd-matrix/validate_ptex_file.cpp"
+    printf '%s  %s\n' \
+      "${PTEX_BUFFER_PATCH_SHA256}" "${ptex_buffer_patch}" \
+      | sha256sum --check
+    sha256sum \
+      "${ptex_buffer_patch}" \
+      "${ptex_buffer_test}" \
+      "${ptex_validator}" \
+      > "${evidence_root}/ptex-diagnostic-inputs.sha256"
+    cp "${ptex_buffer_patch}" \
+      "${evidence_root}/openusd-ptex-buffer-size-overflow.patch"
+    (
+      cd "${source_root}"
+      patch -p1 --fuzz=0 < "${ptex_buffer_patch}"
+    ) 2>&1 | tee "${evidence_root}/openusd-ptex-buffer-patch.log"
+    "${CXX}" -std=c++17 -Wall -Wextra -Werror \
+      -I "${source_root}" \
+      "${ptex_buffer_test}" \
+      -o "${work_root}/test_openusd_ptex_buffer_size"
+    "${work_root}/test_openusd_ptex_buffer_size" \
+      | tee "${evidence_root}/openusd-ptex-buffer-size-test.log"
+  fi
+
   pixar_script="${source_root}/build_scripts/build_usd.py"
   actual_script_sha="$(sha256_file "${pixar_script}")"
   [[ "${actual_script_sha}" == "${SCRIPT_SHA256}" ]] || {
@@ -355,6 +385,29 @@ PY
   printf '%q ' "${command[@]}" > "${evidence_root}/build-argv.txt"
   printf '\n' >> "${evidence_root}/build-argv.txt"
   "${command[@]}" 2>&1 | tee "${evidence_root}/build.log"
+
+  if [[ -n "${PTEX_BUFFER_PATCH_SHA256:-}" ]]; then
+    ptex_library="$(
+      find "${INSTALL_PREFIX}" -type f -name 'libPtex.so*' -print \
+        | LC_ALL=C sort | head -1
+    )"
+    [[ -n "${ptex_library}" ]]
+    ptex_library_dir="$(dirname "${ptex_library}")"
+    "${CXX}" -std=c++17 -O1 -g \
+      -fsanitize=address,undefined -fno-omit-frame-pointer \
+      -I "${INSTALL_PREFIX}/include" \
+      "${ptex_validator}" \
+      -L "${ptex_library_dir}" \
+      -Wl,-rpath,"${ptex_library_dir}" \
+      -lPtex \
+      -o /opt/moana-debug/validate_ptex_file_asan
+    ldd /opt/moana-debug/validate_ptex_file_asan \
+      > "${evidence_root}/runtime/validate-ptex-file-ldd.txt"
+    /opt/moana-debug/validate_ptex_file_asan \
+      > "${evidence_root}/runtime/validate-ptex-file-usage.txt" 2>&1 \
+      || validator_status=$?
+    [[ "${validator_status:-0}" == 2 ]]
+  fi
   preserve_cmake_caches "${INSTALL_PREFIX}"
   rm -rf "${INSTALL_PREFIX}/build" "${INSTALL_PREFIX}/src"
 }

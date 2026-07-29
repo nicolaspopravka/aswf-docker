@@ -25,6 +25,8 @@ grep -Fq 'SCRIPT_SHA256="268cdd366edfcbf6e8759553c94aff8f1e6b92e484cb809591aaeb4
 grep -Fq 'PYTHON_VERSION="3.13.14"' "${workflow}"
 grep -Fq 'DEBUG_BUILD="1"' "${workflow}"
 grep -Fq 'COPY run_moana_storm_debug.sh' "${dockerfile}"
+grep -Fq 'COPY openusd-ptex-buffer-size-overflow.patch' "${dockerfile}"
+grep -Fq 'COPY validate_ptex_file.cpp' "${dockerfile}"
 
 grep -Fq -- '--build-variant' "${harness}"
 grep -Fq 'relwithdebuginfo' "${harness}"
@@ -37,7 +39,11 @@ grep -Fq '.debug_info' "${harness}"
 grep -Fq '.debug_line' "${harness}"
 grep -Fq 'Build ID:' "${harness}"
 grep -Fq 'Rejected software OpenGL renderer' "${debug_runner}"
+grep -Fq 'set breakpoint pending on' "${debug_runner}"
 grep -Fq 'absent ASWF_OPENUSD_VERSION: Pixar base is not ci-usd' "${harness}"
+grep -Fq 'patch -p1 --fuzz=0' "${harness}"
+grep -Fq 'validate_ptex_file_asan' "${harness}"
+grep -Fq 'PTEX_BUFFER_PATCH_SHA256="1992f7c6433f7b117d85c898dd00936f9ecc8ee3a425be6836a3a50471bb5140"' "${workflow}"
 
 env \
   BUILD_PATH=pixar-build-usd \
@@ -55,6 +61,7 @@ env \
   ASWF_SOURCE_COMMIT=2c8484137a2f056a0abfd504dd5ad166240ab47e \
   WORKFLOW_REVISION=local-dry-run \
   DEBUG_BUILD=1 \
+  PTEX_BUFFER_PATCH_SHA256=1992f7c6433f7b117d85c898dd00936f9ecc8ee3a425be6836a3a50471bb5140 \
   "${harness}" dry-run \
   | grep -Fq 'build_variant=relwithdebuginfo'
 

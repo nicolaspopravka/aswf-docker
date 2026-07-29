@@ -10,6 +10,8 @@ camera="${MOANA_CAMERA:-/island/cam/shotCam}"
 python_bin="${MOANA_PYTHON:-/usr/local/bin/python3}"
 egl_wrapper="${MOANA_EGL_WRAPPER:-/workspace/usdrecord_egl.py}"
 output_root="${MOANA_DEBUG_OUT:-/workspace/moana-debug-$(date -u +%Y%m%dT%H%M%SZ)}"
+beach_ptex="${MOANA_BEACH_PTEX:-/workspace/usd-render-benchmark/scenes/MoanaIsland/textures/isBeach/Color/beach_geo.ptx}"
+dunes_ptex="${MOANA_DUNES_PTEX:-/workspace/usd-render-benchmark/scenes/MoanaIsland/textures/isDunesB/Color/dune0002_geo.ptx}"
 
 self_test() {
   command -v gdb
@@ -30,12 +32,37 @@ PY
     /opt/openusd-build-evidence/runtime/gdb-storm-symbols.txt
   [[ -s /opt/openusd-build-evidence/runtime/ptex-libraries.txt ]]
   [[ -s /opt/openusd-build-evidence/runtime/openvdb-libraries.txt ]]
+  [[ -x /opt/moana-debug/validate_ptex_file_asan ]]
+  grep -Fq 'OpenUSD Ptex buffer-size regression cases passed' \
+    /opt/openusd-build-evidence/openusd-ptex-buffer-size-test.log
+  grep -Fq 'exceeds signed-32-bit texel-buffer support boundary' \
+    /opt/openusd-build-work/OpenUSD-26.03/pxr/imaging/hdSt/ptexMipmapTextureLoaderSizing.h
   echo "Moana debug image self-test passed"
 }
 
 case "${mode}" in
   self-test)
     self_test
+    exit 0
+    ;;
+  ptex)
+    mkdir -p "${output_root}"
+    for ptex_file in "${beach_ptex}" "${dunes_ptex}"; do
+      [[ -f "${ptex_file}" ]] || {
+        echo "Ptex file not found: ${ptex_file}" >&2
+        exit 2
+      }
+    done
+    sha256sum "${beach_ptex}" "${dunes_ptex}" \
+      | tee "${output_root}/ptex-files.sha256"
+    if command -v ptxinfo >/dev/null 2>&1; then
+      ptxinfo "${beach_ptex}" "${dunes_ptex}" \
+        | tee "${output_root}/ptex-info.txt"
+    fi
+    /opt/moana-debug/validate_ptex_file_asan \
+      "${beach_ptex}" "${dunes_ptex}" \
+      | tee "${output_root}/ptex-validation.txt"
+    echo "Ptex validation evidence: ${output_root}"
     exit 0
     ;;
   beach)
@@ -45,7 +72,7 @@ case "${mode}" in
     subtree="/island/isDunesB"
     ;;
   *)
-    echo "usage: $0 {self-test|beach|dunes}" >&2
+    echo "usage: $0 {self-test|ptex|beach|dunes}" >&2
     exit 2
     ;;
 esac
@@ -98,7 +125,7 @@ gdb_args=(
   -ex 'set pagination off'
   -ex 'set confirm off'
   -ex 'set print thread-events off'
-  -ex 'set debuginfod enabled off'
+  -ex 'set breakpoint pending on'
   -ex 'handle SIGSEGV stop print nopass'
 )
 

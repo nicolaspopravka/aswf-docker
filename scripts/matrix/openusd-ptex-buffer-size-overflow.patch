@@ -1,0 +1,141 @@
+diff --git a/pxr/imaging/hdSt/ptexMipmapTextureLoader.cpp b/pxr/imaging/hdSt/ptexMipmapTextureLoader.cpp
+index 791d327fc..35af3c68d 100644
+--- a/pxr/imaging/hdSt/ptexMipmapTextureLoader.cpp
++++ b/pxr/imaging/hdSt/ptexMipmapTextureLoader.cpp
+@@ -7,5 +7,6 @@
+ //
+ #include "pxr/imaging/hdSt/ptexMipmapTextureLoader.h"
++#include "pxr/imaging/hdSt/ptexMipmapTextureLoaderSizing.h"
+ 
+ #include "pxr/base/arch/fileSystem.h"
+ #include "pxr/base/tf/diagnostic.h"
+@@ -1044,17 +1045,32 @@ HdStPtexMipmapTextureLoader::generateBuffers()
+     //     uint8_t  height log2;
+     // };
+ 
+-    int numFaces = (int)_blocks.size();
+-    int numPages = (int)_pages.size();
++    const int numFaces = (int)_blocks.size();
++    const size_t numPages = _pages.size();
+ 
+     // populate the texels
+-    int pageStride = _bpp * _pageWidth * _pageHeight;
++    size_t pageStride = 0;
++    size_t texelBufferSize = 0;
++    const HdStPtexBufferSizeResult sizeResult =
++        HdStComputePtexBufferSize(
++            _bpp, _pageWidth, _pageHeight, numPages,
++            &pageStride, &texelBufferSize);
++    if (sizeResult != HdStPtexBufferSizeResult::Success) {
++        TF_RUNTIME_ERROR(
++            "Ptex texel buffer size is unsupported: bytesPerPixel=%d, "
++            "pageWidth=%d, pageHeight=%d, numPages=%zu, "
++            "pageStride=%zu, totalBytes=%zu, reason=%s",
++            _bpp, _pageWidth, _pageHeight, numPages,
++            pageStride, texelBufferSize,
++            HdStGetPtexBufferSizeResultName(sizeResult));
++        return;
++    }
+ 
+-    _texelBuffer = new unsigned char[pageStride * numPages];
+-    _memoryUsage = pageStride * numPages;
+-    memset(_texelBuffer, 0, pageStride * numPages);
++    _texelBuffer = new unsigned char[texelBufferSize];
++    _memoryUsage = texelBufferSize;
++    memset(_texelBuffer, 0, texelBufferSize);
+ 
+-    for (int i = 0; i < numPages; ++i) {
++    for (size_t i = 0; i < numPages; ++i) {
+         _pages[i]->Generate(this, _ptex, _texelBuffer + pageStride * i,
+                             _bpp, _pageWidth, _maxLevels);
+     }
+@@ -1065,3 +1080,3 @@ HdStPtexMipmapTextureLoader::generateBuffers()
+-    for (int i = 0; i < numPages; ++i) {
++    for (size_t i = 0; i < numPages; ++i) {
+         Page *page = _pages[i];
+         for (Page::BlockList::const_iterator it = page->GetBlocks().begin();
+diff --git a/pxr/imaging/hdSt/ptexMipmapTextureLoaderSizing.h b/pxr/imaging/hdSt/ptexMipmapTextureLoaderSizing.h
+new file mode 100644
+index 000000000..2a74e6fdc
+--- /dev/null
++++ b/pxr/imaging/hdSt/ptexMipmapTextureLoaderSizing.h
+@@ -0,0 +1,79 @@
++//
++// Copyright 2026 Contributors to the OpenUSD Project
++//
++// Licensed under the terms set forth in the LICENSE.txt file available at
++// https://openusd.org/license.
++//
++#ifndef PXR_IMAGING_HDST_PTEX_MIPMAP_TEXTURE_LOADER_SIZING_H
++#define PXR_IMAGING_HDST_PTEX_MIPMAP_TEXTURE_LOADER_SIZING_H
++
++#include <cstddef>
++#include <limits>
++
++enum class HdStPtexBufferSizeResult
++{
++    Success,
++    InvalidDimension,
++    ArithmeticOverflow,
++    ExceedsSupportedSize
++};
++
++inline const char *
++HdStGetPtexBufferSizeResultName(HdStPtexBufferSizeResult result)
++{
++    switch (result) {
++    case HdStPtexBufferSizeResult::Success:
++        return "success";
++    case HdStPtexBufferSizeResult::InvalidDimension:
++        return "invalid dimension";
++    case HdStPtexBufferSizeResult::ArithmeticOverflow:
++        return "arithmetic overflow";
++    case HdStPtexBufferSizeResult::ExceedsSupportedSize:
++        return "exceeds signed-32-bit texel-buffer support boundary";
++    }
++    return "unknown";
++}
++
++inline bool
++HdStCheckedMultiplySize(size_t lhs, size_t rhs, size_t *result)
++{
++    if (rhs != 0 && lhs > std::numeric_limits<size_t>::max() / rhs) {
++        return false;
++    }
++    *result = lhs * rhs;
++    return true;
++}
++
++inline HdStPtexBufferSizeResult
++HdStComputePtexBufferSize(
++    int bytesPerPixel,
++    int pageWidth,
++    int pageHeight,
++    size_t numPages,
++    size_t *pageStride,
++    size_t *totalSize)
++{
++    *pageStride = 0;
++    *totalSize = 0;
++    if (bytesPerPixel <= 0 || pageWidth <= 0 ||
++        pageHeight <= 0 || numPages == 0) {
++        return HdStPtexBufferSizeResult::InvalidDimension;
++    }
++
++    if (!HdStCheckedMultiplySize(
++            static_cast<size_t>(bytesPerPixel),
++            static_cast<size_t>(pageWidth), pageStride) ||
++        !HdStCheckedMultiplySize(
++            *pageStride, static_cast<size_t>(pageHeight), pageStride) ||
++        !HdStCheckedMultiplySize(*pageStride, numPages, totalSize)) {
++        return HdStPtexBufferSizeResult::ArithmeticOverflow;
++    }
++
++    if (*totalSize >
++        static_cast<size_t>(std::numeric_limits<int>::max())) {
++        return HdStPtexBufferSizeResult::ExceedsSupportedSize;
++    }
++    return HdStPtexBufferSizeResult::Success;
++}
++
++#endif
