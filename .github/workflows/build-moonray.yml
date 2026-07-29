@@ -55,9 +55,14 @@ jobs:
               /opt/openmoonray/src
 
           # Build internal deps (Rocky9 superbuild)
+          # NOTE: Patch Embree to add CMAKE_POLICY_VERSION_MINIMUM=3.5
+          # (CMake 4 rejects cmake_minimum_required(VERSION < 3.5))
+          sed -i 's/ExternalProject_Add(embree/ExternalProject_Add(embree\n    CMAKE_CACHE_ARGS -DCMAKE_POLICY_VERSION_MINIMUM:STRING=3.5/' \
+              /opt/openmoonray/src/building/Rocky9/CMakeLists.txt
           mkdir -p /opt/openmoonray/build-deps
           cmake -S /opt/openmoonray/src/building/Rocky9 \
-              -B /opt/openmoonray/build-deps
+              -B /opt/openmoonray/build-deps \
+              -DCMAKE_POLICY_VERSION_MINIMUM=3.5
           cmake --build /opt/openmoonray/build-deps -- -j $(nproc)
           cmake --install /opt/openmoonray/build-deps \
               --prefix /opt/openmoonray/deps
@@ -72,7 +77,10 @@ jobs:
               -DMOONRAY_USE_OPTIX=NO \
               -DMOONRAY_USE_HOUDINI=NO \
               -DCMAKE_BUILD_TYPE=Release \
-              -DCMAKE_INSTALL_PREFIX=$MOONRAY_INSTALL
+              -DCMAKE_INSTALL_PREFIX=$MOONRAY_INSTALL \
+              -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+              -DUSD_ROOT=/usr/local \
+              -DBoost_NO_BOOST_CMAKE=ON
           cmake --build /opt/openmoonray/build -- -j $(nproc)
           cmake --install /opt/openmoonray/build
 
