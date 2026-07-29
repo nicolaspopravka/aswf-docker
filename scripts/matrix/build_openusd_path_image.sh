@@ -347,6 +347,8 @@ PY
     "${build_variant_args[@]}"
     --build-args
     "USD,-DCMAKE_IGNORE_PATH=/usr/local/lib/cmake/TBB -DTBB_ROOT_DIR=${INSTALL_PREFIX} -DTBB_INCLUDE_DIR=${INSTALL_PREFIX}/include -DTBB_LIBRARY=${INSTALL_PREFIX}/lib/libtbb.so -DTBB_tbb_LIBRARY_RELEASE=${INSTALL_PREFIX}/lib/libtbb.so -DPython3_EXECUTABLE=${pixar_python} -DPYTHON_EXECUTABLE=${pixar_python}"
+    --build-args
+    "Blosc,-DCMAKE_POLICY_VERSION_MINIMUM=3.5"
     "${feature_args[@]}"
     "${INSTALL_PREFIX}"
   )
