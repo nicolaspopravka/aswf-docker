@@ -13,6 +13,7 @@ downloads_root="/opt/openusd-downloads"
 source_repository="${SOURCE_REPOSITORY:-https://github.com/PixarAnimationStudios/OpenUSD}"
 source_url="${source_repository}/archive/refs/tags/v${OPENUSD_VERSION:?missing OPENUSD_VERSION}.tar.gz"
 python_source_url=""
+debug_build="${DEBUG_BUILD:-0}"
 
 required_names=(
   BUILD_PATH CY OPENUSD_VERSION MATERIALX_VERSION SOURCE_REVISION
@@ -66,6 +67,8 @@ if [[ "${mode}" == dry-run ]]; then
     "build_jobs=${BUILD_JOBS}" \
     "aswf_source_commit=${ASWF_SOURCE_COMMIT}" \
     "workflow_revision=${WORKFLOW_REVISION}" \
+    "debug_build=${debug_build}" \
+    "build_variant=$([[ "${debug_build}" == 1 ]] && echo relwithdebuginfo || echo release)" \
     "source_url=${source_url}"
   exit 0
 fi
@@ -187,7 +190,8 @@ record_inputs() {
       "install_prefix=${INSTALL_PREFIX}" \
       "build_jobs=${BUILD_JOBS}" \
       "aswf_source_commit=${ASWF_SOURCE_COMMIT}" \
-      "workflow_revision=${WORKFLOW_REVISION}"
+      "workflow_revision=${WORKFLOW_REVISION}" \
+      "debug_build=${debug_build}"
     env | LC_ALL=C sort | grep -E \
       '^(ASWF_|CC=|CXX=|PATH=|LD_LIBRARY_PATH=|PYTHONPATH=|PXR_|CMAKE_)' \
       || true
@@ -320,6 +324,15 @@ PY
   cp "${pixar_script}" "${evidence_root}/build_usd.py.executed"
   sha256_file "${pixar_script}" > "${evidence_root}/build_usd.py.executed.sha256"
 
+  build_variant_args=()
+  feature_args=(--materialx)
+  if [[ "${debug_build}" == 1 ]]; then
+    export CFLAGS="${CFLAGS:+${CFLAGS} }-fno-omit-frame-pointer"
+    export CXXFLAGS="${CXXFLAGS:+${CXXFLAGS} }-fno-omit-frame-pointer"
+    build_variant_args=(--build-variant relwithdebuginfo)
+    feature_args+=(--ptex --openvdb)
+  fi
+
   command=(
     "${pixar_python}" "${pixar_script}"
     -j "${BUILD_JOBS}"
@@ -331,9 +344,10 @@ PY
     --no-tests
     --no-docs
     --no-python-docs
+    "${build_variant_args[@]}"
     --build-args
     "USD,-DCMAKE_IGNORE_PATH=/usr/local/lib/cmake/TBB -DTBB_ROOT_DIR=${INSTALL_PREFIX} -DTBB_INCLUDE_DIR=${INSTALL_PREFIX}/include -DTBB_LIBRARY=${INSTALL_PREFIX}/lib/libtbb.so -DTBB_tbb_LIBRARY_RELEASE=${INSTALL_PREFIX}/lib/libtbb.so -DPython3_EXECUTABLE=${pixar_python} -DPYTHON_EXECUTABLE=${pixar_python}"
-    --materialx
+    "${feature_args[@]}"
     "${INSTALL_PREFIX}"
   )
   printf '%q ' "${command[@]}" > "${evidence_root}/build-argv.txt"
@@ -506,6 +520,57 @@ PY
   )
 }
 
+record_debug_runtime() {
+  [[ "${debug_build}" == 1 ]] || return 0
+
+  command -v gdb > "${evidence_root}/runtime/gdb-path.txt"
+  gdb --configuration > "${evidence_root}/runtime/gdb-configuration.txt"
+
+  hdst_library="$(find "${INSTALL_PREFIX}" -type f -name 'libusd_hdSt.so' -print -quit)"
+  usd_module="$(find "${INSTALL_PREFIX}/lib/python" -type f -path '*/pxr/Usd/_usd.so' -print -quit)"
+  [[ -n "${hdst_library}" && -n "${usd_module}" ]]
+
+  : > "${evidence_root}/runtime/debug-sections.txt"
+  : > "${evidence_root}/runtime/build-ids.txt"
+  for binary in "${hdst_library}" "${usd_module}"; do
+    {
+      echo "=== ${binary}"
+      readelf -SW "${binary}"
+    } >> "${evidence_root}/runtime/debug-sections.txt"
+    {
+      echo "=== ${binary}"
+      readelf -n "${binary}"
+    } >> "${evidence_root}/runtime/build-ids.txt"
+  done
+  grep -Fq '.debug_info' "${evidence_root}/runtime/debug-sections.txt"
+  grep -Fq '.debug_line' "${evidence_root}/runtime/debug-sections.txt"
+  grep -Fq 'Build ID:' "${evidence_root}/runtime/build-ids.txt"
+
+  gdb --quiet --batch \
+    -ex 'set debuginfod enabled off' \
+    -ex 'info sources' \
+    -ex 'info functions HdStMaterial' \
+    "${hdst_library}" \
+    > "${evidence_root}/runtime/gdb-storm-symbols.txt" 2>&1
+  grep -Fq 'pxr/imaging/hdSt/material.cpp' \
+    "${evidence_root}/runtime/gdb-storm-symbols.txt"
+
+  grep -R -E \
+    'PXR_ENABLE_PTEX_SUPPORT:BOOL=ON' \
+    "${evidence_root}/cmake-cache" \
+    > "${evidence_root}/runtime/ptex-feature.txt"
+  grep -R -E \
+    'PXR_ENABLE_OPENVDB_SUPPORT:BOOL=ON' \
+    "${evidence_root}/cmake-cache" \
+    > "${evidence_root}/runtime/openvdb-feature.txt"
+  find "${INSTALL_PREFIX}" -type f -name 'libPtex.so*' -print \
+    > "${evidence_root}/runtime/ptex-libraries.txt"
+  find "${INSTALL_PREFIX}" -type f -name 'libopenvdb.so*' -print \
+    > "${evidence_root}/runtime/openvdb-libraries.txt"
+  [[ -s "${evidence_root}/runtime/ptex-libraries.txt" ]]
+  [[ -s "${evidence_root}/runtime/openvdb-libraries.txt" ]]
+}
+
 record_clean_base
 select_compiler
 record_inputs
@@ -523,5 +588,6 @@ esac
 
 configure_runtime
 record_runtime
+record_debug_runtime
 printf '0\n' > "${status_file}"
 trap - EXIT

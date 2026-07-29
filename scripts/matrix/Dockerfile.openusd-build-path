@@ -18,14 +18,19 @@ ARG INSTALL_PREFIX
 ARG BUILD_JOBS=4
 ARG ASWF_SOURCE_COMMIT
 ARG WORKFLOW_REVISION
+ARG DEBUG_BUILD=0
 ARG SOURCE_REPOSITORY=https://github.com/PixarAnimationStudios/OpenUSD
 
 COPY build_openusd_path_image.sh /opt/openusd-matrix/build_openusd_path_image.sh
 COPY aswf-build_usd.sh /opt/openusd-matrix/aswf-build_usd.sh
+COPY run_moana_storm_debug.sh /opt/moana-debug/run_moana_storm_debug.sh
 
-RUN chmod 0755 \
+RUN dnf install -y gdb binutils \
+    && dnf clean all \
+    && chmod 0755 \
       /opt/openusd-matrix/build_openusd_path_image.sh \
       /opt/openusd-matrix/aswf-build_usd.sh \
+      /opt/moana-debug/run_moana_storm_debug.sh \
     && /opt/openusd-matrix/build_openusd_path_image.sh build
 
 ENV OPENUSD_MATRIX_BUILD_PATH=${BUILD_PATH} \
@@ -39,7 +44,10 @@ ENV OPENUSD_MATRIX_BUILD_PATH=${BUILD_PATH} \
 
 LABEL org.opencontainers.image.source="https://github.com/nicolaspopravka/aswf-docker" \
       org.opencontainers.image.revision="${WORKFLOW_REVISION}" \
-      org.opencontainers.image.title="OpenUSD build-path matrix ${BUILD_PATH} CY${CY}" \
+      org.opencontainers.image.title="OpenUSD ${OPENUSD_VERSION} Moana RelWithDebInfo diagnostic" \
+      io.openusd-moana-debug.build-variant="relwithdebuginfo" \
+      io.openusd-moana-debug.ptex="enabled" \
+      io.openusd-moana-debug.openvdb="enabled" \
       io.openusd-matrix.build-path="${BUILD_PATH}" \
       io.openusd-matrix.cy="${CY}" \
       io.openusd-matrix.openusd-version="${OPENUSD_VERSION}" \
