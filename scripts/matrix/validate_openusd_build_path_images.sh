@@ -43,7 +43,7 @@ grep -Fq 'set breakpoint pending on' "${debug_runner}"
 grep -Fq 'absent ASWF_OPENUSD_VERSION: Pixar base is not ci-usd' "${harness}"
 grep -Fq 'patch -p1 --fuzz=0' "${harness}"
 grep -Fq 'validate_ptex_file_asan' "${harness}"
-grep -Fq 'PTEX_BUFFER_PATCH_SHA256="1992f7c6433f7b117d85c898dd00936f9ecc8ee3a425be6836a3a50471bb5140"' "${workflow}"
+grep -Fq 'PTEX_BUFFER_PATCH_SHA256="6865c0d3b26ad345bf6349b91f89cc2f0dabb79d120aef1219f175f16faeabf8"' "${workflow}"
 
 env \
   BUILD_PATH=pixar-build-usd \
@@ -61,7 +61,7 @@ env \
   ASWF_SOURCE_COMMIT=2c8484137a2f056a0abfd504dd5ad166240ab47e \
   WORKFLOW_REVISION=local-dry-run \
   DEBUG_BUILD=1 \
-  PTEX_BUFFER_PATCH_SHA256=1992f7c6433f7b117d85c898dd00936f9ecc8ee3a425be6836a3a50471bb5140 \
+  PTEX_BUFFER_PATCH_SHA256=6865c0d3b26ad345bf6349b91f89cc2f0dabb79d120aef1219f175f16faeabf8 \
   "${harness}" dry-run \
   | grep -Fq 'build_variant=relwithdebuginfo'
 

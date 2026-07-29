@@ -73,7 +73,7 @@ jobs:
             --build-arg ASWF_SOURCE_COMMIT="$ASWF_SOURCE_COMMIT" \
             --build-arg WORKFLOW_REVISION="$GITHUB_SHA" \
             --build-arg DEBUG_BUILD="1" \
-            --build-arg PTEX_BUFFER_PATCH_SHA256="1992f7c6433f7b117d85c898dd00936f9ecc8ee3a425be6836a3a50471bb5140" \
+            --build-arg PTEX_BUFFER_PATCH_SHA256="6865c0d3b26ad345bf6349b91f89cc2f0dabb79d120aef1219f175f16faeabf8" \
             "$CONTEXT" \
             2>&1 | tee "${{ runner.temp }}/openusd-moana-debug-docker-build.log"
 

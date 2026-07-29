@@ -5,7 +5,7 @@ index 791d327fc..35af3c68d 100644
 @@ -7,5 +7,6 @@
  //
  #include "pxr/imaging/hdSt/ptexMipmapTextureLoader.h"
-+#include "pxr/imaging/hdSt/ptexMipmapTextureLoaderSizing.h"
++#include "ptexMipmapTextureLoaderSizing.h"
  
  #include "pxr/base/arch/fileSystem.h"
  #include "pxr/base/tf/diagnostic.h"
