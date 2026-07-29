@@ -1,0 +1,125 @@
+# Build hdMoonray Hydra render delegate from openmoonray-3.6.0.1
+# on aswf/ci-moonray:2026 and push derived image to GHCR.
+#
+# Derived image: ghcr.io/nicolaspopravka/ci-moonray-cy2026-hdMoonray
+# Pattern: targeted-openusd-materialx-images.yml in this repo
+
+name: Build MoonRay Hydra Delegate
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ci-moonray-cy2026-hdMoonray
+  BASE_IMAGE: aswf/ci-moonray:2026
+  MOONRAY_TAG: openmoonray-3.6.0.1
+  MOONRAY_INSTALL: /opt/openmoonray
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /usr/local/share/powershell /usr/share/swift /usr/local/.ghcup \
+            /usr/local/aws-cli /usr/local/aws-sam-cli /usr/local/julia* /usr/lib/jvm
+          sudo apt-get clean
+          docker system prune -af
+
+      - name: Pull base image
+        run: docker pull ${{ env.BASE_IMAGE }}
+
+      - name: Build hdMoonray inside base image
+        run: |
+          set -eux
+          mkdir -p "$RUNNER_TEMP/moonray-build/out"
+          cat > "$RUNNER_TEMP/moonray-build/build.sh" << 'BUILDSCRIPT'
+          set -ex
+
+          # System packages needed beyond what ci-moonray:2026 provides
+          dnf install -y cppunit-devel log4cplus-devel git
+
+          # Clone openmoonray superproject
+          git clone --recursive --branch ${MOONRAY_TAG} \
+              https://github.com/OpenMoonRay/openmoonray.git \
+              /opt/openmoonray/src
+
+          # Build internal deps (Rocky9 superbuild)
+          mkdir -p /opt/openmoonray/build-deps
+          cmake -S /opt/openmoonray/src/building/Rocky9 \
+              -B /opt/openmoonray/build-deps
+          cmake --build /opt/openmoonray/build-deps -- -j $(nproc)
+          cmake --install /opt/openmoonray/build-deps \
+              --prefix /opt/openmoonray/deps
+
+          # Build MoonRay superproject (including hdMoonray)
+          cd /opt/openmoonray/src
+          cmake -B /opt/openmoonray/build \
+              -DPYTHON_EXECUTABLE=python3 \
+              -DBOOST_PYTHON_COMPONENT_NAME=python313 \
+              -DABI_VERSION=0 \
+              -DBUILD_QT_APPS=NO \
+              -DMOONRAY_USE_OPTIX=NO \
+              -DMOONRAY_USE_HOUDINI=NO \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DCMAKE_INSTALL_PREFIX=$MOONRAY_INSTALL
+          cmake --build /opt/openmoonray/build -- -j $(nproc)
+          cmake --install /opt/openmoonray/build
+
+          # Generate shader JSON (required at runtime)
+          $MOONRAY_INSTALL/bin/rdl2_json_exporter \
+              --out $MOONRAY_INSTALL/shader_json/ --sparse
+
+          # Verify the delegate
+          ls -la $MOONRAY_INSTALL/plugin/pxr/
+
+          # Copy installed output to mounted volume for Dockerfile layer
+          mkdir -p /out/opt
+          cp -a $MOONRAY_INSTALL /out/opt/openmoonray
+          BUILDSCRIPT
+
+          docker run --rm \
+            -e MOONRAY_TAG \
+            -e MOONRAY_INSTALL \
+            -v "$RUNNER_TEMP/moonray-build:/build:ro" \
+            -v "$RUNNER_TEMP/moonray-build/out:/out" \
+            ${{ env.BASE_IMAGE }} \
+            bash /build/build.sh
+
+      - name: Create derived Docker image
+        env:
+          TARGET_IMAGE: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+        run: |
+          set -eux
+          {
+            echo "FROM ${{ env.BASE_IMAGE }}"
+            echo "COPY out/opt/openmoonray ${{ env.MOONRAY_INSTALL }}"
+            echo "ENV RDL2_DSO_PATH=${{ env.MOONRAY_INSTALL }}/rdl2dso.proxy:${{ env.MOONRAY_INSTALL }}/rdl2dso"
+            echo "ENV MOONRAY_CLASS_PATH=${{ env.MOONRAY_INSTALL }}/shader_json"
+            echo "ENV ARRAS_SESSION_PATH=${{ env.MOONRAY_INSTALL }}/sessions"
+            echo "ENV PATH=${{ env.MOONRAY_INSTALL }}/bin:\${PATH}"
+            echo "ENV PXR_PLUGINPATH_NAME=${{ env.MOONRAY_INSTALL }}/plugin/pxr:\${PXR_PLUGINPATH_NAME}"
+          } > "$RUNNER_TEMP/moonray-build/Dockerfile"
+          docker build -t "$TARGET_IMAGE" "$RUNNER_TEMP/moonray-build"
+
+      - name: Push to GHCR
+        env:
+          TARGET_IMAGE: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ${{ env.REGISTRY }} \
+            -u ${{ github.actor }} --password-stdin
+          docker tag "$TARGET_IMAGE" \
+            ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:latest
+          docker push "$TARGET_IMAGE"
+          docker push ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:latest
+          docker buildx imagetools inspect "$TARGET_IMAGE"
