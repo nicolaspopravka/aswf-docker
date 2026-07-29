@@ -133,6 +133,11 @@ set +e
 gdb "${gdb_args[@]}" > "${log}" 2>&1
 status=$?
 set -e
+if grep -Eiq 'llvmpipe|softpipe|swrast|software rasterizer' "${log}"; then
+  echo "Rejected software OpenGL renderer; NVIDIA HW EGL is required." \
+    | tee -a "${log}" >&2
+  status=97
+fi
 printf '%s\n' "${status}" > "${output_root}/${case_name}.gdb-status.txt"
 echo "GDB status ${status}; evidence: ${output_root}"
 exit "${status}"

@@ -34,6 +34,7 @@ grep -Fq -- '-fno-omit-frame-pointer' "${harness}"
 grep -Fq '.debug_info' "${harness}"
 grep -Fq '.debug_line' "${harness}"
 grep -Fq 'Build ID:' "${harness}"
+grep -Fq 'Rejected software OpenGL renderer' "${debug_runner}"
 grep -Fq 'absent ASWF_OPENUSD_VERSION: Pixar base is not ci-usd' "${harness}"
 
 env \
