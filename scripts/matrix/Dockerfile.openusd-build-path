@@ -29,7 +29,11 @@ COPY openusd-ptex-buffer-size-overflow.patch /opt/openusd-matrix/openusd-ptex-bu
 COPY test_openusd_ptex_buffer_size.cpp /opt/openusd-matrix/test_openusd_ptex_buffer_size.cpp
 COPY validate_ptex_file.cpp /opt/openusd-matrix/validate_ptex_file.cpp
 
-RUN dnf install -y gdb binutils \
+RUN dnf install -y \
+      gdb \
+      binutils \
+      "gcc-toolset-${EXPECTED_GCC_MAJOR}-libasan-devel" \
+      "gcc-toolset-${EXPECTED_GCC_MAJOR}-libubsan-devel" \
     && dnf clean all \
     && chmod 0755 \
       /opt/openusd-matrix/build_openusd_path_image.sh \

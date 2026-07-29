@@ -27,6 +27,8 @@ grep -Fq 'DEBUG_BUILD="1"' "${workflow}"
 grep -Fq 'COPY run_moana_storm_debug.sh' "${dockerfile}"
 grep -Fq 'COPY openusd-ptex-buffer-size-overflow.patch' "${dockerfile}"
 grep -Fq 'COPY validate_ptex_file.cpp' "${dockerfile}"
+grep -Fq '"gcc-toolset-${EXPECTED_GCC_MAJOR}-libasan-devel"' "${dockerfile}"
+grep -Fq '"gcc-toolset-${EXPECTED_GCC_MAJOR}-libubsan-devel"' "${dockerfile}"
 
 grep -Fq -- '--build-variant' "${harness}"
 grep -Fq 'relwithdebuginfo' "${harness}"
