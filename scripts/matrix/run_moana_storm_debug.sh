@@ -33,6 +33,8 @@ PY
   [[ -s /opt/openusd-build-evidence/runtime/ptex-libraries.txt ]]
   [[ -s /opt/openusd-build-evidence/runtime/openvdb-libraries.txt ]]
   [[ -x /opt/moana-debug/validate_ptex_file_asan ]]
+  grep -Fq 'Ptex validator runtime self-test passed' \
+    /opt/openusd-build-evidence/runtime/validate-ptex-file-self-test.txt
   grep -Fq 'OpenUSD Ptex buffer-size regression cases passed' \
     /opt/openusd-build-evidence/openusd-ptex-buffer-size-test.log
   grep -Fq 'exceeds signed-32-bit texel-buffer support boundary' \

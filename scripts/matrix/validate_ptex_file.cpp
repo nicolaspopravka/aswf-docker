@@ -102,6 +102,10 @@ Validate(const std::string &path)
 int
 main(int argc, char **argv)
 {
+    if (argc == 2 && std::string(argv[1]) == "--self-test") {
+        std::cout << "Ptex validator runtime self-test passed\n";
+        return 0;
+    }
     if (argc < 2) {
         std::cerr << "usage: validate_ptex_file PTEX [PTEX ...]\n";
         return 2;

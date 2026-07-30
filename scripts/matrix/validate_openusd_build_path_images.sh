@@ -45,6 +45,7 @@ grep -Fq 'set breakpoint pending on' "${debug_runner}"
 grep -Fq 'absent ASWF_OPENUSD_VERSION: Pixar base is not ci-usd' "${harness}"
 grep -Fq 'patch -p1 --fuzz=0' "${harness}"
 grep -Fq 'validate_ptex_file_asan' "${harness}"
+grep -Fq 'validate_ptex_file_asan --self-test' "${harness}"
 grep -Fq 'PTEX_BUFFER_PATCH_SHA256="6865c0d3b26ad345bf6349b91f89cc2f0dabb79d120aef1219f175f16faeabf8"' "${workflow}"
 
 env \

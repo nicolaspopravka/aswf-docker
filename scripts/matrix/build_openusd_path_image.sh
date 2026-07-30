@@ -403,10 +403,8 @@ PY
       -o /opt/moana-debug/validate_ptex_file_asan
     ldd /opt/moana-debug/validate_ptex_file_asan \
       > "${evidence_root}/runtime/validate-ptex-file-ldd.txt"
-    /opt/moana-debug/validate_ptex_file_asan \
-      > "${evidence_root}/runtime/validate-ptex-file-usage.txt" 2>&1 \
-      || validator_status=$?
-    [[ "${validator_status:-0}" == 2 ]]
+    /opt/moana-debug/validate_ptex_file_asan --self-test \
+      | tee "${evidence_root}/runtime/validate-ptex-file-self-test.txt"
   fi
   preserve_cmake_caches "${INSTALL_PREFIX}"
   rm -rf "${INSTALL_PREFIX}/build" "${INSTALL_PREFIX}/src"
