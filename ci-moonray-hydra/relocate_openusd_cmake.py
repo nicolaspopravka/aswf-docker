@@ -15,6 +15,8 @@ REQUIRED_LIBRARIES = (
     Path("/usr/local/lib/libosdGPU.so"),
     Path("/usr/local/lib/libOpenColorIO.so"),
     Path("/usr/local/lib/libPtex.so"),
+    Path("/usr/local/lib/cmake/MaterialX/MaterialXConfig.cmake"),
+    Path("/usr/local/lib/cmake/Imath/ImathConfig.cmake"),
 )
 CONAN_PREFIX = re.compile(
     r"/opt/conan_home/d/(?:b/)?"
@@ -26,6 +28,16 @@ MATERIALX_CONAN_TARGET = re.compile(
     r"(?P=component)_RELEASE"
 )
 PTEX_CONAN_TARGET = "CONAN_LIB::ptex_Ptex_Ptex_dynamic_Ptex_RELEASE"
+CONFIG_DIR_HINT = re.compile(
+    r"if \(NOT \[\[(?P<path>/opt/conan_home/[^\]]+/generators)\]\] "
+    r'STREQUAL ""\)\n'
+    r"(?P<indent>\s+)set\((?P<package>MaterialX|Imath)_DIR "
+    r"\[\[(?P=path)\]\]\)"
+)
+CONFIG_DIRS = {
+    "MaterialX": "/usr/local/lib/cmake/MaterialX",
+    "Imath": "/usr/local/lib/cmake/Imath",
+}
 DEPENDENCY_MARKER = "# ASWF deployed-image dependency relocation for OpenMoonRay"
 TARGETS_INCLUDE = 'include("${PXR_CMAKE_DIR}/cmake/pxrTargets.cmake")'
 
@@ -45,11 +57,21 @@ def main() -> int:
     replacement_count = 0
     materialx_target_count = 0
     ptex_target_count = 0
+    config_hint_count = 0
     observed_prefixes: set[str] = set()
     observed_targets: set[str] = set()
 
     for path in files:
         text = path.read_text()
+        text, replaced_hints = CONFIG_DIR_HINT.subn(
+            lambda match: (
+                f'if (NOT [[{CONFIG_DIRS[match.group("package")]}]] STREQUAL "")\n'
+                f'{match.group("indent")}set({match.group("package")}_DIR '
+                f'[[{CONFIG_DIRS[match.group("package")]}]])'
+            ),
+            text,
+        )
+        config_hint_count += replaced_hints
         prefixes = set(CONAN_PREFIX.findall(text))
         targets = set(MATERIALX_CONAN_TARGET.findall(text))
         observed_prefixes.update(prefixes)
@@ -116,12 +138,18 @@ endif()
         raise SystemExit("expected stale Conan-cache prefixes were not found")
     if not observed_targets:
         raise SystemExit("expected stale MaterialX Conan target was not found")
+    if config_hint_count != len(CONFIG_DIRS):
+        raise SystemExit(
+            f"expected {len(CONFIG_DIRS)} stale package config hints, "
+            f"relocated {config_hint_count}"
+        )
 
     print("OpenUSD CMake relocation shim applied")
     print(f"files={','.join(str(path) for path in files)}")
     print(f"path_replacements={replacement_count}")
     print(f"materialx_target_replacements={materialx_target_count}")
     print(f"ptex_target_replacements={ptex_target_count}")
+    print(f"config_hint_replacements={config_hint_count}")
     for prefix in sorted(observed_prefixes):
         print(f"relocated_prefix={prefix}")
     for target in sorted(observed_targets):
