@@ -16,6 +16,10 @@ RUN dnf install -y cppunit-devel git git-lfs xorg-x11-server-Xvfb && \
     dnf clean all && \
     rm -rf /var/cache/dnf
 
+COPY ci-moonray-hydra/relocate_openusd_cmake.py /usr/local/bin/relocate_openusd_cmake.py
+RUN /usr/local/bin/relocate_openusd_cmake.py \
+    | tee /usr/local/share/openusd-cmake-relocation.txt
+
 WORKDIR /opt/MoonRay/source
 RUN git clone \
         --branch "${MOONRAY_TAG}" \
@@ -55,6 +59,8 @@ RUN test -x /usr/local/bin/python3.11 && \
         /opt/MoonRay/source/openmoonray/testdata \
         /opt/MoonRay/installs/openmoonray/testdata && \
     mkdir -p /opt/MoonRay/installs/openmoonray/share/openmoonray && \
+    cp /usr/local/share/openusd-cmake-relocation.txt \
+        /opt/MoonRay/installs/openmoonray/share/openmoonray/ && \
     printf '%s\n' \
         "tag=${MOONRAY_TAG}" \
         "commit=${MOONRAY_COMMIT}" \
@@ -80,6 +86,10 @@ USER root
 RUN dnf install -y xorg-x11-server-Xvfb && \
     dnf clean all && \
     rm -rf /var/cache/dnf
+
+COPY ci-moonray-hydra/relocate_openusd_cmake.py /usr/local/bin/relocate_openusd_cmake.py
+RUN /usr/local/bin/relocate_openusd_cmake.py \
+    | tee /usr/local/share/openusd-cmake-relocation.txt
 
 COPY --from=builder /opt/MoonRay/installs/openmoonray /opt/MoonRay/installs/openmoonray
 
