@@ -38,7 +38,6 @@ RUN test -x /usr/local/bin/python3.11 && \
     cmake \
         -S /opt/MoonRay/source/openmoonray \
         -B /opt/MoonRay/build \
-        -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_INSTALL_PREFIX=/opt/MoonRay/installs/openmoonray \
         -DCMAKE_PREFIX_PATH=/usr/local \
