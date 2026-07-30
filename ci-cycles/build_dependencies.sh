@@ -30,6 +30,7 @@ test "$(git -C "$BUILD_ROOT/OpenUSD" rev-parse HEAD)" = "$OPENUSD_REVISION"
   cd "$BUILD_ROOT/OpenUSD"
   python3 build_scripts/build_usd.py /opt/usd \
     --onetbb \
+    --no-usdview \
     --build-args "USD,-DTBB_DIR=/opt/usd/lib/cmake/TBB"
 )
 
