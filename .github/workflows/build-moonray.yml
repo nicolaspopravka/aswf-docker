@@ -64,9 +64,11 @@ jobs:
           # which rejects cmake_minimum_required(VERSION < 3.5). Patch Embree.
           sed -i 's/ExternalProject_Add(embree/ExternalProject_Add(embree\n    CMAKE_CACHE_ARGS -DCMAKE_POLICY_VERSION_MINIMUM:STRING=3.5/' \
               $MOONRAY_ROOT/source/openmoonray/building/Rocky9/CMakeLists.txt
-          # Skip OCIO (ci-moonray:2026 has OCIO 2.4.x at /usr/local);
-          # upstream OCIO 2.2.1 build fails for lack of yaml-cpp-devel.
-          sed -i '/ExternalProject_Add(OpenColorIO$/,/^set(CHAIN OpenColorIO)$/s/^/#/' \
+          # Skip OCIO, OIIO (ci-moonray:2026 has them at /usr/local);
+          # upstream versions fail to build on CMake 4 / lack deps.
+          sed -i '/^ExternalProject_Add(OpenColorIO$/,/^set(CHAIN OpenColorIO)$/s/^/#/' \
+              $MOONRAY_ROOT/source/openmoonray/building/Rocky9/CMakeLists.txt
+          sed -i '/^ExternalProject_Add(OpenImageIO$/,/^set(CHAIN OpenImageIO)$/s/^/#/' \
               $MOONRAY_ROOT/source/openmoonray/building/Rocky9/CMakeLists.txt
           # Skip USD build (ci-moonray has USD 26.03 at /usr/local)
           cmake $MOONRAY_ROOT/source/openmoonray/building/Rocky9 \
