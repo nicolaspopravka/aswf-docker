@@ -27,7 +27,10 @@ RUN git clone \
     git -C openmoonray lfs pull && \
     git -C openmoonray submodule status --recursive
 
-RUN cmake \
+RUN test -x /usr/local/bin/python3.11 && \
+    test -f /usr/local/lib/libpython3.11.so && \
+    test -f /usr/local/include/python3.11/Python.h && \
+    cmake \
         -S /opt/MoonRay/source/openmoonray \
         -B /opt/MoonRay/build \
         -G Ninja \
@@ -35,6 +38,9 @@ RUN cmake \
         -DCMAKE_INSTALL_PREFIX=/opt/MoonRay/installs/openmoonray \
         -DCMAKE_PREFIX_PATH=/usr/local \
         -DPYTHON_EXECUTABLE=/usr/local/bin/python3 \
+        -DPython3_EXECUTABLE=/usr/local/bin/python3.11 \
+        -DPython3_LIBRARY=/usr/local/lib/libpython3.11.so \
+        -DPython3_INCLUDE_DIR=/usr/local/include/python3.11 \
         -DBOOST_PYTHON_COMPONENT_NAME=python311 \
         -DABI_VERSION=0 \
         -DBUILD_QT_APPS=NO \
