@@ -87,6 +87,7 @@ jobs:
             test -x /opt/usd/bin/usdrecord
             test -d /opt/cycles-dependencies
             test -d /opt/cycles-dependencies/.git
+            python3 -c "import PySide6; print(PySide6.__version__)"
             test "$(git -C /opt/cycles-dependencies rev-parse HEAD)" = \
               "$CYCLES_LIB_REVISION"
             test ! -e /opt/cycles
@@ -128,7 +129,7 @@ jobs:
             ! grep -q "libtbb.so.2 " /tmp/hdCycles-ldd.txt
           ' | tee "${{ runner.temp }}/cycles-image-validation.log"
 
-      - name: Run stock usdrecord CPU smoke
+      - name: Run stock usdrecord Hydra-GPU-disabled smoke
         env:
           IMMUTABLE_TAG: ${{ env.VERSION_TAG }}-${{ github.sha }}
         run: |
@@ -150,7 +151,31 @@ jobs:
               python3 /test/check_png_variation.py /out/cycles-smoke.png
             ' | tee "${{ runner.temp }}/cycles-smoke.log"
           sha256sum "${{ runner.temp }}/cycles-smoke/cycles-smoke.png" \
-            | tee "${{ runner.temp }}/cycles-smoke.sha256"
+            | tee "${{ runner.temp }}/cycles-disabled-gpu-smoke.sha256"
+
+      - name: Run benchmark-semantics usdrecord smoke
+        env:
+          IMMUTABLE_TAG: ${{ env.VERSION_TAG }}-${{ github.sha }}
+        run: |
+          set -euxo pipefail
+          docker run --rm \
+            --volume "$GITHUB_WORKSPACE/ci-cycles:/test:ro" \
+            --volume "${{ runner.temp }}/cycles-smoke:/out" \
+            "$IMAGE_NAME:$IMMUTABLE_TAG" \
+            bash -c '
+              set -euxo pipefail
+              xvfb-run -a usdrecord \
+                --renderer Cycles \
+                --camera /World/Camera \
+                --imageWidth 128 \
+                /test/smoke.usda \
+                /out/cycles-gpu-enabled-smoke.png
+              python3 /test/check_png_variation.py \
+                /out/cycles-gpu-enabled-smoke.png
+            ' | tee "${{ runner.temp }}/cycles-gpu-enabled-smoke.log"
+          sha256sum \
+            "${{ runner.temp }}/cycles-smoke/cycles-gpu-enabled-smoke.png" \
+            | tee "${{ runner.temp }}/cycles-gpu-enabled-smoke.sha256"
 
       - name: Authenticate to GHCR
         env:
@@ -231,7 +256,9 @@ jobs:
             ${{ runner.temp }}/cycles-docker-build.log
             ${{ runner.temp }}/cycles-image-validation.log
             ${{ runner.temp }}/cycles-smoke.log
-            ${{ runner.temp }}/cycles-smoke.sha256
+            ${{ runner.temp }}/cycles-disabled-gpu-smoke.sha256
+            ${{ runner.temp }}/cycles-gpu-enabled-smoke.log
+            ${{ runner.temp }}/cycles-gpu-enabled-smoke.sha256
             ${{ runner.temp }}/ci-cycles-push-immutable.log
             ${{ runner.temp }}/ci-cycles-push-version.log
             ${{ runner.temp }}/cycles-push-immutable.log
