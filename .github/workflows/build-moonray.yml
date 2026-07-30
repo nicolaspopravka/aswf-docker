@@ -170,6 +170,7 @@ jobs:
       - name: Remove unpublished rendered images from evidence
         if: always()
         run: |
+          mkdir -p "${RUNNER_TEMP}/moonray-evidence"
           find "${RUNNER_TEMP}/moonray-evidence" \
             -type f \
             \( -name '*.exr' -o -name '*.png' -o -name '*.jpg' -o -name '*.jpeg' \) \
