@@ -12,7 +12,7 @@ ARG MOONRAY_COMMIT=d96c6e30a8c280d4b5eb3bafa5e54efc445d7ea8
 ARG BUILD_JOBS=4
 
 USER root
-RUN dnf install -y git git-lfs xorg-x11-server-Xvfb && \
+RUN dnf install -y cppunit-devel git git-lfs xorg-x11-server-Xvfb && \
     dnf clean all && \
     rm -rf /var/cache/dnf
 
@@ -85,8 +85,8 @@ ENV MOONRAY_CLASS_PATH=/opt/MoonRay/installs/openmoonray/shader_json
 ENV ARRAS_SESSION_PATH=/opt/MoonRay/installs/openmoonray/sessions/hdMoonray
 ENV REZ_MOONRAY_ROOT=/opt/MoonRay/installs/openmoonray
 ENV PATH=/opt/MoonRay/installs/openmoonray/bin:${PATH}
-ENV PXR_PLUGINPATH_NAME=/opt/MoonRay/installs/openmoonray/plugin/pxr:${PXR_PLUGINPATH_NAME}
-ENV PXR_PLUGIN_PATH=/opt/MoonRay/installs/openmoonray/plugin/pxr:${PXR_PLUGIN_PATH}
+ENV PXR_PLUGINPATH_NAME=/opt/MoonRay/installs/openmoonray/plugin/pxr
+ENV PXR_PLUGIN_PATH=/opt/MoonRay/installs/openmoonray/plugin/pxr
 ENV LD_LIBRARY_PATH=/opt/MoonRay/installs/openmoonray/lib:/opt/MoonRay/installs/openmoonray/lib64:${LD_LIBRARY_PATH}
 ENV HDMOONRAY_DEBUG_MODE=1
 
