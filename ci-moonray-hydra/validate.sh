@@ -17,6 +17,16 @@ grep -Fx 'commit=d96c6e30a8c280d4b5eb3bafa5e54efc445d7ea8' \
     "${moonray_root}/share/openmoonray/provenance.txt"
 grep -Fx 'build_materialx_shaders=ON' \
     "${moonray_root}/share/openmoonray/provenance.txt"
+test -s /usr/local/share/openusd-cmake-relocation.txt
+cmp \
+    /usr/local/share/openusd-cmake-relocation.txt \
+    "${moonray_root}/share/openmoonray/openusd-cmake-relocation.txt"
+if grep -R -F '/opt/conan_home/' \
+    /usr/local/pxrConfig.cmake \
+    /usr/local/cmake/pxrTargets*.cmake; then
+    echo "stale Conan-cache reference remains in OpenUSD exports" >&2
+    exit 1
+fi
 
 find "${moonray_root}/shader_json" -type f -name '*.json' -print \
     | sort \
