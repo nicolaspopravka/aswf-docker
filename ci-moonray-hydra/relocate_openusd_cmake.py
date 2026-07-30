@@ -16,7 +16,10 @@ REQUIRED_LIBRARIES = (
     Path("/usr/local/lib/libOpenColorIO.so"),
     Path("/usr/local/lib/libPtex.so"),
 )
-CONAN_PREFIX = re.compile(r"/opt/conan_home/d/(?:b/)?[^/\"; )]+/p")
+CONAN_PREFIX = re.compile(
+    r"/opt/conan_home/d/(?:b/)?"
+    r"[^/\"; )]+(?:/[^/\"; )]+)?/p"
+)
 MATERIALX_CONAN_TARGET = re.compile(
     r"CONAN_LIB::materialx_materialx_"
     r"(?P<component>MaterialX[A-Za-z0-9]+)_"
@@ -100,7 +103,12 @@ endif()
 
     final_text = "\n".join(path.read_text() for path in files)
     if "/opt/conan_home/" in final_text:
-        raise SystemExit("stale Conan-cache reference remains in OpenUSD exports")
+        remaining = sorted(
+            set(re.findall(r"/opt/conan_home/[^\"; )\n]+", final_text))
+        )
+        raise SystemExit(
+            f"stale Conan-cache references remain in OpenUSD exports: {remaining}"
+        )
     unexpected_targets = sorted(set(re.findall(r"CONAN_LIB::[A-Za-z0-9_]+", final_text)))
     if unexpected_targets:
         raise SystemExit(f"unmapped Conan targets remain: {unexpected_targets}")
