@@ -1,0 +1,15 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 1390e60..ff8cde2 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -98,8 +98,8 @@ endif()
+ # Blender source code and when building it from it's own repository.
+ set(CYCLES_STANDALONE_REPOSITORY TRUE)
+ 
+-# Force standalone build.
+-set(WITH_CYCLES_STANDALONE TRUE)
++# Build standalone Cycles executable when requested.
++option(WITH_CYCLES_STANDALONE "Build Cycles standalone executable" ON)
+ 
+ # Global compile definitions since add_definitions() adds for all.
+ set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS

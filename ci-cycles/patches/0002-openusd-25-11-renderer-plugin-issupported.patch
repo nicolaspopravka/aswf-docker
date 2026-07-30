@@ -1,0 +1,33 @@
+diff --git a/src/hydra/plugin.cpp b/src/hydra/plugin.cpp
+index 3a139cf..c8a1f88 100644
+--- a/src/hydra/plugin.cpp
++++ b/src/hydra/plugin.cpp
+@@ -39,6 +39,13 @@ bool HdCyclesPlugin::IsSupported() const
+   return true;
+ }
+ #else
++#  if PXR_VERSION >= 2511
++bool HdCyclesPlugin::IsSupported(HdRendererCreateArgs const & /*rendererCreateArgs*/,
++                                 std::string * /*reasonWhyNot*/) const
++{
++  return true;
++}
++#  endif
+ bool HdCyclesPlugin::IsSupported(bool /*gpuEnabled*/) const
+ {
+   return true;
+diff --git a/src/hydra/plugin.h b/src/hydra/plugin.h
+index 6a79ade..1ed5e5a 100644
+--- a/src/hydra/plugin.h
++++ b/src/hydra/plugin.h
+@@ -18,6 +18,10 @@ class HdCyclesPlugin final : public PXR_NS::HdRendererPlugin {
+ #if PXR_VERSION < 2302
+   bool IsSupported() const override;
+ #else
++#  if PXR_VERSION >= 2511
++  bool IsSupported(HdRendererCreateArgs const &rendererCreateArgs,
++                   std::string *reasonWhyNot = nullptr) const override;
++#  endif
+   bool IsSupported(bool gpuEnabled) const override;
+ #endif
+ 

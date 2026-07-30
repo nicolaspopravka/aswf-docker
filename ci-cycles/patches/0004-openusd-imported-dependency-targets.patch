@@ -1,0 +1,43 @@
+diff --git a/src/cmake/Modules/FindUSDPixar.cmake b/src/cmake/Modules/FindUSDPixar.cmake
+index 2fcb869..25cc28e 100644
+--- a/src/cmake/Modules/FindUSDPixar.cmake
++++ b/src/cmake/Modules/FindUSDPixar.cmake
+@@ -4,6 +4,38 @@
+ # Find Hydra, TBB, OpenSubdiv and OpenVDB in a USD installation.
+ # Variables are matching those output by FindUSDHoudini.cmake.
+ 
++# OpenUSD 26.x exports transitive dependencies from pxrTargets.cmake as
++# imported targets. Define the targets Cycles needs before loading pxrConfig.
++find_package(OpenGL QUIET)
++if(NOT TARGET OpenGL::GL)
++  find_library(_cycles_pxr_opengl_library NAMES OpenGL GL
++    PATHS ${PXR_ROOT}/lib /usr/local/lib /usr/lib64 /usr/lib
++    NO_DEFAULT_PATH
++  )
++  if(_cycles_pxr_opengl_library)
++    add_library(OpenGL::GL UNKNOWN IMPORTED)
++    set_target_properties(OpenGL::GL PROPERTIES
++      IMPORTED_LOCATION "${_cycles_pxr_opengl_library}"
++    )
++  endif()
++  unset(_cycles_pxr_opengl_library CACHE)
++endif()
++
++find_package(OpenSubdiv CONFIG QUIET)
++if(NOT TARGET OpenSubdiv::osdcpu)
++  find_library(_cycles_pxr_opensubdiv_cpu_library NAMES osdCPU
++    PATHS ${PXR_ROOT}/lib /usr/local/lib /usr/lib64 /usr/lib
++    NO_DEFAULT_PATH
++  )
++  if(_cycles_pxr_opensubdiv_cpu_library)
++    add_library(OpenSubdiv::osdcpu UNKNOWN IMPORTED)
++    set_target_properties(OpenSubdiv::osdcpu PROPERTIES
++      IMPORTED_LOCATION "${_cycles_pxr_opensubdiv_cpu_library}"
++    )
++  endif()
++  unset(_cycles_pxr_opensubdiv_cpu_library CACHE)
++endif()
++
+ find_package(pxr CONFIG REQUIRED PATHS ${PXR_ROOT} NO_DEFAULT_PATH)
+ 
+ if(pxr_FOUND)

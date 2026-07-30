@@ -1,0 +1,17 @@
+diff --git a/src/hydra/mesh.cpp b/src/hydra/mesh.cpp
+index d45a113..8cc2919 100644
+--- a/src/hydra/mesh.cpp
++++ b/src/hydra/mesh.cpp
+@@ -55,7 +55,11 @@ VtValue ComputeTriangulatedFaceVaryingPrimvar(VtValue value,
+                                               HdMeshUtil &meshUtil)
+ {
+   if (meshUtil.ComputeTriangulatedFaceVaryingPrimvar(
+-          HdGetValueData(value), value.GetArraySize(), valueType, &value))
++          HdGetValueData(value), value.GetArraySize(), valueType, &value)
++#if PXR_VERSION >= 2511
++      != HdMeshComputationResult::Error
++#endif
++  )
+   {
+     return value;
+   }

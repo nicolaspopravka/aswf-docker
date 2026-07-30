@@ -1,0 +1,140 @@
+# Build hdCycles Hydra render delegate from Cycles v5.1.0
+# on aswf/ci-base:2026 and push derived image to GHCR.
+#
+# Derived image: ghcr.io/nicolaspopravka/ci-base-cy2026-hdCycles
+# Pattern: build-moonray.yml in this repo
+
+name: Build Cycles Hydra Delegate
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ci-base-cy2026-hdCycles
+  BASE_IMAGE: aswf/ci-base:2026
+  CYCLES_TAG: v5.1.0
+  USD_VERSION: "26.03"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /usr/local/share/powershell /usr/share/swift /usr/local/.ghcup \
+            /usr/local/aws-cli /usr/local/aws-sam-cli /usr/local/julia* /usr/lib/jvm
+          sudo apt-get clean
+          docker system prune -af
+
+      - name: Pull base image
+        run: docker pull ${{ env.BASE_IMAGE }}
+
+      - name: Build hdCycles inside base image
+        run: |
+          set -eux
+          mkdir -p "$RUNNER_TEMP/cycles-root"
+          cat > "$RUNNER_TEMP/build-cycles-inner.sh" << 'SCRIPT'
+          set -ex
+          source /opt/rh/gcc-toolset-14/enable
+          dnf install -y libepoxy-devel git wget python3-pip
+
+          # ── Step 1: USD (per Cycles BUILDING.md) ──
+          git clone --branch v${USD_VERSION} --depth 1 \
+              https://github.com/PixarAnimationStudios/OpenUSD.git \
+              /opt/usd-src
+          python3 -m venv /opt/usd-venv
+          /opt/usd-venv/bin/pip install PyOpenGL
+          cd /opt/usd-src
+          /opt/usd-venv/bin/python3 build_scripts/build_usd.py \
+              --no-tests --imaging \
+              /opt/usd
+
+          # ── Step 2: Patch USD's pxrConfig.cmake to find OpenGL ──
+          # USD's garch target exports OpenGL::GL but pxrConfig doesn't
+          # call find_dependency(OpenGL). Patch it so consumers work.
+          if ! grep -q 'find_dependency(OpenGL)' /opt/usd/pxrConfig.cmake; then
+            sed -i '/^include.*pxrTargets/a\
+          include(CMakeFindDependencyMacro)\nfind_dependency(OpenGL)' /opt/usd/pxrConfig.cmake
+          fi
+
+          # ── Step 3: Cycles (per upstream BUILDING.md) ──
+          git clone --branch ${CYCLES_TAG} --depth 1 \
+              https://projects.blender.org/blender/cycles.git \
+              /opt/cycles-src
+
+          # Apply ASWF-compat patches for USD 26.03
+          cd /opt/cycles-src
+          patch_dir=/src/ci-cycles/patches
+          if [ -d "$patch_dir" ]; then
+            for patch in $(ls "$patch_dir"/*.patch | sort); do
+              echo "Applying patch: $patch"
+              patch -p1 < "$patch"
+            done
+          fi
+
+          # make update — download Blender's precompiled dependency bundle
+          cd /opt/cycles-src
+          make update
+
+          # cmake as BUILDING.md specifies, with needed additions for packaging
+          cmake -B /opt/cycles-build \
+              -DPXR_ROOT=/opt/usd \
+              -DWITH_CYCLES_HYDRA_RENDER_DELEGATE=ON \
+              -DWITH_CYCLES_USD=ON \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DCMAKE_INSTALL_PREFIX=/opt/cycles
+          make -C /opt/cycles-build -j $(nproc)
+          cmake --install /opt/cycles-build
+
+          # Extract artifacts
+          mkdir -p /out/opt
+          cp -a /opt/usd /out/opt/usd
+          cp -a /opt/cycles /out/opt/cycles
+          SCRIPT
+
+          chmod +x "$RUNNER_TEMP/build-cycles-inner.sh"
+
+          docker run --rm \
+              -e USD_VERSION \
+              -e CYCLES_TAG \
+              -v "$GITHUB_WORKSPACE:/src:ro" \
+              -v "$RUNNER_TEMP/cycles-root:/out" \
+              -v "$RUNNER_TEMP/build-cycles-inner.sh:/build.sh:ro" \
+              ${{ env.BASE_IMAGE }} \
+              bash /build.sh
+
+      - name: Create derived Docker image
+        run: |
+          cat > "$RUNNER_TEMP/cycles-root/Dockerfile" << 'DOCKERFILE'
+          FROM ${{ env.BASE_IMAGE }}
+          COPY ./opt/ /opt/
+          ENV PXR_PLUGINPATH_NAME=/opt/cycles/hydra:${PXR_PLUGINPATH_NAME}
+          ENV LD_LIBRARY_PATH=/opt/cycles/lib:/opt/cycles/lib64:${LD_LIBRARY_PATH}
+          ENV PATH=/opt/usd/bin:/opt/cycles/bin:${PATH}
+          DOCKERFILE
+          docker build -t ${{ env.IMAGE_NAME }} "$RUNNER_TEMP/cycles-root"
+
+      - name: Verify delegate in image
+        run: |
+          docker run --rm ${{ env.IMAGE_NAME }} \
+              bash -c 'ls -la /opt/cycles/hydra/hdCycles.so && ldd /opt/cycles/hydra/hdCycles.so'
+
+      - name: Push to GHCR
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
+          docker tag ${{ env.IMAGE_NAME }} \
+              ${{ env.REGISTRY }}/${{ github.actor }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          docker tag ${{ env.IMAGE_NAME }} \
+              ${{ env.REGISTRY }}/${{ github.actor }}/${{ env.IMAGE_NAME }}:latest
+          docker push ${{ env.REGISTRY }}/${{ github.actor }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          docker push ${{ env.REGISTRY }}/${{ github.actor }}/${{ env.IMAGE_NAME }}:latest
