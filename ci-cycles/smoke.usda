@@ -1,0 +1,49 @@
+#usda 1.0
+(
+    defaultPrim = "World"
+    metersPerUnit = 1
+    upAxis = "Y"
+)
+
+def Xform "World"
+{
+    def Camera "Camera"
+    {
+        float focalLength = 50
+        float horizontalAperture = 20.955
+        double3 xformOp:translate = (0, 0, 5)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+    }
+
+    def Sphere "Sphere"
+    {
+        rel material:binding = </World/Looks/Blue>
+        double radius = 1
+    }
+
+    def DistantLight "KeyLight"
+    {
+        color3f inputs:color = (1, 0.95, 0.9)
+        float inputs:intensity = 1000
+        float inputs:angle = 0.5
+        float3 xformOp:rotateXYZ = (-25, 35, 0)
+        uniform token[] xformOpOrder = ["xformOp:rotateXYZ"]
+    }
+
+    def Scope "Looks"
+    {
+        def Material "Blue"
+        {
+            token outputs:surface.connect = </World/Looks/Blue/PreviewSurface.outputs:surface>
+
+            def Shader "PreviewSurface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.03, 0.2, 0.8)
+                float inputs:metallic = 0
+                float inputs:roughness = 0.3
+                token outputs:surface
+            }
+        }
+    }
+}

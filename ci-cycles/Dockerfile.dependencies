@@ -1,0 +1,27 @@
+# syntax=docker/dockerfile:1.10
+
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+
+ARG CYCLES_LIB_REVISION
+ARG OPENUSD_REVISION
+ARG OPENUSD_TAG
+ARG WORKFLOW_REVISION
+
+COPY ci-cycles/build_dependencies.sh /usr/local/bin/build_dependencies.sh
+
+RUN chmod +x /usr/local/bin/build_dependencies.sh && \
+    /usr/local/bin/build_dependencies.sh
+
+ENV PATH=/opt/usd/bin:${PATH}
+ENV PYTHONPATH=/opt/usd/lib/python:${PYTHONPATH}
+ENV LD_LIBRARY_PATH=/opt/cycles-dependencies/lib:/opt/usd/lib:${LD_LIBRARY_PATH}
+
+LABEL org.opencontainers.image.source="https://github.com/nicolaspopravka/aswf-docker"
+LABEL org.opencontainers.image.title="Cycles CI dependency image"
+LABEL org.opencontainers.image.description="Contains the pinned upstream dependencies required to build Cycles; does not contain Cycles itself"
+LABEL org.opencontainers.image.licenses="Apache-2.0"
+LABEL org.opencontainers.image.revision="${WORKFLOW_REVISION}"
+LABEL io.usd-render-benchmark.cycles-library-revision="${CYCLES_LIB_REVISION}"
+LABEL io.usd-render-benchmark.openusd-revision="${OPENUSD_REVISION}"
+LABEL io.usd-render-benchmark.openusd-tag="${OPENUSD_TAG}"
