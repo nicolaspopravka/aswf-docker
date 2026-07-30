@@ -43,6 +43,7 @@ jobs:
           cp scripts/matrix/Dockerfile.openusd-build-path "$CONTEXT/Dockerfile"
           cp scripts/matrix/build_openusd_path_image.sh "$CONTEXT/"
           cp scripts/matrix/run_moana_storm_debug.sh "$CONTEXT/"
+          cp scripts/matrix/run_ptex_validator.sh "$CONTEXT/"
           cp scripts/matrix/openusd-ptex-buffer-size-overflow.patch "$CONTEXT/"
           cp scripts/matrix/test_openusd_ptex_buffer_size.cpp "$CONTEXT/"
           cp scripts/matrix/validate_ptex_file.cpp "$CONTEXT/"

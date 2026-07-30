@@ -27,6 +27,7 @@ grep -Fq 'DEBUG_BUILD="1"' "${workflow}"
 grep -Fq 'COPY run_moana_storm_debug.sh' "${dockerfile}"
 grep -Fq 'COPY openusd-ptex-buffer-size-overflow.patch' "${dockerfile}"
 grep -Fq 'COPY validate_ptex_file.cpp' "${dockerfile}"
+grep -Fq 'COPY run_ptex_validator.sh' "${dockerfile}"
 grep -Fq '"gcc-toolset-${EXPECTED_GCC_MAJOR}-libasan-devel"' "${dockerfile}"
 grep -Fq '"gcc-toolset-${EXPECTED_GCC_MAJOR}-libubsan-devel"' "${dockerfile}"
 
@@ -45,7 +46,7 @@ grep -Fq 'set breakpoint pending on' "${debug_runner}"
 grep -Fq 'absent ASWF_OPENUSD_VERSION: Pixar base is not ci-usd' "${harness}"
 grep -Fq 'patch -p1 --fuzz=0' "${harness}"
 grep -Fq 'validate_ptex_file_asan' "${harness}"
-grep -Fq 'validate_ptex_file_asan --self-test' "${harness}"
+grep -Fq 'run_ptex_validator.sh --self-test' "${harness}"
 grep -Fq 'PTEX_BUFFER_PATCH_SHA256="6865c0d3b26ad345bf6349b91f89cc2f0dabb79d120aef1219f175f16faeabf8"' "${workflow}"
 
 env \

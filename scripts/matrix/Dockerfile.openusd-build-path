@@ -25,6 +25,7 @@ ARG SOURCE_REPOSITORY=https://github.com/PixarAnimationStudios/OpenUSD
 COPY build_openusd_path_image.sh /opt/openusd-matrix/build_openusd_path_image.sh
 COPY aswf-build_usd.sh /opt/openusd-matrix/aswf-build_usd.sh
 COPY run_moana_storm_debug.sh /opt/moana-debug/run_moana_storm_debug.sh
+COPY run_ptex_validator.sh /opt/moana-debug/run_ptex_validator.sh
 COPY openusd-ptex-buffer-size-overflow.patch /opt/openusd-matrix/openusd-ptex-buffer-size-overflow.patch
 COPY test_openusd_ptex_buffer_size.cpp /opt/openusd-matrix/test_openusd_ptex_buffer_size.cpp
 COPY validate_ptex_file.cpp /opt/openusd-matrix/validate_ptex_file.cpp
@@ -39,6 +40,7 @@ RUN dnf install -y \
       /opt/openusd-matrix/build_openusd_path_image.sh \
       /opt/openusd-matrix/aswf-build_usd.sh \
       /opt/moana-debug/run_moana_storm_debug.sh \
+      /opt/moana-debug/run_ptex_validator.sh \
     && /opt/openusd-matrix/build_openusd_path_image.sh build
 
 ENV OPENUSD_MATRIX_BUILD_PATH=${BUILD_PATH} \
