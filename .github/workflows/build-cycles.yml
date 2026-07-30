@@ -85,6 +85,7 @@ jobs:
             "$CI_IMAGE_NAME:$CI_IMMUTABLE_TAG" bash -c '
             set -euxo pipefail
             test -x /opt/usd/bin/usdrecord
+            test -e /opt/usd/lib64/libtbb.so.12
             test -d /opt/cycles-dependencies
             test -d /opt/cycles-dependencies/.git
             python3 -c "import PySide6; print(PySide6.__version__)"

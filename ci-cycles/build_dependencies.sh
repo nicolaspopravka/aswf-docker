@@ -31,20 +31,20 @@ test "$(git -C "$BUILD_ROOT/OpenUSD" rev-parse HEAD)" = "$OPENUSD_REVISION"
   python3 build_scripts/build_usd.py /opt/usd \
     --onetbb \
     --no-usdview \
-    --build-args "USD,-DTBB_DIR=/opt/usd/lib/cmake/TBB"
+    --build-args "USD,-DTBB_DIR=/opt/usd/lib64/cmake/TBB"
 )
 
 test -x /opt/usd/bin/usdrecord
 test -d /opt/usd/lib/python/pxr
-test -e /opt/usd/lib/libtbb.so.12
-if find /opt/usd/lib -maxdepth 1 -name 'libtbb.so.2*' -print -quit | grep -q .; then
+test -e /opt/usd/lib64/libtbb.so.12
+if find /opt/usd -maxdepth 2 -name 'libtbb.so.2*' -print -quit | grep -q .; then
   echo "Classic TBB unexpectedly present in the OpenUSD prefix" >&2
   exit 1
 fi
 
 usd_cache="$(find /opt/usd -path '*/OpenUSD/CMakeCache.txt' -print -quit)"
 test -n "$usd_cache"
-grep -E '^TBB_DIR(:[^=]*)?=/opt/usd/lib/cmake/TBB$' "$usd_cache"
+grep -E '^TBB_DIR(:[^=]*)?=/opt/usd/lib64/cmake/TBB$' "$usd_cache"
 cp "$usd_cache" "$EVIDENCE_ROOT/OpenUSD-CMakeCache.txt"
 
 git lfs install --skip-repo

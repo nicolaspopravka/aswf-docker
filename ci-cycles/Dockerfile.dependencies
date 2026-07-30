@@ -15,7 +15,7 @@ RUN chmod +x /usr/local/bin/build_dependencies.sh && \
 
 ENV PATH=/opt/usd/bin:${PATH}
 ENV PYTHONPATH=/opt/usd/lib/python:${PYTHONPATH}
-ENV LD_LIBRARY_PATH=/opt/cycles-dependencies/lib:/opt/usd/lib:${LD_LIBRARY_PATH}
+ENV LD_LIBRARY_PATH=/opt/cycles-dependencies/lib:/opt/usd/lib:/opt/usd/lib64:${LD_LIBRARY_PATH}
 
 LABEL org.opencontainers.image.source="https://github.com/nicolaspopravka/aswf-docker"
 LABEL org.opencontainers.image.title="Cycles CI dependency image"

@@ -16,8 +16,8 @@ mkdir -p "$BUILD_ROOT" "$EVIDENCE_ROOT"
 
 test -x /opt/usd/bin/usdrecord
 test -d /opt/usd/lib/python/pxr
-test -e /opt/usd/lib/libtbb.so.12
-if find /opt/usd/lib -maxdepth 1 -name 'libtbb.so.2*' -print -quit | grep -q .; then
+test -e /opt/usd/lib64/libtbb.so.12
+if find /opt/usd -maxdepth 2 -name 'libtbb.so.2*' -print -quit | grep -q .; then
   echo "Classic TBB unexpectedly present in the OpenUSD prefix" >&2
   exit 1
 fi
@@ -63,7 +63,7 @@ test "$(git -C "$BUILD_ROOT/cycles" rev-parse HEAD)" = "$CYCLES_REVISION"
   python3 --version
 } > "$EVIDENCE_ROOT/source-revisions.txt"
 
-LD_LIBRARY_PATH="/opt/cycles/lib:/opt/usd/lib:${LD_LIBRARY_PATH:-}" \
+LD_LIBRARY_PATH="/opt/cycles/lib:/opt/usd/lib:/opt/usd/lib64:${LD_LIBRARY_PATH:-}" \
   ldd /opt/cycles/hydra/hdCycles.so \
   | tee "$EVIDENCE_ROOT/hdCycles-ldd.txt"
 if grep -q 'not found' "$EVIDENCE_ROOT/hdCycles-ldd.txt"; then

@@ -28,7 +28,7 @@ COPY --from=builder /opt/cycles-build-evidence /opt/cycles-build-evidence
 ENV PATH=/opt/usd/bin:/opt/cycles:${PATH}
 ENV PYTHONPATH=/opt/usd/lib/python:${PYTHONPATH}
 ENV PXR_PLUGINPATH_NAME=/opt/cycles/hydra
-ENV LD_LIBRARY_PATH=/opt/cycles/lib:/opt/cycles-dependencies/lib:/opt/usd/lib:${LD_LIBRARY_PATH}
+ENV LD_LIBRARY_PATH=/opt/cycles/lib:/opt/cycles-dependencies/lib:/opt/usd/lib:/opt/usd/lib64:${LD_LIBRARY_PATH}
 
 LABEL org.opencontainers.image.source="https://github.com/nicolaspopravka/aswf-docker"
 LABEL org.opencontainers.image.title="Cycles Hydra delegate for USD Render Benchmark"
