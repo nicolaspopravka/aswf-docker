@@ -146,6 +146,7 @@ ENV MOONRAY_CLASS_PATH=/opt/MoonRay/installs/openmoonray/shader_json
 ENV ARRAS_SESSION_PATH=/opt/MoonRay/installs/openmoonray/sessions/hdMoonray
 ENV REZ_MOONRAY_ROOT=/opt/MoonRay/installs/openmoonray
 ENV PATH=/opt/MoonRay/installs/openmoonray/bin:${PATH}
+ENV PYTHONPATH=/opt/MoonRay/installs/openmoonray/python/lib/python3.11:/usr/local/lib/python:${PYTHONPATH}
 ENV PXR_PLUGINPATH_NAME=/opt/MoonRay/installs/openmoonray/plugin/pxr
 ENV PXR_PLUGIN_PATH=/opt/MoonRay/installs/openmoonray/plugin/pxr
 ENV LD_LIBRARY_PATH=/opt/MoonRay/dependencies/log4cplus/lib:/opt/MoonRay/installs/openmoonray/lib:/opt/MoonRay/installs/openmoonray/lib64:${LD_LIBRARY_PATH}
