@@ -41,6 +41,7 @@ RUN mkdir -p /tmp/log4cplus-source && \
         -DLOG4CPLUS_ENABLE_DECORATED_LIBRARY_NAME=OFF && \
     cmake --build /tmp/log4cplus-build --parallel "${BUILD_JOBS}" && \
     cmake --install /tmp/log4cplus-build && \
+    ln -s lib64 /opt/MoonRay/dependencies/log4cplus/lib && \
     nm -D --defined-only \
         /opt/MoonRay/dependencies/log4cplus/lib/liblog4cplus.so \
         | c++filt \
