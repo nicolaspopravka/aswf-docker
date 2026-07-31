@@ -157,7 +157,20 @@ jobs:
             "$IMAGE_NAME:$IMMUTABLE_TAG" \
             bash -c '
               set -euxo pipefail
-              xvfb-run -a usdrecord \
+              export DISPLAY=:99
+              export LIBGL_ALWAYS_SOFTWARE=1
+              export GALLIUM_DRIVER=llvmpipe
+              unset MESA_LOADER_DRIVER_OVERRIDE
+              Xvfb :99 -screen 0 640x480x24 \
+                +extension GLX +render -noreset >/tmp/xvfb.log 2>&1 &
+              xvfb_pid=$!
+              trap "kill $xvfb_pid 2>/dev/null || true" EXIT
+              sleep 2
+              glxinfo -B | tee /tmp/glxinfo.log
+              grep -Eqi \
+                "OpenGL renderer string:.*llvmpipe|Device: llvmpipe" \
+                /tmp/glxinfo.log
+              usdrecord \
                 --renderer Cycles \
                 --camera /World/Camera \
                 --imageWidth 128 \
@@ -182,7 +195,20 @@ jobs:
             "$IMAGE_NAME:$IMMUTABLE_TAG" \
             bash -c '
               set -euxo pipefail
-              xvfb-run -a usdrecord \
+              export DISPLAY=:99
+              export LIBGL_ALWAYS_SOFTWARE=1
+              export GALLIUM_DRIVER=llvmpipe
+              unset MESA_LOADER_DRIVER_OVERRIDE
+              Xvfb :99 -screen 0 640x480x24 \
+                +extension GLX +render -noreset >/tmp/xvfb.log 2>&1 &
+              xvfb_pid=$!
+              trap "kill $xvfb_pid 2>/dev/null || true" EXIT
+              sleep 2
+              glxinfo -B | tee /tmp/glxinfo.log
+              grep -Eqi \
+                "OpenGL renderer string:.*llvmpipe|Device: llvmpipe" \
+                /tmp/glxinfo.log
+              usdrecord \
                 --disableGpu \
                 --renderer Cycles \
                 --camera /World/Camera \

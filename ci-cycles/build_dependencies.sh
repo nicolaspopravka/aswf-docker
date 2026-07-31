@@ -22,15 +22,26 @@ esac
 
 source /opt/rh/gcc-toolset-14/enable
 
-dnf install -y binutils file git git-lfs patch wget
+mkdir -p "$BUILD_ROOT" "$EVIDENCE_ROOT"
+
+dnf install -y \
+  binutils \
+  file \
+  git \
+  git-lfs \
+  glx-utils \
+  mesa-dri-drivers \
+  patch \
+  wget
 dnf clean all
+
+rpm -q mesa-dri-drivers mesa-libEGL mesa-libGL glx-utils \
+  | tee "$EVIDENCE_ROOT/mesa-packages.txt"
 
 git lfs version
 cmake --version
 python3 --version
 gcc --version
-
-mkdir -p "$BUILD_ROOT" "$EVIDENCE_ROOT"
 
 git lfs install --skip-repo
 git clone "$CYCLES_LIB_URL" "$BUILD_ROOT/lib-linux_x64"
