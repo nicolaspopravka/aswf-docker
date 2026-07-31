@@ -75,6 +75,8 @@ RUN test -x /usr/local/bin/python3.11 && \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_INSTALL_PREFIX=/opt/MoonRay/installs/openmoonray \
         -DCMAKE_PREFIX_PATH=/usr/local \
+        -DLog4cplus_INCLUDE_DIR:PATH=/opt/MoonRay/dependencies/log4cplus/include/log4cplus \
+        -DLog4cplus_LIBRARIES:FILEPATH=/opt/MoonRay/dependencies/log4cplus/lib/liblog4cplus.so \
         -DPYTHON_EXECUTABLE=/usr/local/bin/python3 \
         -DPython3_EXECUTABLE=/usr/local/bin/python3.11 \
         -DPython3_LIBRARY=/usr/local/lib/libpython3.11.so \
@@ -84,6 +86,9 @@ RUN test -x /usr/local/bin/python3.11 && \
         -DBUILD_QT_APPS=NO \
         -DMOONRAY_USE_OPTIX=NO \
         -DBUILD_MATERIALX_SHADERS=ON && \
+    grep -Fx \
+        'Log4cplus_LIBRARIES:FILEPATH=/opt/MoonRay/dependencies/log4cplus/lib/liblog4cplus.so' \
+        /opt/MoonRay/build/CMakeCache.txt && \
     cmake --build /opt/MoonRay/build --target install --parallel "${BUILD_JOBS}" && \
     mkdir -p /opt/MoonRay/installs/openmoonray/shader_json && \
     /opt/MoonRay/installs/openmoonray/bin/rdl2_json_exporter \
