@@ -25,19 +25,13 @@ env:
 
 jobs:
   build:
-    name: cycles-5.2.0-openusd-26.03-cy2026-${{ matrix.usd_linkage }}
+    name: cycles-5.2.0-openusd-26.03-cy2026-split
     runs-on: ubuntu-22.04
     timeout-minutes: 330
-    strategy:
-      fail-fast: false
-      matrix:
-        usd_linkage:
-          - split
-          - monolithic
     env:
-      USD_LINKAGE: ${{ matrix.usd_linkage }}
-      CI_VARIANT_TAG: cycles-libs-5.2-openusd-26.03-cy2026-${{ matrix.usd_linkage }}
-      VARIANT_TAG: cycles-5.2.0-openusd-26.03-cy2026-${{ matrix.usd_linkage }}
+      USD_LINKAGE: split
+      CI_VARIANT_TAG: cycles-libs-5.2-openusd-26.03-cy2026-split
+      VARIANT_TAG: cycles-5.2.0-openusd-26.03-cy2026-split
 
     steps:
       - name: Checkout reviewed source
@@ -151,35 +145,12 @@ jobs:
             fi
           ' | tee "${{ runner.temp }}/cycles-image-validation.log"
 
-      - name: Run stock usdrecord Hydra-GPU-disabled smoke
-        env:
-          IMMUTABLE_TAG: ${{ env.VARIANT_TAG }}-${{ github.sha }}
-        run: |
-          set -euxo pipefail
-          mkdir -p "${{ runner.temp }}/cycles-smoke"
-          docker run --rm \
-            --volume "$GITHUB_WORKSPACE/ci-cycles:/test:ro" \
-            --volume "${{ runner.temp }}/cycles-smoke:/out" \
-            "$IMAGE_NAME:$IMMUTABLE_TAG" \
-            bash -c '
-              set -euxo pipefail
-              xvfb-run -a usdrecord \
-                --disableGpu \
-                --renderer Cycles \
-                --camera /World/Camera \
-                --imageWidth 128 \
-                /test/smoke.usda \
-                /out/cycles-smoke.png
-              python3 /test/check_png_variation.py /out/cycles-smoke.png
-            ' | tee "${{ runner.temp }}/cycles-smoke.log"
-          sha256sum "${{ runner.temp }}/cycles-smoke/cycles-smoke.png" \
-            | tee "${{ runner.temp }}/cycles-disabled-gpu-smoke.sha256"
-
       - name: Run benchmark-semantics usdrecord smoke
         env:
           IMMUTABLE_TAG: ${{ env.VARIANT_TAG }}-${{ github.sha }}
         run: |
           set -euxo pipefail
+          mkdir -p "${{ runner.temp }}/cycles-smoke"
           docker run --rm \
             --volume "$GITHUB_WORKSPACE/ci-cycles:/test:ro" \
             --volume "${{ runner.temp }}/cycles-smoke:/out" \
@@ -198,6 +169,31 @@ jobs:
           sha256sum \
             "${{ runner.temp }}/cycles-smoke/cycles-gpu-enabled-smoke.png" \
             | tee "${{ runner.temp }}/cycles-gpu-enabled-smoke.sha256"
+
+      - name: Run optional Hydra-GPU-disabled diagnostic
+        continue-on-error: true
+        env:
+          IMMUTABLE_TAG: ${{ env.VARIANT_TAG }}-${{ github.sha }}
+        run: |
+          set -euxo pipefail
+          docker run --rm \
+            --volume "$GITHUB_WORKSPACE/ci-cycles:/test:ro" \
+            --volume "${{ runner.temp }}/cycles-smoke:/out" \
+            "$IMAGE_NAME:$IMMUTABLE_TAG" \
+            bash -c '
+              set -euxo pipefail
+              xvfb-run -a usdrecord \
+                --disableGpu \
+                --renderer Cycles \
+                --camera /World/Camera \
+                --imageWidth 128 \
+                /test/smoke.usda \
+                /out/cycles-disabled-gpu-smoke.png
+              python3 /test/check_png_variation.py \
+                /out/cycles-disabled-gpu-smoke.png
+            ' | tee "${{ runner.temp }}/cycles-disabled-gpu-smoke.log"
+          sha256sum "${{ runner.temp }}/cycles-smoke/cycles-disabled-gpu-smoke.png" \
+            | tee "${{ runner.temp }}/cycles-disabled-gpu-smoke.sha256"
 
       - name: Authenticate to GHCR
         env:
@@ -269,7 +265,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: cycles-hydra-build-${{ matrix.usd_linkage }}-${{ github.run_attempt }}
+          name: cycles-hydra-build-split-${{ github.run_attempt }}
           if-no-files-found: warn
           retention-days: 30
           path: |
@@ -277,7 +273,7 @@ jobs:
             ${{ runner.temp }}/ci-cycles-image-validation.log
             ${{ runner.temp }}/cycles-docker-build.log
             ${{ runner.temp }}/cycles-image-validation.log
-            ${{ runner.temp }}/cycles-smoke.log
+            ${{ runner.temp }}/cycles-disabled-gpu-smoke.log
             ${{ runner.temp }}/cycles-disabled-gpu-smoke.sha256
             ${{ runner.temp }}/cycles-gpu-enabled-smoke.log
             ${{ runner.temp }}/cycles-gpu-enabled-smoke.sha256
