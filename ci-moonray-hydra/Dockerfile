@@ -69,6 +69,7 @@ RUN git clone \
 RUN test -x /usr/local/bin/python3.11 && \
     test -f /usr/local/lib/libpython3.11.so && \
     test -f /usr/local/include/python3.11/Python.h && \
+    export PYTHONPATH=/opt/MoonRay/build/moonray/scene_rdl2/mod/python/py_scene_rdl2:${PYTHONPATH} && \
     cmake \
         -S /opt/MoonRay/source/openmoonray \
         -B /opt/MoonRay/build \
