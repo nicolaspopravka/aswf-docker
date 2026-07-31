@@ -87,9 +87,11 @@ def _read_png(path):
     for row in rows:
         for offset in range(0, len(row), channels):
             if channels == 1:
-                pixel = (row[offset],) * 3
+                pixel = (row[offset],) * 3 + (255,)
+            elif channels == 4:
+                pixel = tuple(row[offset : offset + 4])
             else:
-                pixel = tuple(row[offset : offset + 3])
+                pixel = tuple(row[offset : offset + 3]) + (255,)
             pixels.append(pixel)
     return width, height, pixels
 
@@ -101,14 +103,20 @@ def main():
     args = parser.parse_args()
 
     width, height, pixels = _read_png(args.image)
-    unique_pixels = len(set(pixels))
+    rgb_pixels = [pixel[:3] for pixel in pixels]
+    unique_pixels = len(set(rgb_pixels))
     luminance = [
         (2126 * red + 7152 * green + 722 * blue) // 10000
-        for red, green, blue in pixels
+        for red, green, blue in rgb_pixels
     ]
     luminance_range = max(luminance) - min(luminance)
 
     print(f"size={width}x{height}")
+    print(f"top_left_rgba={pixels[0]}")
+    print(f"center_rgba={pixels[(height // 2) * width + (width // 2)]}")
+    print(f"bottom_right_rgba={pixels[-1]}")
+    print(f"channel_min_rgba={tuple(min(pixel[i] for pixel in pixels) for i in range(4))}")
+    print(f"channel_max_rgba={tuple(max(pixel[i] for pixel in pixels) for i in range(4))}")
     print(f"unique_rgb_pixels={unique_pixels}")
     print(f"luminance_range={luminance_range}")
 

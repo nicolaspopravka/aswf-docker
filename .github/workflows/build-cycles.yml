@@ -146,6 +146,8 @@ jobs:
           ' | tee "${{ runner.temp }}/cycles-image-validation.log"
 
       - name: Run benchmark-semantics usdrecord smoke
+        id: benchmark_smoke
+        continue-on-error: true
         env:
           IMMUTABLE_TAG: ${{ env.VARIANT_TAG }}-${{ github.sha }}
         run: |
@@ -160,6 +162,7 @@ jobs:
               export DISPLAY=:99
               export LIBGL_ALWAYS_SOFTWARE=1
               export GALLIUM_DRIVER=llvmpipe
+              export CYCLES_DEVICE=CPU
               unset MESA_LOADER_DRIVER_OVERRIDE
               Xvfb :99 -screen 0 640x480x24 \
                 +extension GLX +render -noreset >/tmp/xvfb.log 2>&1 &
@@ -184,6 +187,7 @@ jobs:
             | tee "${{ runner.temp }}/cycles-gpu-enabled-smoke.sha256"
 
       - name: Run optional Hydra-GPU-disabled diagnostic
+        id: disable_gpu_smoke
         continue-on-error: true
         env:
           IMMUTABLE_TAG: ${{ env.VARIANT_TAG }}-${{ github.sha }}
@@ -198,6 +202,7 @@ jobs:
               export DISPLAY=:99
               export LIBGL_ALWAYS_SOFTWARE=1
               export GALLIUM_DRIVER=llvmpipe
+              export CYCLES_DEVICE=CPU
               unset MESA_LOADER_DRIVER_OVERRIDE
               Xvfb :99 -screen 0 640x480x24 \
                 +extension GLX +render -noreset >/tmp/xvfb.log 2>&1 &
@@ -220,6 +225,27 @@ jobs:
             ' | tee "${{ runner.temp }}/cycles-disabled-gpu-smoke.log"
           sha256sum "${{ runner.temp }}/cycles-smoke/cycles-disabled-gpu-smoke.png" \
             | tee "${{ runner.temp }}/cycles-disabled-gpu-smoke.sha256"
+
+      - name: Upload smoke diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cycles-${{ matrix.usd_linkage }}-smoke-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/cycles-smoke/*.png
+            ${{ runner.temp }}/cycles-*-smoke.log
+            ${{ runner.temp }}/cycles-*-smoke.sha256
+          if-no-files-found: error
+
+      - name: Require benchmark-semantics smoke
+        if: always()
+        env:
+          BENCHMARK_OUTCOME: ${{ steps.benchmark_smoke.outcome }}
+          DISABLE_GPU_OUTCOME: ${{ steps.disable_gpu_smoke.outcome }}
+        run: |
+          printf 'benchmark-semantics outcome: %s\n' "$BENCHMARK_OUTCOME"
+          printf 'disableGpu diagnostic outcome: %s\n' "$DISABLE_GPU_OUTCOME"
+          test "$BENCHMARK_OUTCOME" = success
 
       - name: Authenticate to GHCR
         env:
