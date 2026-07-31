@@ -6,8 +6,10 @@ FROM ${DEPENDENCY_IMAGE} AS builder
 ARG CYCLES_REVISION
 ARG CYCLES_TAG
 ARG CYCLES_LIB_REVISION
+ARG USD_LINKAGE
 
 COPY ci-cycles/build_cycles.sh /usr/local/bin/build_cycles.sh
+COPY ci-cycles/cycles-hdsi.patch /usr/local/share/cycles-hdsi.patch
 
 RUN chmod +x /usr/local/bin/build_cycles.sh && \
     /usr/local/bin/build_cycles.sh
@@ -19,6 +21,7 @@ ARG CYCLES_REVISION
 ARG CYCLES_TAG
 ARG OPENUSD_REVISION
 ARG OPENUSD_TAG
+ARG USD_LINKAGE
 ARG WORKFLOW_REVISION
 
 COPY --from=builder /opt/usd /opt/usd
@@ -38,3 +41,4 @@ LABEL org.opencontainers.image.revision="${WORKFLOW_REVISION}"
 LABEL io.usd-render-benchmark.aswf-source-revision="${ASWF_SOURCE_REVISION}"
 LABEL io.usd-render-benchmark.cycles-revision="${CYCLES_REVISION}"
 LABEL io.usd-render-benchmark.openusd-revision="${OPENUSD_REVISION}"
+LABEL io.usd-render-benchmark.openusd-linkage="${USD_LINKAGE}"

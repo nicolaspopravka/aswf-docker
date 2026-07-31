@@ -25,9 +25,19 @@ env:
 
 jobs:
   build:
-    name: cycles-5.2.0-openusd-26.03-cy2026
+    name: cycles-5.2.0-openusd-26.03-cy2026-${{ matrix.usd_linkage }}
     runs-on: ubuntu-22.04
     timeout-minutes: 330
+    strategy:
+      fail-fast: false
+      matrix:
+        usd_linkage:
+          - split
+          - monolithic
+    env:
+      USD_LINKAGE: ${{ matrix.usd_linkage }}
+      CI_VARIANT_TAG: cycles-libs-5.2-openusd-26.03-cy2026-${{ matrix.usd_linkage }}
+      VARIANT_TAG: cycles-5.2.0-openusd-26.03-cy2026-${{ matrix.usd_linkage }}
 
     steps:
       - name: Checkout reviewed source
@@ -51,18 +61,20 @@ jobs:
           [[ "$CYCLES_REVISION" =~ ^[0-9a-f]{40}$ ]]
           [[ "$CYCLES_LIB_REVISION" =~ ^[0-9a-f]{40}$ ]]
           [[ "$OPENUSD_REVISION" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$USD_LINKAGE" == split || "$USD_LINKAGE" == monolithic ]]
           [[ "$CI_IMAGE_NAME" == "${CI_IMAGE_NAME,,}" ]]
           [[ "$IMAGE_NAME" == "${IMAGE_NAME,,}" ]]
           test -f ci-cycles/Dockerfile.dependencies
           test -f ci-cycles/Dockerfile
           test -f ci-cycles/build_dependencies.sh
           test -f ci-cycles/build_cycles.sh
+          test -f ci-cycles/cycles-hdsi.patch
           test -f ci-cycles/smoke.usda
           test -f ci-cycles/check_png_variation.py
 
       - name: Build immutable dependency image
         env:
-          CI_IMMUTABLE_TAG: ${{ env.CI_VERSION_TAG }}-${{ github.sha }}
+          CI_IMMUTABLE_TAG: ${{ env.CI_VARIANT_TAG }}-${{ github.sha }}
         run: |
           set -euxo pipefail
           docker build --progress=plain \
@@ -73,11 +85,12 @@ jobs:
             --build-arg CYCLES_LIB_REVISION="$CYCLES_LIB_REVISION" \
             --build-arg OPENUSD_TAG="$OPENUSD_TAG" \
             --build-arg OPENUSD_REVISION="$OPENUSD_REVISION" \
+            --build-arg USD_LINKAGE="$USD_LINKAGE" \
             . 2>&1 | tee "${{ runner.temp }}/ci-cycles-docker-build.log"
 
       - name: Validate dependency image boundary
         env:
-          CI_IMMUTABLE_TAG: ${{ env.CI_VERSION_TAG }}-${{ github.sha }}
+          CI_IMMUTABLE_TAG: ${{ env.CI_VARIANT_TAG }}-${{ github.sha }}
         run: |
           set -euxo pipefail
           docker run --rm \
@@ -85,7 +98,7 @@ jobs:
             "$CI_IMAGE_NAME:$CI_IMMUTABLE_TAG" bash -c '
             set -euxo pipefail
             test -x /opt/usd/bin/usdrecord
-            test -e /opt/usd/lib64/libtbb.so.12
+            test -e /opt/usd/lib/libtbb.so.12
             test -d /opt/cycles-dependencies
             test -d /opt/cycles-dependencies/.git
             python3 -c "import PySide6; print(PySide6.__version__)"
@@ -97,8 +110,8 @@ jobs:
 
       - name: Build immutable delegate image
         env:
-          CI_IMMUTABLE_TAG: ${{ env.CI_VERSION_TAG }}-${{ github.sha }}
-          IMMUTABLE_TAG: ${{ env.VERSION_TAG }}-${{ github.sha }}
+          CI_IMMUTABLE_TAG: ${{ env.CI_VARIANT_TAG }}-${{ github.sha }}
+          IMMUTABLE_TAG: ${{ env.VARIANT_TAG }}-${{ github.sha }}
         run: |
           set -euxo pipefail
           docker build --progress=plain \
@@ -112,27 +125,35 @@ jobs:
             --build-arg CYCLES_LIB_REVISION="$CYCLES_LIB_REVISION" \
             --build-arg OPENUSD_TAG="$OPENUSD_TAG" \
             --build-arg OPENUSD_REVISION="$OPENUSD_REVISION" \
+            --build-arg USD_LINKAGE="$USD_LINKAGE" \
             . 2>&1 | tee "${{ runner.temp }}/cycles-docker-build.log"
 
       - name: Validate delegate and dependency closure
         env:
-          IMMUTABLE_TAG: ${{ env.VERSION_TAG }}-${{ github.sha }}
+          IMMUTABLE_TAG: ${{ env.VARIANT_TAG }}-${{ github.sha }}
         run: |
           set -euxo pipefail
-          docker run --rm "$IMAGE_NAME:$IMMUTABLE_TAG" bash -c '
+          docker run --rm \
+            --env USD_LINKAGE \
+            "$IMAGE_NAME:$IMMUTABLE_TAG" bash -c '
             set -euxo pipefail
             test -x /opt/usd/bin/usdrecord
             test -f /opt/cycles/hydra/hdCycles.so
             python3 -c "from pxr import Usd, UsdImagingGL; print(Usd.GetVersion()); plugins = UsdImagingGL.Engine.GetRendererPlugins(); names = [UsdImagingGL.Engine.GetRendererDisplayName(p) for p in plugins]; print(list(zip(plugins, names))); assert \"Cycles\" in names"
-            ldd /opt/cycles/hydra/hdCycles.so | tee /tmp/hdCycles-ldd.txt
-            ! grep -q "not found" /tmp/hdCycles-ldd.txt
+            ldd -r /opt/cycles/hydra/hdCycles.so | tee /tmp/hdCycles-ldd.txt
+            ! grep -Eq "not found|undefined symbol" /tmp/hdCycles-ldd.txt
             grep -q "libtbb.so.12" /tmp/hdCycles-ldd.txt
             ! grep -q "libtbb.so.2 " /tmp/hdCycles-ldd.txt
+            if [[ "$USD_LINKAGE" == split ]]; then
+              grep -q "libusd_hdsi" /tmp/hdCycles-ldd.txt
+            else
+              grep -q "libusd_usd_m" /tmp/hdCycles-ldd.txt
+            fi
           ' | tee "${{ runner.temp }}/cycles-image-validation.log"
 
       - name: Run stock usdrecord Hydra-GPU-disabled smoke
         env:
-          IMMUTABLE_TAG: ${{ env.VERSION_TAG }}-${{ github.sha }}
+          IMMUTABLE_TAG: ${{ env.VARIANT_TAG }}-${{ github.sha }}
         run: |
           set -euxo pipefail
           mkdir -p "${{ runner.temp }}/cycles-smoke"
@@ -156,7 +177,7 @@ jobs:
 
       - name: Run benchmark-semantics usdrecord smoke
         env:
-          IMMUTABLE_TAG: ${{ env.VERSION_TAG }}-${{ github.sha }}
+          IMMUTABLE_TAG: ${{ env.VARIANT_TAG }}-${{ github.sha }}
         run: |
           set -euxo pipefail
           docker run --rm \
@@ -185,29 +206,29 @@ jobs:
 
       - name: Publish validated images
         env:
-          CI_IMMUTABLE_TAG: ${{ env.CI_VERSION_TAG }}-${{ github.sha }}
-          IMMUTABLE_TAG: ${{ env.VERSION_TAG }}-${{ github.sha }}
+          CI_IMMUTABLE_TAG: ${{ env.CI_VARIANT_TAG }}-${{ github.sha }}
+          IMMUTABLE_TAG: ${{ env.VARIANT_TAG }}-${{ github.sha }}
         run: |
           set -euxo pipefail
           docker tag "$CI_IMAGE_NAME:$CI_IMMUTABLE_TAG" \
-            "$CI_IMAGE_NAME:$CI_VERSION_TAG"
-          docker tag "$IMAGE_NAME:$IMMUTABLE_TAG" "$IMAGE_NAME:$VERSION_TAG"
+            "$CI_IMAGE_NAME:$CI_VARIANT_TAG"
+          docker tag "$IMAGE_NAME:$IMMUTABLE_TAG" "$IMAGE_NAME:$VARIANT_TAG"
           docker push "$CI_IMAGE_NAME:$CI_IMMUTABLE_TAG" \
             2>&1 | tee "${{ runner.temp }}/ci-cycles-push-immutable.log"
-          docker push "$CI_IMAGE_NAME:$CI_VERSION_TAG" \
+          docker push "$CI_IMAGE_NAME:$CI_VARIANT_TAG" \
             2>&1 | tee "${{ runner.temp }}/ci-cycles-push-version.log"
           docker push "$IMAGE_NAME:$IMMUTABLE_TAG" \
             2>&1 | tee "${{ runner.temp }}/cycles-push-immutable.log"
-          docker push "$IMAGE_NAME:$VERSION_TAG" \
+          docker push "$IMAGE_NAME:$VARIANT_TAG" \
             2>&1 | tee "${{ runner.temp }}/cycles-push-version.log"
 
           docker buildx imagetools inspect "$CI_IMAGE_NAME:$CI_IMMUTABLE_TAG" \
             | tee "${{ runner.temp }}/ci-cycles-remote-immutable.txt"
-          docker buildx imagetools inspect "$CI_IMAGE_NAME:$CI_VERSION_TAG" \
+          docker buildx imagetools inspect "$CI_IMAGE_NAME:$CI_VARIANT_TAG" \
             | tee "${{ runner.temp }}/ci-cycles-remote-version.txt"
           docker buildx imagetools inspect "$IMAGE_NAME:$IMMUTABLE_TAG" \
             | tee "${{ runner.temp }}/cycles-remote-immutable.txt"
-          docker buildx imagetools inspect "$IMAGE_NAME:$VERSION_TAG" \
+          docker buildx imagetools inspect "$IMAGE_NAME:$VARIANT_TAG" \
             | tee "${{ runner.temp }}/cycles-remote-version.txt"
 
           ci_immutable_digest="$(sed -n 's/^Digest:[[:space:]]*//p' \
@@ -230,8 +251,8 @@ jobs:
       - name: Verify anonymous public access
         if: success()
         env:
-          CI_IMMUTABLE_TAG: ${{ env.CI_VERSION_TAG }}-${{ github.sha }}
-          IMMUTABLE_TAG: ${{ env.VERSION_TAG }}-${{ github.sha }}
+          CI_IMMUTABLE_TAG: ${{ env.CI_VARIANT_TAG }}-${{ github.sha }}
+          IMMUTABLE_TAG: ${{ env.VARIANT_TAG }}-${{ github.sha }}
         run: |
           set -euxo pipefail
           docker logout ghcr.io
@@ -248,7 +269,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: cycles-hydra-build-${{ github.run_attempt }}
+          name: cycles-hydra-build-${{ matrix.usd_linkage }}-${{ github.run_attempt }}
           if-no-files-found: warn
           retention-days: 30
           path: |

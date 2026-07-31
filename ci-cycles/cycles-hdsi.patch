@@ -1,0 +1,13 @@
+diff --git a/src/cmake/Modules/FindUSDPixar.cmake b/src/cmake/Modules/FindUSDPixar.cmake
+index dcd69b3..6374ac8 100644
+--- a/src/cmake/Modules/FindUSDPixar.cmake
++++ b/src/cmake/Modules/FindUSDPixar.cmake
+@@ -12,7 +12,7 @@ if(pxr_FOUND)
+ 
+   # USD
+   set(USD_INCLUDE_DIRS ${PXR_INCLUDE_DIRS})
+-  set(USD_LIBRARIES hd hgi hgiGL usd usdImaging usdGeom)
++  set(USD_LIBRARIES hd hdsi hgi hgiGL usd usdImaging usdGeom)
+ 
+   # OpenSubdiv
+   find_library(_opensubdiv_library_cpu_debug_pxr NAMES osdCPU_d osdCPU PATHS ${_pxr_library_dir} NO_DEFAULT_PATH)
