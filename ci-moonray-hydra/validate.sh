@@ -17,6 +17,11 @@ grep -Fx 'commit=d96c6e30a8c280d4b5eb3bafa5e54efc445d7ea8' \
     "${moonray_root}/share/openmoonray/provenance.txt"
 grep -Fx 'build_materialx_shaders=ON' \
     "${moonray_root}/share/openmoonray/provenance.txt"
+grep -Fx 'log4cplus_version=2.1.2' \
+    "${moonray_root}/share/openmoonray/provenance.txt"
+grep -Fx 'log4cplus_unicode=OFF' \
+    "${moonray_root}/share/openmoonray/provenance.txt"
+test -f /opt/MoonRay/dependencies/log4cplus/lib/liblog4cplus.so
 test -s /usr/local/share/openusd-cmake-relocation.txt
 cmp \
     /usr/local/share/openusd-cmake-relocation.txt \
@@ -47,6 +52,15 @@ if grep -F 'not found' "${evidence_root}/plugin-ldd.txt"; then
     echo "at least one required plugin has an unresolved dependency" >&2
     exit 1
 fi
+
+readonly logging_library="$(
+    find "${moonray_root}" -type f -name 'librender_logging.so' -print -quit
+)"
+test -n "${logging_library}"
+ldd "${logging_library}" | tee "${evidence_root}/log4cplus-ldd.txt"
+grep -F \
+    '/opt/MoonRay/dependencies/log4cplus/lib/liblog4cplus.so' \
+    "${evidence_root}/log4cplus-ldd.txt"
 
 python3 - <<'PY' | tee "${evidence_root}/renderer-discovery.txt"
 from pxr import UsdImagingGL

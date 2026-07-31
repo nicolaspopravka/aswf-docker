@@ -21,6 +21,39 @@ RUN set -o pipefail && \
     /usr/local/bin/relocate_openusd_cmake.py \
         | tee /usr/local/share/openusd-cmake-relocation.txt
 
+ADD --checksum=sha256:2450dfbb4ab35dd2c9e64d8c750c514bf7293b81d8f32af7ab124417f70adfad \
+    https://github.com/log4cplus/log4cplus/releases/download/REL_2_1_2/log4cplus-2.1.2.tar.bz2 \
+    /tmp/log4cplus-2.1.2.tar.bz2
+RUN mkdir -p /tmp/log4cplus-source && \
+    tar -xjf /tmp/log4cplus-2.1.2.tar.bz2 \
+        --strip-components=1 \
+        -C /tmp/log4cplus-source && \
+    cmake \
+        -S /tmp/log4cplus-source \
+        -B /tmp/log4cplus-build \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/opt/MoonRay/dependencies/log4cplus \
+        -DBUILD_SHARED_LIBS=ON \
+        -DUNICODE=OFF \
+        -DLOG4CPLUS_BUILD_TESTING=OFF \
+        -DWITH_UNIT_TESTS=OFF \
+        -DLOG4CPLUS_BUILD_LOGGINGSERVER=OFF \
+        -DLOG4CPLUS_ENABLE_DECORATED_LIBRARY_NAME=OFF && \
+    cmake --build /tmp/log4cplus-build --parallel "${BUILD_JOBS}" && \
+    cmake --install /tmp/log4cplus-build && \
+    nm -D --defined-only \
+        /opt/MoonRay/dependencies/log4cplus/lib/liblog4cplus.so \
+        | c++filt \
+        | grep -F \
+            'log4cplus::Logger::getInstance(std::__cxx11::basic_string<char' && \
+    rm -rf \
+        /tmp/log4cplus-2.1.2.tar.bz2 \
+        /tmp/log4cplus-build \
+        /tmp/log4cplus-source
+
+ENV LOG4CPLUS_ROOT=/opt/MoonRay/dependencies/log4cplus
+ENV LD_LIBRARY_PATH=/opt/MoonRay/dependencies/log4cplus/lib:${LD_LIBRARY_PATH}
+
 WORKDIR /opt/MoonRay/source
 RUN git clone \
         --branch "${MOONRAY_TAG}" \
@@ -41,7 +74,6 @@ RUN test -x /usr/local/bin/python3.11 && \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_INSTALL_PREFIX=/opt/MoonRay/installs/openmoonray \
         -DCMAKE_PREFIX_PATH=/usr/local \
-        "-DCMAKE_CXX_FLAGS=-DUNICODE -D_UNICODE" \
         -DPYTHON_EXECUTABLE=/usr/local/bin/python3 \
         -DPython3_EXECUTABLE=/usr/local/bin/python3.11 \
         -DPython3_LIBRARY=/usr/local/lib/libpython3.11.so \
@@ -67,6 +99,8 @@ RUN test -x /usr/local/bin/python3.11 && \
         "commit=${MOONRAY_COMMIT}" \
         "base_image=${BASE_IMAGE}" \
         "build_materialx_shaders=ON" \
+        "log4cplus_version=2.1.2" \
+        "log4cplus_unicode=OFF" \
         > /opt/MoonRay/installs/openmoonray/share/openmoonray/provenance.txt
 
 FROM ${BASE_IMAGE} AS runtime
@@ -94,9 +128,11 @@ RUN set -o pipefail && \
         | tee /usr/local/share/openusd-cmake-relocation.txt
 
 COPY --from=builder /opt/MoonRay/installs/openmoonray /opt/MoonRay/installs/openmoonray
+COPY --from=builder /opt/MoonRay/dependencies/log4cplus /opt/MoonRay/dependencies/log4cplus
 
 RUN ln -s /opt/MoonRay/installs/openmoonray /opt/openmoonray
 
+ENV LOG4CPLUS_ROOT=/opt/MoonRay/dependencies/log4cplus
 ENV MOONRAY_ROOT=/opt/MoonRay/installs/openmoonray
 ENV RDL2_DSO_PATH=/opt/MoonRay/installs/openmoonray/rdl2dso.proxy:/opt/MoonRay/installs/openmoonray/rdl2dso
 ENV MOONRAY_CLASS_PATH=/opt/MoonRay/installs/openmoonray/shader_json
@@ -105,7 +141,7 @@ ENV REZ_MOONRAY_ROOT=/opt/MoonRay/installs/openmoonray
 ENV PATH=/opt/MoonRay/installs/openmoonray/bin:${PATH}
 ENV PXR_PLUGINPATH_NAME=/opt/MoonRay/installs/openmoonray/plugin/pxr
 ENV PXR_PLUGIN_PATH=/opt/MoonRay/installs/openmoonray/plugin/pxr
-ENV LD_LIBRARY_PATH=/opt/MoonRay/installs/openmoonray/lib:/opt/MoonRay/installs/openmoonray/lib64:${LD_LIBRARY_PATH}
+ENV LD_LIBRARY_PATH=/opt/MoonRay/dependencies/log4cplus/lib:/opt/MoonRay/installs/openmoonray/lib:/opt/MoonRay/installs/openmoonray/lib64:${LD_LIBRARY_PATH}
 ENV HDMOONRAY_DEBUG_MODE=1
 
 WORKDIR /work
