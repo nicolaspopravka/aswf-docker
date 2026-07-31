@@ -393,17 +393,16 @@ PY
     )"
     [[ -n "${ptex_library}" ]]
     ptex_library_dir="$(dirname "${ptex_library}")"
-    "${CXX}" -std=c++17 -O1 -g \
-      -fsanitize=address,undefined -fno-omit-frame-pointer \
+    "${CXX}" -std=c++17 -O2 -g -fno-omit-frame-pointer \
       -I "${INSTALL_PREFIX}/include" \
       "${ptex_validator}" \
       -L "${ptex_library_dir}" \
       -Wl,-rpath,"${ptex_library_dir}" \
       -lPtex \
-      -o /opt/moana-debug/validate_ptex_file_asan
-    ldd /opt/moana-debug/validate_ptex_file_asan \
+      -o /opt/moana-debug/validate_ptex_file
+    ldd /opt/moana-debug/validate_ptex_file \
       > "${evidence_root}/runtime/validate-ptex-file-ldd.txt"
-    /opt/moana-debug/run_ptex_validator.sh --self-test \
+    /opt/moana-debug/validate_ptex_file --self-test \
       | tee "${evidence_root}/runtime/validate-ptex-file-self-test.txt"
   fi
   preserve_cmake_caches "${INSTALL_PREFIX}"

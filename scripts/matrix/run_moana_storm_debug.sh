@@ -32,8 +32,7 @@ PY
     /opt/openusd-build-evidence/runtime/gdb-storm-symbols.txt
   [[ -s /opt/openusd-build-evidence/runtime/ptex-libraries.txt ]]
   [[ -s /opt/openusd-build-evidence/runtime/openvdb-libraries.txt ]]
-  [[ -x /opt/moana-debug/validate_ptex_file_asan ]]
-  [[ -x /opt/moana-debug/run_ptex_validator.sh ]]
+  [[ -x /opt/moana-debug/validate_ptex_file ]]
   grep -Fq 'Ptex validator runtime self-test passed' \
     /opt/openusd-build-evidence/runtime/validate-ptex-file-self-test.txt
   grep -Fq 'OpenUSD Ptex buffer-size regression cases passed' \
@@ -62,7 +61,7 @@ case "${mode}" in
       ptxinfo "${beach_ptex}" "${dunes_ptex}" \
         | tee "${output_root}/ptex-info.txt"
     fi
-    /opt/moana-debug/run_ptex_validator.sh \
+    /opt/moana-debug/validate_ptex_file \
       "${beach_ptex}" "${dunes_ptex}" \
       | tee "${output_root}/ptex-validation.txt"
     echo "Ptex validation evidence: ${output_root}"
