@@ -17,6 +17,8 @@ grep -Fx 'commit=d96c6e30a8c280d4b5eb3bafa5e54efc445d7ea8' \
     "${moonray_root}/share/openmoonray/provenance.txt"
 grep -Fx 'build_materialx_shaders=ON' \
     "${moonray_root}/share/openmoonray/provenance.txt"
+grep -Fx 'lua_tool_version=5.4.4' \
+    "${moonray_root}/share/openmoonray/provenance.txt"
 grep -Fx 'log4cplus_version=2.1.2' \
     "${moonray_root}/share/openmoonray/provenance.txt"
 grep -Fx 'log4cplus_unicode=OFF' \
