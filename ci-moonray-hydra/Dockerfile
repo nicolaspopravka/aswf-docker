@@ -41,6 +41,7 @@ RUN test -x /usr/local/bin/python3.11 && \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_INSTALL_PREFIX=/opt/MoonRay/installs/openmoonray \
         -DCMAKE_PREFIX_PATH=/usr/local \
+        "-DCMAKE_CXX_FLAGS=-DUNICODE -D_UNICODE" \
         -DPYTHON_EXECUTABLE=/usr/local/bin/python3 \
         -DPython3_EXECUTABLE=/usr/local/bin/python3.11 \
         -DPython3_LIBRARY=/usr/local/lib/libpython3.11.so \
