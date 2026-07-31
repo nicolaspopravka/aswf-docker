@@ -21,6 +21,26 @@ RUN set -o pipefail && \
     /usr/local/bin/relocate_openusd_cmake.py \
         | tee /usr/local/share/openusd-cmake-relocation.txt
 
+ADD --checksum=sha256:164c7849653b80ae67bec4b7473b884bf5cc8d2dca05653475ec2ed27b9ebf61 \
+    https://www.lua.org/ftp/lua-5.4.4.tar.gz \
+    /tmp/lua-5.4.4.tar.gz
+RUN mkdir -p \
+        /opt/MoonRay/dependencies/lua/bin \
+        /tmp/lua-source && \
+    tar -xzf /tmp/lua-5.4.4.tar.gz \
+        --strip-components=1 \
+        -C /tmp/lua-source && \
+    make -C /tmp/lua-source linux -j "${BUILD_JOBS}" && \
+    install -m 0755 \
+        /tmp/lua-source/src/lua \
+        /tmp/lua-source/src/luac \
+        /opt/MoonRay/dependencies/lua/bin/ && \
+    /opt/MoonRay/dependencies/lua/bin/lua -v 2>&1 \
+        | grep -F 'Lua 5.4.4' && \
+    /opt/MoonRay/dependencies/lua/bin/luac -v 2>&1 \
+        | grep -F 'Lua 5.4.4' && \
+    rm -rf /tmp/lua-5.4.4.tar.gz /tmp/lua-source
+
 ADD --checksum=sha256:2450dfbb4ab35dd2c9e64d8c750c514bf7293b81d8f32af7ab124417f70adfad \
     https://github.com/log4cplus/log4cplus/releases/download/REL_2_1_2/log4cplus-2.1.2.tar.bz2 \
     /tmp/log4cplus-2.1.2.tar.bz2
@@ -76,6 +96,8 @@ RUN test -x /usr/local/bin/python3.11 && \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_INSTALL_PREFIX=/opt/MoonRay/installs/openmoonray \
         -DCMAKE_PREFIX_PATH=/usr/local \
+        -DLUA_BIN_LUA:FILEPATH=/opt/MoonRay/dependencies/lua/bin/lua \
+        -DLUA_BIN_LUAC:FILEPATH=/opt/MoonRay/dependencies/lua/bin/luac \
         -DLog4cplus_INCLUDE_DIR:PATH=/opt/MoonRay/dependencies/log4cplus/include/log4cplus \
         -DLog4cplus_LIBRARIES:FILEPATH=/opt/MoonRay/dependencies/log4cplus/lib/liblog4cplus.so \
         -DPYTHON_EXECUTABLE=/usr/local/bin/python3 \
@@ -89,6 +111,12 @@ RUN test -x /usr/local/bin/python3.11 && \
         -DBUILD_MATERIALX_SHADERS=ON && \
     grep -Fx \
         'Log4cplus_LIBRARIES:FILEPATH=/opt/MoonRay/dependencies/log4cplus/lib/liblog4cplus.so' \
+        /opt/MoonRay/build/CMakeCache.txt && \
+    grep -Fx \
+        'LUA_BIN_LUA:FILEPATH=/opt/MoonRay/dependencies/lua/bin/lua' \
+        /opt/MoonRay/build/CMakeCache.txt && \
+    grep -Fx \
+        'LUA_BIN_LUAC:FILEPATH=/opt/MoonRay/dependencies/lua/bin/luac' \
         /opt/MoonRay/build/CMakeCache.txt && \
     cmake --build /opt/MoonRay/build --target install --parallel "${BUILD_JOBS}" && \
     mkdir -p /opt/MoonRay/installs/openmoonray/shader_json && \
@@ -106,6 +134,7 @@ RUN test -x /usr/local/bin/python3.11 && \
         "commit=${MOONRAY_COMMIT}" \
         "base_image=${BASE_IMAGE}" \
         "build_materialx_shaders=ON" \
+        "lua_tool_version=5.4.4" \
         "log4cplus_version=2.1.2" \
         "log4cplus_unicode=OFF" \
         > /opt/MoonRay/installs/openmoonray/share/openmoonray/provenance.txt
