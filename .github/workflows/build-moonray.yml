@@ -75,6 +75,7 @@ jobs:
           set -euxo pipefail
           mkdir -p "${RUNNER_TEMP}/moonray-evidence"
           docker run --rm \
+            --security-opt seccomp=unconfined \
             --shm-size=2g \
             --volume "${PWD}/ci-moonray-hydra:/validation:ro" \
             --volume "${RUNNER_TEMP}/moonray-evidence:/evidence" \
@@ -101,6 +102,7 @@ jobs:
 
           set +e
           docker run --rm \
+            --security-opt seccomp=unconfined \
             --shm-size=2g \
             --volume "${PWD}/ci-moonray-hydra:/validation:ro" \
             --volume "${assets_root}:/assets:ro" \
