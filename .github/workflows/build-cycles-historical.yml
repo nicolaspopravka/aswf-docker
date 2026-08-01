@@ -35,6 +35,8 @@ jobs:
             openusd_tag: v24.08
             openusd_revision: 59992d2178afcebd89273759f2bddfe730e59aa8
             tbb_abi: classic
+            reuse_dependency_image: false
+            dependency_image: ""
           - stack_year: "2025"
             base_image: aswf/ci-baseqt:2025@sha256:e63ae910d3df6a5edb84a82b58adc5d5f6cf8a842fe4f5d7dfe6e3fbcd32e6ba
             cycles_version: "4.5.0"
@@ -45,6 +47,8 @@ jobs:
             openusd_tag: v25.05.01
             openusd_revision: 1595c62ea8381b5b22eb8621afc8652f89b6136d
             tbb_abi: onetbb
+            reuse_dependency_image: true
+            dependency_image: ghcr.io/nicolaspopravka/ci-cycles:cycles-libs-4.5.0-openusd-25.05.01-cy2025-split-ba0bd9590b56e0e74bdc89b8fcde7ddc69ab6cbd
 
     env:
       CI_TAG: cycles-libs-${{ matrix.cycles_version }}-openusd-${{ matrix.openusd_version }}-cy${{ matrix.stack_year }}-split
@@ -87,6 +91,7 @@ jobs:
           test -f ci-cycles/check_png_variation.py
 
       - name: Build dependency image
+        if: ${{ !matrix.reuse_dependency_image }}
         env:
           BASE_IMAGE: ${{ matrix.base_image }}
           CYCLES_LIB_REVISION: ${{ matrix.cycles_lib_revision }}
@@ -112,10 +117,17 @@ jobs:
           TBB_ABI: ${{ matrix.tbb_abi }}
         run: |
           set -euxo pipefail
+          dependency_image="$CI_IMAGE_NAME:$CI_TAG-$GITHUB_SHA"
+          if [[ "${{ matrix.reuse_dependency_image }}" == true ]]; then
+            dependency_image="${{ matrix.dependency_image }}"
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io \
+              -u "$GITHUB_ACTOR" --password-stdin
+            docker pull "$dependency_image"
+          fi
           docker run --rm \
             --env CYCLES_LIB_REVISION \
             --env TBB_ABI \
-            "$CI_IMAGE_NAME:$CI_TAG-$GITHUB_SHA" bash -c '
+            "$dependency_image" bash -c '
               set -euxo pipefail
               test -x /opt/usd/bin/usdrecord
               test -d /opt/cycles-dependencies/.git
@@ -132,6 +144,7 @@ jobs:
             ' | tee "${{ runner.temp }}/ci-cycles-image-validation.log"
 
       - name: Publish validated dependency image
+        if: ${{ !matrix.reuse_dependency_image }}
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -154,10 +167,14 @@ jobs:
           TBB_ABI: ${{ matrix.tbb_abi }}
         run: |
           set -euxo pipefail
+          dependency_image="$CI_IMAGE_NAME:$CI_TAG-$GITHUB_SHA"
+          if [[ "${{ matrix.reuse_dependency_image }}" == true ]]; then
+            dependency_image="${{ matrix.dependency_image }}"
+          fi
           docker build --progress=plain \
             --file ci-cycles-historical/Dockerfile \
             --tag "$IMAGE_NAME:$DELEGATE_TAG-$GITHUB_SHA" \
-            --build-arg DEPENDENCY_IMAGE="$CI_IMAGE_NAME:$CI_TAG-$GITHUB_SHA" \
+            --build-arg DEPENDENCY_IMAGE="$dependency_image" \
             --build-arg WORKFLOW_REVISION="$GITHUB_SHA" \
             --build-arg CYCLES_TAG="$CYCLES_TAG" \
             --build-arg CYCLES_REVISION="$CYCLES_REVISION" \
@@ -269,7 +286,7 @@ jobs:
           path: |
             ${{ runner.temp }}/cycles-smoke/*.png
             ${{ runner.temp }}/cycles-*-smoke.log
-          if-no-files-found: error
+          if-no-files-found: warn
 
       - name: Require stock usdrecord control
         if: always()

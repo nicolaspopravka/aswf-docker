@@ -26,7 +26,9 @@ test -z "$(git -C "$BUILD_ROOT/cycles" status --short)"
   make update
   test "$(git rev-parse HEAD)" = "$CYCLES_REVISION"
   test "$(git -C lib/linux_x64 rev-parse HEAD)" = "$CYCLES_LIB_REVISION"
-  cmake -B ./build -DPXR_ROOT=/opt/usd
+  cmake -B ./build \
+    -DPXR_ROOT=/opt/usd \
+    -DCMAKE_PROJECT_INCLUDE=/usr/local/share/cycles/import_openusd_dependencies.cmake
   make
   test -x install/cycles
   test -f install/hydra/hdCycles.so

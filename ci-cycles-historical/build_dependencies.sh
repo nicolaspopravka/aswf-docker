@@ -54,6 +54,20 @@ cp -a "$BUILD_ROOT/lib-linux_x64" /opt/cycles-dependencies
 mkdir -p /opt/usd
 cp -a /opt/cycles-dependencies/tbb/. /opt/usd/
 
+# OpenUSD 24.08 still points at the retired JFrog Boost endpoint. Seed its
+# normal source cache from Boost's official archive and verify the published
+# checksum; build_usd.py then follows its unchanged extraction/build path.
+if [[ "$OPENUSD_TAG" == v24.08 ]]; then
+  readonly BOOST_ARCHIVE="/opt/usd/src/boost_1_82_0.zip"
+  readonly BOOST_SHA256="f7c9e28d242abcd7a2c1b962039fcdd463ca149d1883c3a950bbcc0ce6f7c6d9"
+  mkdir -p /opt/usd/src
+  wget --tries=4 --timeout=30 \
+    --output-document "$BOOST_ARCHIVE" \
+    https://archives.boost.org/release/1.82.0/source/boost_1_82_0.zip
+  printf '%s  %s\n' "$BOOST_SHA256" "$BOOST_ARCHIVE" | sha256sum --check
+  file "$BOOST_ARCHIVE" | tee "$EVIDENCE_ROOT/boost-archive-file.txt"
+fi
+
 usd_build_args=(/opt/usd --no-usdview)
 if [[ "$TBB_ABI" == classic ]]; then
   test -e /opt/usd/lib/libtbb.so.2
