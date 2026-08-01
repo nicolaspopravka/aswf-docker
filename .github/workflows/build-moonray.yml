@@ -2,6 +2,11 @@ name: Build OpenMoonRay Hydra Delegate
 
 on:
   workflow_dispatch:
+    inputs:
+      candidate_image:
+        description: Existing immutable candidate image to validate without rebuilding
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -17,12 +22,15 @@ env:
   MOONRAY_COMMIT: d96c6e30a8c280d4b5eb3bafa5e54efc445d7ea8
   ASSETS_COMMIT: 907d5f17bbe933fc14441a3f3ab69a5bd8abe32a
   IMAGE_REPOSITORY: ghcr.io/nicolaspopravka/openmoonray-hydra
-  VALIDATION_IMAGE: openmoonray-hydra-validation:${{ github.sha }}
+  VALIDATION_IMAGE: openmoonray-hydra-validation:${{ github.run_id }}
 
 jobs:
-  build-test-publish:
+  build_candidate:
+    if: ${{ inputs.candidate_image == '' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 360
+    outputs:
+      image: ${{ steps.candidate_digest.outputs.image }}
 
     steps:
       - name: Check out ASWF Docker fork
@@ -50,7 +58,19 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
 
-      - name: Build validation image
+      - name: Log in to GHCR for candidate storage
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" \
+            | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Select candidate storage tag
+        id: candidate_tag
+        run: |
+          set -euo pipefail
+          readonly image="${IMAGE_REPOSITORY}:candidate-${GITHUB_SHA}"
+          printf 'image=%s\n' "${image}" | tee -a "${GITHUB_OUTPUT}"
+
+      - name: Build and store candidate image
         env:
           BUILDKIT_STEP_LOG_MAX_SIZE: 52428800
         run: |
@@ -63,10 +83,70 @@ jobs:
             --build-arg "BUILD_REVISION=${GITHUB_SHA}" \
             --build-arg "BUILD_JOBS=4" \
             --cache-from type=gha,scope=openmoonray-hydra-2026-29-1 \
-            --cache-to type=gha,mode=min,scope=openmoonray-hydra-2026-29-1 \
-            --load \
-            --tag "${VALIDATION_IMAGE}" \
+            --cache-to type=gha,mode=max,scope=openmoonray-hydra-2026-29-1 \
+            --push \
+            --tag "${{ steps.candidate_tag.outputs.image }}" \
             .
+
+      - name: Resolve immutable candidate digest
+        id: candidate_digest
+        run: |
+          set -euo pipefail
+          readonly digest="$(
+            docker buildx imagetools inspect \
+              "${{ steps.candidate_tag.outputs.image }}" \
+              | awk '/^Digest:/ { print $2; exit }'
+          )"
+          test -n "${digest}"
+          test "${digest#sha256:}" != "${digest}"
+          printf 'image=%s@%s\n' "${IMAGE_REPOSITORY}" "${digest}" \
+            | tee -a "${GITHUB_OUTPUT}"
+
+  validate-and-publish:
+    needs: build_candidate
+    if: >-
+      ${{ always() &&
+          (needs.build_candidate.result == 'success' ||
+           needs.build_candidate.result == 'skipped') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    env:
+      CANDIDATE_IMAGE: >-
+        ${{ inputs.candidate_image != '' &&
+            inputs.candidate_image ||
+            needs.build_candidate.outputs.image }}
+
+    steps:
+      - name: Check out validation scripts
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Free runner disk space
+        run: |
+          set -euxo pipefail
+          sudo rm -rf \
+            /usr/share/dotnet \
+            /usr/local/lib/android \
+            /opt/ghc \
+            /usr/local/share/powershell \
+            /usr/share/swift \
+            /usr/local/.ghcup \
+            /usr/local/aws-cli \
+            /usr/local/aws-sam-cli \
+            /usr/local/julia* \
+            /usr/lib/jvm
+          sudo apt-get clean
+          docker system prune -af
+
+      - name: Log in to GHCR for candidate access
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" \
+            | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Pull exact candidate image
+        run: |
+          set -euxo pipefail
+          docker pull "${CANDIDATE_IMAGE}"
+          docker tag "${CANDIDATE_IMAGE}" "${VALIDATION_IMAGE}"
           docker image inspect "${VALIDATION_IMAGE}" \
             > "${RUNNER_TEMP}/openmoonray-image-inspect.json"
 
@@ -138,17 +218,19 @@ jobs:
             | tee "${evidence_root}/openchessset-container.exit"
           exit 0
 
-      - name: Log in to GHCR after required gates pass
-        run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" \
-            | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
-
       - name: Publish validated image
         run: |
           set -euxo pipefail
           readonly version_tag="${IMAGE_REPOSITORY}:2026.29.1-aswf-2025.7"
-          readonly revision_tag="${IMAGE_REPOSITORY}:git-${GITHUB_SHA}"
+          readonly build_revision="$(
+            docker image inspect \
+              --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' \
+              "${VALIDATION_IMAGE}"
+          )"
+          readonly revision_tag="${IMAGE_REPOSITORY}:git-${build_revision}"
           readonly latest_tag="${IMAGE_REPOSITORY}:latest"
+          test -n "${build_revision}"
+          test "${build_revision}" != unknown
           docker tag "${VALIDATION_IMAGE}" "${version_tag}"
           docker tag "${VALIDATION_IMAGE}" "${revision_tag}"
           docker tag "${VALIDATION_IMAGE}" "${latest_tag}"

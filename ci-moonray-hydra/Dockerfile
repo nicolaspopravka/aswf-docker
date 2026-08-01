@@ -154,7 +154,7 @@ LABEL io.openmoonray.source.commit="${MOONRAY_COMMIT}"
 LABEL io.openmoonray.materialx-shaders="true"
 
 USER root
-RUN dnf install -y xorg-x11-server-Xvfb && \
+RUN dnf install -y mesa-dri-drivers xorg-x11-server-Xvfb && \
     dnf clean all && \
     rm -rf /var/cache/dnf
 
