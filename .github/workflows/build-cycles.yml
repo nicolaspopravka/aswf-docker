@@ -76,6 +76,7 @@ jobs:
           test -f ci-cycles/build_cycles.sh
           test -f ci-cycles/cycles-hdsi.patch
           test -f ci-cycles/smoke.usda
+          test -f ci-cycles/camera-direction.usda
           test -f ci-cycles/check_png_variation.py
 
       - name: Build immutable dependency image
@@ -258,6 +259,34 @@ jobs:
             "${{ runner.temp }}/cycles-smoke/cycles-standalone-smoke.png" \
             | tee "${{ runner.temp }}/cycles-standalone-smoke.sha256"
 
+      - name: Run Cycles standalone camera-direction diagnostic
+        id: camera_direction_smoke
+        continue-on-error: true
+        env:
+          IMMUTABLE_TAG: ${{ env.VARIANT_TAG }}-${{ github.sha }}
+        run: |
+          set -euxo pipefail
+          mkdir -p "${{ runner.temp }}/cycles-smoke"
+          docker run --rm \
+            --volume "$GITHUB_WORKSPACE/ci-cycles:/test:ro" \
+            --volume "${{ runner.temp }}/cycles-smoke:/out" \
+            "$IMAGE_NAME:$IMMUTABLE_TAG" \
+            cycles \
+              --background \
+              --device CPU \
+              --samples 80 \
+              --width 128 \
+              --height 93 \
+              --log-level debug \
+              --output /out/cycles-camera-direction-smoke.png \
+              /test/camera-direction.usda \
+            2>&1 | tee "${{ runner.temp }}/cycles-camera-direction-smoke.log"
+          python3 ci-cycles/check_png_variation.py \
+            "${{ runner.temp }}/cycles-smoke/cycles-camera-direction-smoke.png"
+          sha256sum \
+            "${{ runner.temp }}/cycles-smoke/cycles-camera-direction-smoke.png" \
+            | tee "${{ runner.temp }}/cycles-camera-direction-smoke.sha256"
+
       - name: Run benchmark-semantics usdrecord smoke
         id: benchmark_smoke
         continue-on-error: true
@@ -362,8 +391,10 @@ jobs:
           BENCHMARK_OUTCOME: ${{ steps.benchmark_smoke.outcome }}
           DISABLE_GPU_OUTCOME: ${{ steps.disable_gpu_smoke.outcome }}
           STANDALONE_OUTCOME: ${{ steps.standalone_smoke.outcome }}
+          CAMERA_DIRECTION_OUTCOME: ${{ steps.camera_direction_smoke.outcome }}
         run: |
           printf 'Cycles standalone outcome: %s\n' "$STANDALONE_OUTCOME"
+          printf 'camera-direction outcome: %s\n' "$CAMERA_DIRECTION_OUTCOME"
           printf 'benchmark-semantics outcome: %s\n' "$BENCHMARK_OUTCOME"
           printf 'disableGpu diagnostic outcome: %s\n' "$DISABLE_GPU_OUTCOME"
           test "$BENCHMARK_OUTCOME" = success
