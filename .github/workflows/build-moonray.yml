@@ -254,16 +254,7 @@ jobs:
               "${IMAGE_REPOSITORY}:2026.29.1-aswf-2025.7" \
             | tee "${RUNNER_TEMP}/moonray-evidence/anonymous-manifest.txt"
 
-      - name: Remove unpublished rendered images from evidence
-        if: always()
-        run: |
-          mkdir -p "${RUNNER_TEMP}/moonray-evidence"
-          find "${RUNNER_TEMP}/moonray-evidence" \
-            -type f \
-            \( -name '*.exr' -o -name '*.png' -o -name '*.jpg' -o -name '*.jpeg' \) \
-            -delete
-
-      - name: Upload text evidence
+      - name: Upload test scenes, renders, and logs
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
