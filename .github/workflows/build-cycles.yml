@@ -168,6 +168,7 @@ jobs:
             "$IMAGE_NAME:$IMMUTABLE_TAG" bash -c '
             set -euxo pipefail
             test -x /opt/usd/bin/usdrecord
+            test -x /opt/cycles/cycles
             test -f /opt/cycles/hydra/hdCycles.so
             python3 -c "from pxr import Usd, UsdImagingGL; print(Usd.GetVersion()); plugins = UsdImagingGL.Engine.GetRendererPlugins(); names = [UsdImagingGL.Engine.GetRendererDisplayName(p) for p in plugins]; print(list(zip(plugins, names))); assert \"Cycles\" in names"
             ldd -r /opt/cycles/hydra/hdCycles.so | tee /tmp/hdCycles-ldd.txt
@@ -180,6 +181,34 @@ jobs:
               grep -q "libusd_usd_m" /tmp/hdCycles-ldd.txt
             fi
           ' | tee "${{ runner.temp }}/cycles-image-validation.log"
+
+      - name: Run Cycles standalone USD diagnostic
+        id: standalone_smoke
+        continue-on-error: true
+        env:
+          IMMUTABLE_TAG: ${{ env.VARIANT_TAG }}-${{ github.sha }}
+        run: |
+          set -euxo pipefail
+          mkdir -p "${{ runner.temp }}/cycles-smoke"
+          docker run --rm \
+            --volume "$GITHUB_WORKSPACE/ci-cycles:/test:ro" \
+            --volume "${{ runner.temp }}/cycles-smoke:/out" \
+            "$IMAGE_NAME:$IMMUTABLE_TAG" \
+            cycles \
+              --background \
+              --device CPU \
+              --samples 80 \
+              --width 128 \
+              --height 93 \
+              --log-level debug \
+              --output /out/cycles-standalone-smoke.png \
+              /test/smoke.usda \
+            2>&1 | tee "${{ runner.temp }}/cycles-standalone-smoke.log"
+          python3 ci-cycles/check_png_variation.py \
+            "${{ runner.temp }}/cycles-smoke/cycles-standalone-smoke.png"
+          sha256sum \
+            "${{ runner.temp }}/cycles-smoke/cycles-standalone-smoke.png" \
+            | tee "${{ runner.temp }}/cycles-standalone-smoke.sha256"
 
       - name: Run benchmark-semantics usdrecord smoke
         id: benchmark_smoke
@@ -284,7 +313,9 @@ jobs:
         env:
           BENCHMARK_OUTCOME: ${{ steps.benchmark_smoke.outcome }}
           DISABLE_GPU_OUTCOME: ${{ steps.disable_gpu_smoke.outcome }}
+          STANDALONE_OUTCOME: ${{ steps.standalone_smoke.outcome }}
         run: |
+          printf 'Cycles standalone outcome: %s\n' "$STANDALONE_OUTCOME"
           printf 'benchmark-semantics outcome: %s\n' "$BENCHMARK_OUTCOME"
           printf 'disableGpu diagnostic outcome: %s\n' "$DISABLE_GPU_OUTCOME"
           test "$BENCHMARK_OUTCOME" = success
