@@ -81,6 +81,9 @@ PY
 
 export LIBGL_ALWAYS_SOFTWARE=1
 export MESA_GL_VERSION_OVERRIDE=4.5
+readonly usdrecord_preload=/usr/local/lib/libOpenImageIO_Util.so:/usr/local/lib/liboslquery.so
+test -f /usr/local/lib/libOpenImageIO_Util.so
+test -f /usr/local/lib/liboslquery.so
 
 timeout 300 moonray \
     -in "${moonray_root}/testdata/rectangle.rdla" \
@@ -100,7 +103,7 @@ python3 "${validation_root}/image_stats.py" \
     "${evidence_root}/hd-render-sphere.exr" \
     | tee "${evidence_root}/hd-render-sphere.stats.json"
 
-timeout 300 xvfb-run -a usdrecord \
+LD_PRELOAD="${usdrecord_preload}" timeout 300 xvfb-run -a usdrecord \
     --renderer Moonray \
     --camera /World/Camera \
     --imageWidth 256 \
