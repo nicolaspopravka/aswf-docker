@@ -12,6 +12,7 @@ mkdir -p "${evidence_root}"
 
 test -L /opt/openmoonray
 test "$(readlink -f /opt/openmoonray)" = "${moonray_root}"
+test -s "${moonray_root}/hd_single.sessiondef"
 grep -Fx 'tag=v2026.29.1' "${moonray_root}/share/openmoonray/provenance.txt"
 grep -Fx 'commit=d96c6e30a8c280d4b5eb3bafa5e54efc445d7ea8' \
     "${moonray_root}/share/openmoonray/provenance.txt"
