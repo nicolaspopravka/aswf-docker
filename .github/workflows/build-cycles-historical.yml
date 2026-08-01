@@ -2,6 +2,7 @@ name: Build Historical Cycles Hydra Controls
 
 on:
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read

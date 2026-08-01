@@ -13,6 +13,11 @@ on:
         required: false
         type: boolean
         default: false
+      build_historical_controls:
+        description: Run the parallel CY2024/CY2025 historical control matrix
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -36,6 +41,7 @@ env:
 
 jobs:
   build:
+    if: ${{ !inputs.build_historical_controls }}
     name: cycles-5.2.0-openusd-26.03-cy2026-split
     runs-on: ubuntu-22.04
     timeout-minutes: 330
@@ -474,3 +480,8 @@ jobs:
             ${{ runner.temp }}/cycles-immutable-image.txt
             ${{ runner.temp }}/ci-cycles-anonymous-inspect.txt
             ${{ runner.temp }}/cycles-anonymous-inspect.txt
+
+  historical:
+    if: ${{ inputs.build_historical_controls }}
+    uses: ./.github/workflows/build-cycles-historical.yml
+    secrets: inherit
