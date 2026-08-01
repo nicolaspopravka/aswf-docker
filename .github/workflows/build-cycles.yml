@@ -8,6 +8,11 @@ on:
         required: false
         type: boolean
         default: false
+      reuse_delegate_candidate:
+        description: Reuse the loader-validated, render-unvalidated delegate candidate
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -38,6 +43,7 @@ jobs:
       USD_LINKAGE: split
       CI_VARIANT_TAG: cycles-libs-5.2-openusd-26.03-cy2026-split
       VARIANT_TAG: cycles-5.2.0-openusd-26.03-cy2026-split
+      CANDIDATE_TAG: candidate-cycles-5.2.0-openusd-26.03-cy2026-split
 
     steps:
       - name: Checkout reviewed source
@@ -73,7 +79,7 @@ jobs:
           test -f ci-cycles/check_png_variation.py
 
       - name: Build immutable dependency image
-        if: ${{ !inputs.reuse_dependency_image }}
+        if: ${{ !inputs.reuse_delegate_candidate && !inputs.reuse_dependency_image }}
         env:
           CI_IMMUTABLE_TAG: ${{ env.CI_VARIANT_TAG }}-${{ github.sha }}
         run: |
@@ -92,7 +98,7 @@ jobs:
             "$CI_IMAGE_NAME" "$CI_IMMUTABLE_TAG" >> "$GITHUB_ENV"
 
       - name: Pull validated dependency image
-        if: ${{ inputs.reuse_dependency_image }}
+        if: ${{ !inputs.reuse_delegate_candidate && inputs.reuse_dependency_image }}
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -103,6 +109,7 @@ jobs:
             "$CI_IMAGE_NAME" "$CI_VARIANT_TAG" >> "$GITHUB_ENV"
 
       - name: Validate dependency image boundary
+        if: ${{ !inputs.reuse_delegate_candidate }}
         run: |
           set -euxo pipefail
           docker run --rm \
@@ -121,7 +128,7 @@ jobs:
           ' | tee "${{ runner.temp }}/ci-cycles-image-validation.log"
 
       - name: Publish validated dependency image
-        if: ${{ !inputs.reuse_dependency_image }}
+        if: ${{ !inputs.reuse_delegate_candidate && !inputs.reuse_dependency_image }}
         env:
           CI_IMMUTABLE_TAG: ${{ env.CI_VARIANT_TAG }}-${{ github.sha }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -140,6 +147,7 @@ jobs:
             | tee "${{ runner.temp }}/ci-cycles-remote-version.txt"
 
       - name: Build immutable delegate image
+        if: ${{ !inputs.reuse_delegate_candidate }}
         env:
           IMMUTABLE_TAG: ${{ env.VARIANT_TAG }}-${{ github.sha }}
         run: |
@@ -157,6 +165,17 @@ jobs:
             --build-arg OPENUSD_REVISION="$OPENUSD_REVISION" \
             --build-arg USD_LINKAGE="$USD_LINKAGE" \
             . 2>&1 | tee "${{ runner.temp }}/cycles-docker-build.log"
+
+      - name: Pull loader-validated delegate candidate
+        if: ${{ inputs.reuse_delegate_candidate }}
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IMMUTABLE_TAG: ${{ env.VARIANT_TAG }}-${{ github.sha }}
+        run: |
+          set -euxo pipefail
+          echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker pull "$IMAGE_NAME:$CANDIDATE_TAG"
+          docker tag "$IMAGE_NAME:$CANDIDATE_TAG" "$IMAGE_NAME:$IMMUTABLE_TAG"
 
       - name: Validate delegate and dependency closure
         env:
@@ -181,6 +200,35 @@ jobs:
               grep -q "libusd_usd_m" /tmp/hdCycles-ldd.txt
             fi
           ' | tee "${{ runner.temp }}/cycles-image-validation.log"
+
+      - name: Publish loader-validated delegate candidate
+        if: ${{ !inputs.reuse_delegate_candidate }}
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IMMUTABLE_TAG: ${{ env.VARIANT_TAG }}-${{ github.sha }}
+        run: |
+          set -euxo pipefail
+          echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          candidate_immutable_tag="$CANDIDATE_TAG-$GITHUB_SHA"
+          docker tag "$IMAGE_NAME:$IMMUTABLE_TAG" \
+            "$IMAGE_NAME:$candidate_immutable_tag"
+          docker tag "$IMAGE_NAME:$IMMUTABLE_TAG" "$IMAGE_NAME:$CANDIDATE_TAG"
+          docker push "$IMAGE_NAME:$candidate_immutable_tag" \
+            2>&1 | tee "${{ runner.temp }}/cycles-candidate-push-immutable.log"
+          docker push "$IMAGE_NAME:$CANDIDATE_TAG" \
+            2>&1 | tee "${{ runner.temp }}/cycles-candidate-push-version.log"
+          docker buildx imagetools inspect "$IMAGE_NAME:$candidate_immutable_tag" \
+            | tee "${{ runner.temp }}/cycles-candidate-remote-immutable.txt"
+          docker buildx imagetools inspect "$IMAGE_NAME:$CANDIDATE_TAG" \
+            | tee "${{ runner.temp }}/cycles-candidate-remote-version.txt"
+          immutable_digest="$(sed -n 's/^Digest:[[:space:]]*//p' \
+            "${{ runner.temp }}/cycles-candidate-remote-immutable.txt" | head -1)"
+          version_digest="$(sed -n 's/^Digest:[[:space:]]*//p' \
+            "${{ runner.temp }}/cycles-candidate-remote-version.txt" | head -1)"
+          [[ "$immutable_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          test "$immutable_digest" = "$version_digest"
+          printf '%s@%s\n' "$IMAGE_NAME" "$immutable_digest" \
+            | tee "${{ runner.temp }}/cycles-candidate-image.txt"
 
       - name: Run Cycles standalone USD diagnostic
         id: standalone_smoke
@@ -374,6 +422,11 @@ jobs:
             ${{ runner.temp }}/ci-cycles-image-validation.log
             ${{ runner.temp }}/cycles-docker-build.log
             ${{ runner.temp }}/cycles-image-validation.log
+            ${{ runner.temp }}/cycles-candidate-push-immutable.log
+            ${{ runner.temp }}/cycles-candidate-push-version.log
+            ${{ runner.temp }}/cycles-candidate-remote-immutable.txt
+            ${{ runner.temp }}/cycles-candidate-remote-version.txt
+            ${{ runner.temp }}/cycles-candidate-image.txt
             ${{ runner.temp }}/cycles-disabled-gpu-smoke.log
             ${{ runner.temp }}/cycles-disabled-gpu-smoke.sha256
             ${{ runner.temp }}/cycles-gpu-enabled-smoke.log
