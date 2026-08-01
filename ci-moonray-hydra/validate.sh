@@ -9,6 +9,15 @@ readonly evidence_root=/evidence
 readonly validation_root=/validation
 
 mkdir -p "${evidence_root}"
+cp "${moonray_root}/testdata/rectangle.rdla" \
+    "${moonray_root}/testdata/sphere.usd" \
+    "${validation_root}/minimal.usda" \
+    "${evidence_root}/"
+sha256sum \
+    "${evidence_root}/rectangle.rdla" \
+    "${evidence_root}/sphere.usd" \
+    "${evidence_root}/minimal.usda" \
+    | tee "${evidence_root}/test-scenes.sha256"
 
 test -L /opt/openmoonray
 test "$(readlink -f /opt/openmoonray)" = "${moonray_root}"
