@@ -193,6 +193,9 @@ jobs:
               set -o pipefail
               export LIBGL_ALWAYS_SOFTWARE=1
               export MESA_GL_VERSION_OVERRIDE=4.5
+              export LD_PRELOAD=/usr/local/lib/libOpenImageIO_Util.so:/usr/local/lib/liboslquery.so
+              test -f /usr/local/lib/libOpenImageIO_Util.so
+              test -f /usr/local/lib/liboslquery.so
               timeout 900 xvfb-run -a usdrecord \
                 --renderer Moonray \
                 --camera main_cam \
