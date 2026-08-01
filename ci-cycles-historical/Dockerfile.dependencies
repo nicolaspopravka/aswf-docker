@@ -1,0 +1,29 @@
+# syntax=docker/dockerfile:1.10
+
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+
+ARG CYCLES_LIB_REVISION
+ARG OPENUSD_REVISION
+ARG OPENUSD_TAG
+ARG TBB_ABI
+ARG WORKFLOW_REVISION
+
+COPY ci-cycles-historical/build_dependencies.sh /usr/local/bin/build_dependencies.sh
+
+RUN chmod +x /usr/local/bin/build_dependencies.sh && \
+    /usr/local/bin/build_dependencies.sh
+
+ENV PATH=/opt/usd/bin:${PATH}
+ENV PYTHONPATH=/opt/usd/lib/python:${PYTHONPATH}
+ENV LD_LIBRARY_PATH=/opt/cycles-dependencies/lib:/opt/cycles-dependencies/tbb/lib:/opt/usd/lib:/opt/usd/lib64:${LD_LIBRARY_PATH}
+
+LABEL org.opencontainers.image.source="https://github.com/nicolaspopravka/aswf-docker"
+LABEL org.opencontainers.image.title="Historical Cycles CI dependency image"
+LABEL org.opencontainers.image.description="Pinned dependencies for a historical Cycles/OpenUSD comparison lane; excludes Cycles"
+LABEL org.opencontainers.image.licenses="Apache-2.0"
+LABEL org.opencontainers.image.revision="${WORKFLOW_REVISION}"
+LABEL io.usd-render-benchmark.cycles-library-revision="${CYCLES_LIB_REVISION}"
+LABEL io.usd-render-benchmark.openusd-revision="${OPENUSD_REVISION}"
+LABEL io.usd-render-benchmark.openusd-tag="${OPENUSD_TAG}"
+LABEL io.usd-render-benchmark.tbb-abi="${TBB_ABI}"
