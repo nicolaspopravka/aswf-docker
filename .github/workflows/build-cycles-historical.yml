@@ -44,9 +44,9 @@ jobs:
             cycles_tag: v5.0.0
             cycles_revision: 2eba4102417439e59e03003f1dff881192cbd75f
             cycles_lib_revision: 3abcca1aa43fe29f21cdf442d0cf412357cf4d25
-            openusd_version: "25.11"
-            openusd_tag: v25.11
-            openusd_revision: 363a7c8da8d1937072a5f0989e91faf72eb1fa76
+            openusd_version: "25.08"
+            openusd_tag: v25.08
+            openusd_revision: 71e038c1e3afa484f9060cfd5f9ad337544810b1
             tbb_abi: onetbb
             materialx_version: "1.39.3"
             reuse_dependency_image: false
