@@ -25,6 +25,19 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - stack_year: "2024"
+            base_image: aswf/ci-baseqt:2024@sha256:0332012f08e71b518a272c3e978c97f19303fdbc8a8a41b388aea2f6bb600cd9
+            cycles_version: "4.2.0"
+            cycles_tag: v4.2.0
+            cycles_revision: 6170e50fbd5fb8e36d71676e78c2693e58bf6c3d
+            cycles_lib_revision: 4d2e4b4ba301e0a911d94dca83b99b88e5c579fe
+            openusd_version: "24.05"
+            openusd_tag: v24.05
+            openusd_revision: 2864f3d04f396432f22ec5d6928fc37d34bb4c90
+            tbb_abi: classic
+            materialx_version: "1.38.8"
+            reuse_dependency_image: false
+            dependency_image: ""
           - stack_year: "2025"
             base_image: aswf/ci-baseqt:2025@sha256:e63ae910d3df6a5edb84a82b58adc5d5f6cf8a842fe4f5d7dfe6e3fbcd32e6ba
             cycles_version: "5.0.0"
