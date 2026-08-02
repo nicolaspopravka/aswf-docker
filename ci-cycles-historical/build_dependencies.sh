@@ -10,6 +10,7 @@ readonly EVIDENCE_ROOT="/opt/cycles-dependency-evidence"
 : "${OPENUSD_TAG:?OPENUSD_TAG is required}"
 : "${OPENUSD_REVISION:?OPENUSD_REVISION is required}"
 : "${CYCLES_LIB_REVISION:?CYCLES_LIB_REVISION is required}"
+: "${MATERIALX_VERSION:?MATERIALX_VERSION is required}"
 : "${TBB_ABI:?TBB_ABI is required}"
 
 case "$TBB_ABI" in
@@ -33,6 +34,13 @@ test "$(git -C "$BUILD_ROOT/lib-linux_x64" rev-parse HEAD)" = "$CYCLES_LIB_REVIS
 git -C "$BUILD_ROOT/lib-linux_x64" lfs pull
 git -C "$BUILD_ROOT/lib-linux_x64" lfs fsck
 
+IFS=. read -r materialx_major materialx_minor materialx_build \
+  <<< "$MATERIALX_VERSION"
+materialx_generated="$BUILD_ROOT/lib-linux_x64/materialx/include/MaterialXCore/Generated.h"
+grep -Fq "#define MATERIALX_MAJOR_VERSION $materialx_major" "$materialx_generated"
+grep -Fq "#define MATERIALX_MINOR_VERSION $materialx_minor" "$materialx_generated"
+grep -Fq "#define MATERIALX_BUILD_VERSION $materialx_build" "$materialx_generated"
+
 git -C "$BUILD_ROOT/lib-linux_x64" lfs ls-files -n \
   > "$EVIDENCE_ROOT/cycles-lfs-files.txt"
 test -s "$EVIDENCE_ROOT/cycles-lfs-files.txt"
@@ -54,10 +62,10 @@ cp -a "$BUILD_ROOT/lib-linux_x64" /opt/cycles-dependencies
 mkdir -p /opt/usd
 cp -a /opt/cycles-dependencies/tbb/. /opt/usd/
 
-# OpenUSD 24.08 still points at the retired JFrog Boost endpoint. Seed its
+# OpenUSD 24.05 still points at the retired JFrog Boost endpoint. Seed its
 # normal source cache from Boost's official archive and verify the published
 # checksum; build_usd.py then follows its unchanged extraction/build path.
-if [[ "$OPENUSD_TAG" == v24.08 ]]; then
+if [[ "$OPENUSD_TAG" == v24.05 ]]; then
   readonly BOOST_ARCHIVE="/opt/usd/src/boost_1_82_0.zip"
   readonly BOOST_SHA256="f7c9e28d242abcd7a2c1b962039fcdd463ca149d1883c3a950bbcc0ce6f7c6d9"
   mkdir -p /opt/usd/src
@@ -82,6 +90,8 @@ fi
 
 git clone --branch "$OPENUSD_TAG" --depth 1 "$OPENUSD_URL" "$BUILD_ROOT/OpenUSD"
 test "$(git -C "$BUILD_ROOT/OpenUSD" rev-parse HEAD)" = "$OPENUSD_REVISION"
+grep -Fq "MaterialX/archive/v${MATERIALX_VERSION}.zip" \
+  "$BUILD_ROOT/OpenUSD/build_scripts/build_usd.py"
 (
   cd "$BUILD_ROOT/OpenUSD"
   python3 build_scripts/build_usd.py "${usd_build_args[@]}"
@@ -105,6 +115,7 @@ cp "$usd_cache" "$EVIDENCE_ROOT/OpenUSD-CMakeCache.txt"
   printf 'OpenUSD tag: %s\n' "$OPENUSD_TAG"
   printf 'OpenUSD revision: %s\n' "$OPENUSD_REVISION"
   printf 'Cycles Linux libraries revision: %s\n' "$CYCLES_LIB_REVISION"
+  printf 'Shared MaterialX version: %s\n' "$MATERIALX_VERSION"
   printf 'TBB ABI: %s\n' "$TBB_ABI"
   gcc --version | head -1
   cmake --version | head -1

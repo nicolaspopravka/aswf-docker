@@ -31,24 +31,26 @@ jobs:
             cycles_tag: v4.2.0
             cycles_revision: 6170e50fbd5fb8e36d71676e78c2693e58bf6c3d
             cycles_lib_revision: 4d2e4b4ba301e0a911d94dca83b99b88e5c579fe
-            openusd_version: "24.08"
-            openusd_tag: v24.08
-            openusd_revision: 59992d2178afcebd89273759f2bddfe730e59aa8
+            openusd_version: "24.05"
+            openusd_tag: v24.05
+            openusd_revision: 2864f3d04f396432f22ec5d6928fc37d34bb4c90
             tbb_abi: classic
+            materialx_version: "1.38.8"
             reuse_dependency_image: false
             dependency_image: ""
           - stack_year: "2025"
             base_image: aswf/ci-baseqt:2025@sha256:e63ae910d3df6a5edb84a82b58adc5d5f6cf8a842fe4f5d7dfe6e3fbcd32e6ba
-            cycles_version: "4.5.0"
-            cycles_tag: v4.5.0
-            cycles_revision: a60f7a9521e4a7012a1ecf408ee65b6af90b705e
-            cycles_lib_revision: c1b8027b12441d29b9a344c3f1524d3ce9fa127d
-            openusd_version: "25.05.01"
-            openusd_tag: v25.05.01
-            openusd_revision: 1595c62ea8381b5b22eb8621afc8652f89b6136d
+            cycles_version: "5.0.0"
+            cycles_tag: v5.0.0
+            cycles_revision: 2eba4102417439e59e03003f1dff881192cbd75f
+            cycles_lib_revision: 3abcca1aa43fe29f21cdf442d0cf412357cf4d25
+            openusd_version: "25.11"
+            openusd_tag: v25.11
+            openusd_revision: 363a7c8da8d1937072a5f0989e91faf72eb1fa76
             tbb_abi: onetbb
-            reuse_dependency_image: true
-            dependency_image: ghcr.io/nicolaspopravka/ci-cycles:cycles-libs-4.5.0-openusd-25.05.01-cy2025-split-ba0bd9590b56e0e74bdc89b8fcde7ddc69ab6cbd
+            materialx_version: "1.39.3"
+            reuse_dependency_image: false
+            dependency_image: ""
 
     env:
       CI_TAG: cycles-libs-${{ matrix.cycles_version }}-openusd-${{ matrix.openusd_version }}-cy${{ matrix.stack_year }}-split
@@ -76,12 +78,14 @@ jobs:
           CYCLES_REVISION: ${{ matrix.cycles_revision }}
           CYCLES_LIB_REVISION: ${{ matrix.cycles_lib_revision }}
           OPENUSD_REVISION: ${{ matrix.openusd_revision }}
+          MATERIALX_VERSION: ${{ matrix.materialx_version }}
         run: |
           set -eux
           [[ "$BASE_IMAGE" == *@sha256:* ]]
           [[ "$CYCLES_REVISION" =~ ^[0-9a-f]{40}$ ]]
           [[ "$CYCLES_LIB_REVISION" =~ ^[0-9a-f]{40}$ ]]
           [[ "$OPENUSD_REVISION" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$MATERIALX_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
           test -f ci-cycles-historical/Dockerfile.dependencies
           test -f ci-cycles-historical/Dockerfile
           test -f ci-cycles-historical/build_dependencies.sh
@@ -97,6 +101,7 @@ jobs:
           CYCLES_LIB_REVISION: ${{ matrix.cycles_lib_revision }}
           OPENUSD_REVISION: ${{ matrix.openusd_revision }}
           OPENUSD_TAG: ${{ matrix.openusd_tag }}
+          MATERIALX_VERSION: ${{ matrix.materialx_version }}
           TBB_ABI: ${{ matrix.tbb_abi }}
         run: |
           set -euxo pipefail
@@ -108,6 +113,7 @@ jobs:
             --build-arg CYCLES_LIB_REVISION="$CYCLES_LIB_REVISION" \
             --build-arg OPENUSD_TAG="$OPENUSD_TAG" \
             --build-arg OPENUSD_REVISION="$OPENUSD_REVISION" \
+            --build-arg MATERIALX_VERSION="$MATERIALX_VERSION" \
             --build-arg TBB_ABI="$TBB_ABI" \
             . 2>&1 | tee "${{ runner.temp }}/ci-cycles-docker-build.log"
 
