@@ -29,7 +29,7 @@ class LuaConan(ConanFile):
         "shared": False,
         "fPIC": True,
         "compile_as_cpp": False,
-        "with_tools": False,
+        "with_tools": True,
     }
 
     def export_sources(self):
