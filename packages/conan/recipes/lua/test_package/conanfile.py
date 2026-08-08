@@ -28,3 +28,6 @@ class TestPackageConan(ConanFile):
         if can_run(self):
             bin_path = os.path.join(self.cpp.build.bindirs[0], "test_package")
             self.run(bin_path, env="conanrun")
+            if self.dependencies[self.tested_reference_str].options.with_tools:
+                self.run("lua -v", env="conanrun")
+                self.run("luac -v", env="conanrun")
