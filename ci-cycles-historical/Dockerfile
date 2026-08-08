@@ -6,6 +6,7 @@ FROM ${DEPENDENCY_IMAGE} AS builder
 ARG CYCLES_REVISION
 ARG CYCLES_TAG
 ARG CYCLES_LIB_REVISION
+ARG MATERIALX_RUNTIME=cycles
 ARG TBB_ABI
 
 COPY ci-cycles-historical/build_cycles.sh /usr/local/bin/build_cycles.sh
@@ -21,6 +22,7 @@ ARG CYCLES_TAG
 ARG OPENUSD_REVISION
 ARG OPENUSD_TAG
 ARG STACK_YEAR
+ARG MATERIALX_RUNTIME=cycles
 ARG TBB_ABI
 ARG WORKFLOW_REVISION
 
@@ -41,4 +43,5 @@ LABEL org.opencontainers.image.revision="${WORKFLOW_REVISION}"
 LABEL io.usd-render-benchmark.cycles-revision="${CYCLES_REVISION}"
 LABEL io.usd-render-benchmark.openusd-revision="${OPENUSD_REVISION}"
 LABEL io.usd-render-benchmark.stack-year="${STACK_YEAR}"
+LABEL io.usd-render-benchmark.materialx-runtime="${MATERIALX_RUNTIME}"
 LABEL io.usd-render-benchmark.tbb-abi="${TBB_ABI}"

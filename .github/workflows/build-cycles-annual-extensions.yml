@@ -1,0 +1,338 @@
+name: Build CY2023 and CY2027 Cycles Hydra Delegates
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: cycles-annual-extensions-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CI_IMAGE_NAME: ghcr.io/nicolaspopravka/ci-cycles
+  IMAGE_NAME: ghcr.io/nicolaspopravka/usd-render-benchmark-cycles
+
+jobs:
+  build:
+    name: cycles-${{ matrix.cycles_version }}-openusd-${{ matrix.openusd_version }}-cy${{ matrix.stack_year }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 330
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - stack_year: "2023"
+            base_image: aswf/ci-baseqt:2023@sha256:30c27f5a2cf2e35c51d1feb5796a7e06a4e5d180b53fde58ec51854d111443ae
+            cycles_version: "3.6.0"
+            cycles_tag: v3.6.0
+            cycles_revision: e9f92cd6528a6042de8e5316b9f03ec3724561b6
+            cycles_lib_revision: 95c42a9da39e693b037823ee309713f567df465b
+            cycles_materialx_version: "1.38.6"
+            openusd_version: "23.08"
+            openusd_tag: v23.08
+            openusd_revision: 10b62439e9242a55101cf8b200f2c7e02420e1b0
+            openusd_materialx_version: "1.38.7"
+            materialx_runtime: openusd
+            tbb_abi: classic
+            reuse_dependency_image: false
+            dependency_image: ""
+          - stack_year: "2027"
+            base_image: aswf/ci-baseqt:2027@sha256:9df58e9cc6831773bad261596a317ea6019006423ad73ed91652e1762a5a68f7
+            cycles_version: "5.2.0"
+            cycles_tag: v5.2.0
+            cycles_revision: 3b97e190c5ff1a2ed2160d879ad5bf95bea7b8ba
+            cycles_lib_revision: 30d9f881c4b62c52323fd11637eeea56d460e35c
+            cycles_materialx_version: "1.39.4"
+            openusd_version: "26.05"
+            openusd_tag: v26.05
+            openusd_revision: 2095fafafd033fa23386d7ec6d58c7cc33974518
+            openusd_materialx_version: "1.39.4"
+            materialx_runtime: cycles
+            tbb_abi: onetbb
+            reuse_dependency_image: false
+            dependency_image: ""
+
+    env:
+      CI_TAG: cycles-libs-${{ matrix.cycles_version }}-openusd-${{ matrix.openusd_version }}-cy${{ matrix.stack_year }}-split
+      DELEGATE_TAG: cycles-${{ matrix.cycles_version }}-openusd-${{ matrix.openusd_version }}-cy${{ matrix.stack_year }}-split
+      CANDIDATE_TAG: candidate-cycles-${{ matrix.cycles_version }}-openusd-${{ matrix.openusd_version }}-cy${{ matrix.stack_year }}-split
+
+    steps:
+      - name: Checkout reviewed source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Reclaim runner disk
+        run: |
+          set -eux
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /usr/local/share/powershell /usr/share/swift /usr/local/.ghcup \
+            /usr/local/aws-cli /usr/local/aws-sam-cli /usr/local/julia* \
+            /usr/lib/jvm
+          sudo apt-get clean
+          docker system prune -af
+          df -h /
+
+      - name: Validate immutable inputs
+        env:
+          BASE_IMAGE: ${{ matrix.base_image }}
+          CYCLES_REVISION: ${{ matrix.cycles_revision }}
+          CYCLES_LIB_REVISION: ${{ matrix.cycles_lib_revision }}
+          OPENUSD_REVISION: ${{ matrix.openusd_revision }}
+          CYCLES_MATERIALX_VERSION: ${{ matrix.cycles_materialx_version }}
+          OPENUSD_MATERIALX_VERSION: ${{ matrix.openusd_materialx_version }}
+          MATERIALX_RUNTIME: ${{ matrix.materialx_runtime }}
+        run: |
+          set -eux
+          [[ "$BASE_IMAGE" == *@sha256:* ]]
+          [[ "$CYCLES_REVISION" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$CYCLES_LIB_REVISION" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$OPENUSD_REVISION" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$CYCLES_MATERIALX_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          [[ "$OPENUSD_MATERIALX_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          [[ "$MATERIALX_RUNTIME" == cycles || "$MATERIALX_RUNTIME" == openusd ]]
+          test -f ci-cycles-historical/Dockerfile.dependencies
+          test -f ci-cycles-historical/Dockerfile
+          test -f ci-cycles-historical/build_dependencies.sh
+          test -f ci-cycles-historical/build_cycles.sh
+          test -f ci-cycles/smoke.usda
+          test -f ci-cycles/camera-direction.usda
+          test -f ci-cycles/check_png_variation.py
+
+      - name: Build dependency image
+        if: ${{ !matrix.reuse_dependency_image }}
+        env:
+          BASE_IMAGE: ${{ matrix.base_image }}
+          CYCLES_LIB_REVISION: ${{ matrix.cycles_lib_revision }}
+          OPENUSD_REVISION: ${{ matrix.openusd_revision }}
+          OPENUSD_TAG: ${{ matrix.openusd_tag }}
+          CYCLES_MATERIALX_VERSION: ${{ matrix.cycles_materialx_version }}
+          OPENUSD_MATERIALX_VERSION: ${{ matrix.openusd_materialx_version }}
+          TBB_ABI: ${{ matrix.tbb_abi }}
+        run: |
+          set -euxo pipefail
+          docker build --progress=plain \
+            --file ci-cycles-historical/Dockerfile.dependencies \
+            --tag "$CI_IMAGE_NAME:$CI_TAG-$GITHUB_SHA" \
+            --build-arg BASE_IMAGE="$BASE_IMAGE" \
+            --build-arg WORKFLOW_REVISION="$GITHUB_SHA" \
+            --build-arg CYCLES_LIB_REVISION="$CYCLES_LIB_REVISION" \
+            --build-arg OPENUSD_TAG="$OPENUSD_TAG" \
+            --build-arg OPENUSD_REVISION="$OPENUSD_REVISION" \
+            --build-arg CYCLES_MATERIALX_VERSION="$CYCLES_MATERIALX_VERSION" \
+            --build-arg MATERIALX_VERSION="$OPENUSD_MATERIALX_VERSION" \
+            --build-arg OPENUSD_MATERIALX_VERSION="$OPENUSD_MATERIALX_VERSION" \
+            --build-arg TBB_ABI="$TBB_ABI" \
+            . 2>&1 | tee "${{ runner.temp }}/ci-cycles-docker-build.log"
+
+      - name: Validate dependency boundary
+        env:
+          CYCLES_LIB_REVISION: ${{ matrix.cycles_lib_revision }}
+          TBB_ABI: ${{ matrix.tbb_abi }}
+        run: |
+          set -euxo pipefail
+          dependency_image="$CI_IMAGE_NAME:$CI_TAG-$GITHUB_SHA"
+          if [[ "${{ matrix.reuse_dependency_image }}" == true ]]; then
+            dependency_image="${{ matrix.dependency_image }}"
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io \
+              -u "$GITHUB_ACTOR" --password-stdin
+            docker pull "$dependency_image"
+          fi
+          docker run --rm \
+            --env CYCLES_LIB_REVISION \
+            --env TBB_ABI \
+            "$dependency_image" bash -c '
+              set -euxo pipefail
+              test -x /opt/usd/bin/usdrecord
+              test -d /opt/cycles-dependencies/.git
+              test "$(git -C /opt/cycles-dependencies rev-parse HEAD)" = \
+                "$CYCLES_LIB_REVISION"
+              test ! -e /opt/cycles
+              if [[ "$TBB_ABI" == classic ]]; then
+                test -e /opt/usd/lib/libtbb.so.2
+                test ! -e /opt/usd/lib/libtbb.so.12
+              else
+                test -e /opt/usd/lib/libtbb.so.12
+                test ! -e /opt/usd/lib/libtbb.so.2
+              fi
+            ' | tee "${{ runner.temp }}/ci-cycles-image-validation.log"
+
+      - name: Publish validated dependency image
+        if: ${{ !matrix.reuse_dependency_image }}
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euxo pipefail
+          echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker tag "$CI_IMAGE_NAME:$CI_TAG-$GITHUB_SHA" "$CI_IMAGE_NAME:$CI_TAG"
+          docker push "$CI_IMAGE_NAME:$CI_TAG-$GITHUB_SHA" \
+            2>&1 | tee "${{ runner.temp }}/ci-cycles-push-immutable.log"
+          docker push "$CI_IMAGE_NAME:$CI_TAG" \
+            2>&1 | tee "${{ runner.temp }}/ci-cycles-push-version.log"
+
+      - name: Build delegate image
+        env:
+          CYCLES_LIB_REVISION: ${{ matrix.cycles_lib_revision }}
+          CYCLES_REVISION: ${{ matrix.cycles_revision }}
+          CYCLES_TAG: ${{ matrix.cycles_tag }}
+          OPENUSD_REVISION: ${{ matrix.openusd_revision }}
+          OPENUSD_TAG: ${{ matrix.openusd_tag }}
+          STACK_YEAR: ${{ matrix.stack_year }}
+          MATERIALX_RUNTIME: ${{ matrix.materialx_runtime }}
+          TBB_ABI: ${{ matrix.tbb_abi }}
+        run: |
+          set -euxo pipefail
+          dependency_image="$CI_IMAGE_NAME:$CI_TAG-$GITHUB_SHA"
+          if [[ "${{ matrix.reuse_dependency_image }}" == true ]]; then
+            dependency_image="${{ matrix.dependency_image }}"
+          fi
+          docker build --progress=plain \
+            --file ci-cycles-historical/Dockerfile \
+            --tag "$IMAGE_NAME:$DELEGATE_TAG-$GITHUB_SHA" \
+            --build-arg DEPENDENCY_IMAGE="$dependency_image" \
+            --build-arg WORKFLOW_REVISION="$GITHUB_SHA" \
+            --build-arg CYCLES_TAG="$CYCLES_TAG" \
+            --build-arg CYCLES_REVISION="$CYCLES_REVISION" \
+            --build-arg CYCLES_LIB_REVISION="$CYCLES_LIB_REVISION" \
+            --build-arg OPENUSD_TAG="$OPENUSD_TAG" \
+            --build-arg OPENUSD_REVISION="$OPENUSD_REVISION" \
+            --build-arg STACK_YEAR="$STACK_YEAR" \
+            --build-arg MATERIALX_RUNTIME="$MATERIALX_RUNTIME" \
+            --build-arg TBB_ABI="$TBB_ABI" \
+            . 2>&1 | tee "${{ runner.temp }}/cycles-docker-build.log"
+
+      - name: Validate delegate closure
+        env:
+          TBB_ABI: ${{ matrix.tbb_abi }}
+          MATERIALX_RUNTIME: ${{ matrix.materialx_runtime }}
+        run: |
+          set -euxo pipefail
+          docker run --rm --env TBB_ABI --env MATERIALX_RUNTIME \
+            "$IMAGE_NAME:$DELEGATE_TAG-$GITHUB_SHA" bash -c '
+              set -euxo pipefail
+              test -x /opt/cycles/cycles
+              test -f /opt/cycles/hydra/hdCycles.so
+              python3 -c "from pxr import Usd, UsdImagingGL; print(Usd.GetVersion()); names = [UsdImagingGL.Engine.GetRendererDisplayName(p) for p in UsdImagingGL.Engine.GetRendererPlugins()]; print(names); assert \"Cycles\" in names"
+              ldd -r /opt/cycles/hydra/hdCycles.so | tee /tmp/hdCycles-ldd.txt
+              ! grep -Eq "not found|undefined symbol" /tmp/hdCycles-ldd.txt
+              if [[ "$MATERIALX_RUNTIME" == openusd ]]; then
+                ! find /opt/cycles -name "libMaterialX*.so*" -print -quit | grep -q .
+                usd_mtlx_library="$(find /opt/usd -name "libusd_usdMtlx.so" -print -quit)"
+                test -n "$usd_mtlx_library"
+                ldd "$usd_mtlx_library" | tee /tmp/usdMtlx-ldd.txt
+                grep -F "/opt/usd/" /tmp/usdMtlx-ldd.txt | grep -F "libMaterialX"
+                ! grep -F "/opt/cycles/" /tmp/usdMtlx-ldd.txt | grep -F "libMaterialX"
+              fi
+              if [[ "$TBB_ABI" == classic ]]; then
+                grep -q "libtbb.so.2" /tmp/hdCycles-ldd.txt
+                ! grep -q "libtbb.so.12" /tmp/hdCycles-ldd.txt
+              else
+                grep -q "libtbb.so.12" /tmp/hdCycles-ldd.txt
+                ! grep -q "libtbb.so.2 " /tmp/hdCycles-ldd.txt
+              fi
+            ' | tee "${{ runner.temp }}/cycles-image-validation.log"
+
+      - name: Publish loader-validated candidate
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euxo pipefail
+          echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker tag "$IMAGE_NAME:$DELEGATE_TAG-$GITHUB_SHA" \
+            "$IMAGE_NAME:$CANDIDATE_TAG-$GITHUB_SHA"
+          docker tag "$IMAGE_NAME:$DELEGATE_TAG-$GITHUB_SHA" "$IMAGE_NAME:$CANDIDATE_TAG"
+          docker push "$IMAGE_NAME:$CANDIDATE_TAG-$GITHUB_SHA" \
+            2>&1 | tee "${{ runner.temp }}/cycles-candidate-push-immutable.log"
+          docker push "$IMAGE_NAME:$CANDIDATE_TAG" \
+            2>&1 | tee "${{ runner.temp }}/cycles-candidate-push-version.log"
+
+      - name: Fetch pinned USD WG teapot
+        run: |
+          set -euxo pipefail
+          mkdir -p "${{ runner.temp }}/cycles-smoke"
+          curl --fail --location --retry 4 \
+            --output "${{ runner.temp }}/cycles-smoke/teapot.usda" \
+            https://raw.githubusercontent.com/usd-wg/assets/907d5f17bbe933fc14441a3f3ab69a5bd8abe32a/test_assets/_common/teapot.usda
+          printf '%s  %s\n' \
+            92915fe259cb7f895a74dae0bbb6375e8a5843c3f9e24fa4b38607f2aa39431c \
+            "${{ runner.temp }}/cycles-smoke/teapot.usda" | sha256sum --check
+
+      - name: Run stock usdrecord teapot diagnostic
+        id: teapot
+        continue-on-error: true
+        run: |
+          set -euxo pipefail
+          docker run --rm \
+            --volume "${{ runner.temp }}/cycles-smoke:/test" \
+            "$IMAGE_NAME:$DELEGATE_TAG-$GITHUB_SHA" bash -c '
+              set -euxo pipefail
+              export DISPLAY=:99
+              export LIBGL_ALWAYS_SOFTWARE=1
+              export GALLIUM_DRIVER=llvmpipe
+              export CYCLES_DEVICE=CPU
+              Xvfb :99 -screen 0 1280x960x24 +extension GLX +render -noreset \
+                >/test/xvfb.log 2>&1 &
+              xvfb_pid=$!
+              trap "kill $xvfb_pid 2>/dev/null || true" EXIT
+              sleep 2
+              glxinfo -B | tee /test/glxinfo.log
+              usdrecord --renderer Cycles --camera /Camera \
+                /test/teapot.usda /test/cycles-teapot.png
+            ' 2>&1 | tee "${{ runner.temp }}/cycles-teapot.log"
+          if test -f "${{ runner.temp }}/cycles-smoke/cycles-teapot.png"; then
+            python3 ci-cycles/check_png_variation.py \
+              "${{ runner.temp }}/cycles-smoke/cycles-teapot.png"
+          fi
+
+      - name: Record non-blocking teapot outcome
+        if: always()
+        env:
+          TEAPOT_OUTCOME: ${{ steps.teapot.outcome }}
+        run: |
+          printf 'teapot software-GL diagnostic outcome: %s\n' "$TEAPOT_OUTCOME"
+          printf 'Plugin loading and link validation, not runner pixels, gate publication.\n'
+
+      - name: Upload annual render diagnostic
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: cycles-${{ matrix.stack_year }}-teapot-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/cycles-smoke/*
+            ${{ runner.temp }}/cycles-teapot.log
+          if-no-files-found: warn
+
+      - name: Publish loader-validated deliverable
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euxo pipefail
+          echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker tag "$IMAGE_NAME:$DELEGATE_TAG-$GITHUB_SHA" "$IMAGE_NAME:$DELEGATE_TAG"
+          docker push "$IMAGE_NAME:$DELEGATE_TAG-$GITHUB_SHA" \
+            2>&1 | tee "${{ runner.temp }}/cycles-push-immutable.log"
+          docker push "$IMAGE_NAME:$DELEGATE_TAG" \
+            2>&1 | tee "${{ runner.temp }}/cycles-push-version.log"
+
+      - name: Upload build evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: cycles-${{ matrix.stack_year }}-build-${{ github.run_attempt }}
+          if-no-files-found: warn
+          retention-days: 30
+          path: |
+            ${{ runner.temp }}/ci-cycles-docker-build.log
+            ${{ runner.temp }}/ci-cycles-image-validation.log
+            ${{ runner.temp }}/ci-cycles-push-immutable.log
+            ${{ runner.temp }}/ci-cycles-push-version.log
+            ${{ runner.temp }}/cycles-docker-build.log
+            ${{ runner.temp }}/cycles-image-validation.log
+            ${{ runner.temp }}/cycles-candidate-push-immutable.log
+            ${{ runner.temp }}/cycles-candidate-push-version.log
+            ${{ runner.temp }}/cycles-teapot.log
+            ${{ runner.temp }}/cycles-push-immutable.log
+            ${{ runner.temp }}/cycles-push-version.log
+
