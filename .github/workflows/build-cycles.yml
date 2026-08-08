@@ -27,6 +27,11 @@ on:
         required: false
         type: boolean
         default: false
+      build_annual_extensions:
+        description: Build the CY2023/CY2027 annual Cycles images
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -43,7 +48,7 @@ env:
 
 jobs:
   build:
-    if: ${{ !inputs.build_historical_controls }}
+    if: ${{ !inputs.build_historical_controls && !inputs.build_annual_extensions }}
     name: ${{ inputs.pairing }}-cy2026-split
     runs-on: ubuntu-22.04
     timeout-minutes: 330
@@ -570,4 +575,9 @@ jobs:
   historical:
     if: ${{ inputs.build_historical_controls }}
     uses: ./.github/workflows/build-cycles-historical.yml
+    secrets: inherit
+
+  annual_extensions:
+    if: ${{ inputs.build_annual_extensions }}
+    uses: ./.github/workflows/build-cycles-annual-extensions.yml
     secrets: inherit

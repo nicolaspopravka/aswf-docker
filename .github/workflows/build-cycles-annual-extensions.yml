@@ -2,6 +2,7 @@ name: Build CY2023 and CY2027 Cycles Hydra Delegates
 
 on:
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
@@ -335,4 +336,3 @@ jobs:
             ${{ runner.temp }}/cycles-teapot.log
             ${{ runner.temp }}/cycles-push-immutable.log
             ${{ runner.temp }}/cycles-push-version.log
-
