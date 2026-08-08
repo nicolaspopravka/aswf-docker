@@ -29,7 +29,7 @@ class LuaConan(ConanFile):
         "shared": False,
         "fPIC": True,
         "compile_as_cpp": False,
-        "with_tools": True,
+        "with_tools": True,  # ASWF: install lua and luac for build scripts
     }
 
     def export_sources(self):
