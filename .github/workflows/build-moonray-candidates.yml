@@ -1,6 +1,11 @@
 name: Build OpenMoonRay Candidates
 
 on:
+  push:
+    branches:
+      - codex/delegates/moonray-aswf-candidates
+    paths:
+      - ci-moonray-hydra/dispatch.env
   workflow_dispatch:
     inputs:
       candidate:
@@ -30,7 +35,7 @@ permissions:
   packages: write
 
 concurrency:
-  group: openmoonray-candidate-${{ inputs.candidate }}-${{ inputs.build_mode }}
+  group: openmoonray-candidate-${{ github.ref }}-${{ github.sha }}
   cancel-in-progress: false
 
 env:
@@ -51,7 +56,21 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          case "${{ inputs.candidate }}" in
+          requested_candidate="${{ inputs.candidate }}"
+          requested_mode="${{ inputs.build_mode }}"
+          if [[ -z "${requested_candidate}" ]]; then
+            source ci-moonray-hydra/dispatch.env
+            requested_candidate="${CANDIDATE}"
+            requested_mode="${BUILD_MODE}"
+          fi
+          case "${requested_mode}" in
+            stock|supplemented) ;;
+            *)
+              echo "Unsupported build mode: ${requested_mode}" >&2
+              exit 2
+              ;;
+          esac
+          case "${requested_candidate}" in
             cy2023-moonray-1.5.0.0)
               base_image="aswf/ci-moonray:2023.4@sha256:7273f5029fa7f6c481e1d0b4d2e85dbeb25718f60ce27bc3834b2be2f1a51c94"
               moonray_tag="openmoonray-1.5.0.0"
@@ -109,13 +128,15 @@ jobs:
               boost_python_component="python313"
               ;;
             *)
-              echo "Unsupported candidate: ${{ inputs.candidate }}" >&2
+              echo "Unsupported candidate: ${requested_candidate}" >&2
               exit 2
               ;;
           esac
 
-          candidate_tag="${IMAGE_REPOSITORY}:candidate-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${{ inputs.candidate }}-${{ inputs.build_mode }}"
+          candidate_tag="${IMAGE_REPOSITORY}:candidate-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${requested_candidate}-${requested_mode}"
           {
+            printf 'candidate=%s\n' "${requested_candidate}"
+            printf 'build_mode=%s\n' "${requested_mode}"
             printf 'base_image=%s\n' "${base_image}"
             printf 'moonray_tag=%s\n' "${moonray_tag}"
             printf 'moonray_commit=%s\n' "${moonray_commit}"
@@ -174,11 +195,11 @@ jobs:
           --build-arg "MOONRAY_COMMIT=${{ steps.candidate.outputs.moonray_commit }}" \
           --build-arg "PYTHON_VERSION=${{ steps.candidate.outputs.python_version }}" \
           --build-arg "BOOST_PYTHON_COMPONENT=${{ steps.candidate.outputs.boost_python_component }}" \
-          --build-arg "BUILD_MODE=${{ inputs.build_mode }}" \
+          --build-arg "BUILD_MODE=${{ steps.candidate.outputs.build_mode }}" \
           --build-arg "BUILD_REVISION=${GITHUB_SHA}" \
           --build-arg "BUILD_JOBS=4" \
-          --cache-from "type=gha,scope=openmoonray-${{ inputs.candidate }}-${{ inputs.build_mode }}" \
-          --cache-to "type=gha,mode=max,scope=openmoonray-${{ inputs.candidate }}-${{ inputs.build_mode }}" \
+          --cache-from "type=gha,scope=openmoonray-${{ steps.candidate.outputs.candidate }}-${{ steps.candidate.outputs.build_mode }}" \
+          --cache-to "type=gha,mode=max,scope=openmoonray-${{ steps.candidate.outputs.candidate }}-${{ steps.candidate.outputs.build_mode }}" \
           --load \
           --progress=plain \
           --tag "${LOCAL_IMAGE}" \
@@ -241,7 +262,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: openmoonray-${{ inputs.candidate }}-${{ inputs.build_mode }}-${{ github.run_id }}-${{ github.run_attempt }}
+          name: openmoonray-${{ steps.candidate.outputs.candidate }}-${{ steps.candidate.outputs.build_mode }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/moonray-evidence/
           if-no-files-found: error
           retention-days: 30
