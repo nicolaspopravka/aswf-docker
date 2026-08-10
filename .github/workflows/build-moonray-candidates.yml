@@ -1,4 +1,4 @@
-name: Build OpenMoonRay Candidates
+name: Build OpenMoonRay Hydra Candidates
 
 on:
   push:
