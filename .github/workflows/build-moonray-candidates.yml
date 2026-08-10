@@ -1,0 +1,247 @@
+name: Build OpenMoonRay Candidates
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate:
+        description: Fixed ASWF/OpenMoonRay candidate
+        required: true
+        type: choice
+        options:
+          - cy2023-moonray-1.5.0.0
+          - cy2024-moonray-2.34.0.1
+          - cy2025-moonray-2.34.0.1
+          - cy2025-moonray-3.6.0.1
+          - cy2024-moonray-3.6.0.1
+          - cy2023-moonray-3.6.0.1
+          - cy2026-moonray-3.6.0.1
+          - cy2027-moonray-3.6.0.1
+      build_mode:
+        description: Stock image first; supplemented is limited to reviewed packaging defects
+        required: true
+        default: stock
+        type: choice
+        options:
+          - stock
+          - supplemented
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: openmoonray-candidate-${{ inputs.candidate }}-${{ inputs.build_mode }}
+  cancel-in-progress: false
+
+env:
+  IMAGE_REPOSITORY: ghcr.io/nicolaspopravka/openmoonray-hydra
+  LOCAL_IMAGE: openmoonray-candidate:${{ github.run_id }}-${{ github.run_attempt }}
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+
+    steps:
+      - name: Check out ASWF Docker fork
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Select fixed candidate
+        id: candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "${{ inputs.candidate }}" in
+            cy2023-moonray-1.5.0.0)
+              base_image="aswf/ci-moonray:2023.4@sha256:7273f5029fa7f6c481e1d0b4d2e85dbeb25718f60ce27bc3834b2be2f1a51c94"
+              moonray_tag="openmoonray-1.5.0.0"
+              moonray_commit="05bc5eb926d89ffc4f6a609e70f7a08dee032d8c"
+              python_version="3.10"
+              boost_python_component="python310"
+              ;;
+            cy2024-moonray-2.34.0.1)
+              base_image="aswf/ci-moonray:2024.8@sha256:5547d18c9c6f14a175fa58f8b4ceab6e49bcef89f98e63bb147526bb7fad45f4"
+              moonray_tag="openmoonray-2.34.0.1"
+              moonray_commit="6174812ea24e2724784c8c34d402ca466ebec14c"
+              python_version="3.11"
+              boost_python_component="python311"
+              ;;
+            cy2025-moonray-2.34.0.1)
+              base_image="aswf/ci-moonray:2025.7@sha256:0a6fd225c6a58b673d980c5d8503bb8a35a122006b9274428911374a3bc5dead"
+              moonray_tag="openmoonray-2.34.0.1"
+              moonray_commit="6174812ea24e2724784c8c34d402ca466ebec14c"
+              python_version="3.11"
+              boost_python_component="python311"
+              ;;
+            cy2023-moonray-3.6.0.1)
+              base_image="aswf/ci-moonray:2023.4@sha256:7273f5029fa7f6c481e1d0b4d2e85dbeb25718f60ce27bc3834b2be2f1a51c94"
+              moonray_tag="openmoonray-3.6.0.1"
+              moonray_commit="2efc058fadf5b8c1eae3870463a0fafb14315c99"
+              python_version="3.10"
+              boost_python_component="python310"
+              ;;
+            cy2024-moonray-3.6.0.1)
+              base_image="aswf/ci-moonray:2024.8@sha256:5547d18c9c6f14a175fa58f8b4ceab6e49bcef89f98e63bb147526bb7fad45f4"
+              moonray_tag="openmoonray-3.6.0.1"
+              moonray_commit="2efc058fadf5b8c1eae3870463a0fafb14315c99"
+              python_version="3.11"
+              boost_python_component="python311"
+              ;;
+            cy2025-moonray-3.6.0.1)
+              base_image="aswf/ci-moonray:2025.7@sha256:0a6fd225c6a58b673d980c5d8503bb8a35a122006b9274428911374a3bc5dead"
+              moonray_tag="openmoonray-3.6.0.1"
+              moonray_commit="2efc058fadf5b8c1eae3870463a0fafb14315c99"
+              python_version="3.11"
+              boost_python_component="python311"
+              ;;
+            cy2026-moonray-3.6.0.1)
+              base_image="aswf/ci-moonray:2026.5@sha256:0820df619ada2b7e07f8c5fcc28dda5bdb5408508f21a8273d05dc56a08a8fd9"
+              moonray_tag="openmoonray-3.6.0.1"
+              moonray_commit="2efc058fadf5b8c1eae3870463a0fafb14315c99"
+              python_version="3.13"
+              boost_python_component="python313"
+              ;;
+            cy2027-moonray-3.6.0.1)
+              base_image="aswf/ci-moonray:2027.0@sha256:e557d2c2d2fa80cd4bc6c3509693020472842fbd187df9c60b8dc0eb5ccb8aae"
+              moonray_tag="openmoonray-3.6.0.1"
+              moonray_commit="2efc058fadf5b8c1eae3870463a0fafb14315c99"
+              python_version="3.13"
+              boost_python_component="python313"
+              ;;
+            *)
+              echo "Unsupported candidate: ${{ inputs.candidate }}" >&2
+              exit 2
+              ;;
+          esac
+
+          candidate_tag="${IMAGE_REPOSITORY}:candidate-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${{ inputs.candidate }}-${{ inputs.build_mode }}"
+          {
+            printf 'base_image=%s\n' "${base_image}"
+            printf 'moonray_tag=%s\n' "${moonray_tag}"
+            printf 'moonray_commit=%s\n' "${moonray_commit}"
+            printf 'python_version=%s\n' "${python_version}"
+            printf 'boost_python_component=%s\n' "${boost_python_component}"
+            printf 'candidate_tag=%s\n' "${candidate_tag}"
+          } | tee -a "${GITHUB_OUTPUT}"
+
+      - name: Free runner disk space
+        shell: bash
+        run: |
+          set -euxo pipefail
+          df -h
+          sudo rm -rf \
+          /usr/share/dotnet \
+          /usr/local/lib/android \
+          /opt/ghc \
+          /usr/local/share/powershell \
+          /usr/share/swift \
+          /usr/local/.ghcup \
+          /usr/local/aws-cli \
+          /usr/local/aws-sam-cli \
+          /usr/local/julia* \
+          /usr/lib/jvm
+          sudo apt-get clean
+          docker system prune -af
+          df -h
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+
+      - name: Create evidence directory
+        shell: bash
+        run: mkdir -p "${RUNNER_TEMP}/moonray-evidence"
+
+      - name: Record base image manifest
+        shell: bash
+        run: |
+          set -euxo pipefail
+          docker buildx imagetools inspect \
+          "${{ steps.candidate.outputs.base_image }}" \
+          | tee "${RUNNER_TEMP}/moonray-evidence/base-manifest.txt"
+
+      - name: Build candidate
+        id: build
+        shell: bash
+        env:
+          BUILDKIT_STEP_LOG_MAX_SIZE: 52428800
+        run: |
+          set -o pipefail
+          set +e
+          docker buildx build \
+          --file ci-moonray-hydra/Dockerfile \
+          --build-arg "BASE_IMAGE=${{ steps.candidate.outputs.base_image }}" \
+          --build-arg "MOONRAY_TAG=${{ steps.candidate.outputs.moonray_tag }}" \
+          --build-arg "MOONRAY_COMMIT=${{ steps.candidate.outputs.moonray_commit }}" \
+          --build-arg "PYTHON_VERSION=${{ steps.candidate.outputs.python_version }}" \
+          --build-arg "BOOST_PYTHON_COMPONENT=${{ steps.candidate.outputs.boost_python_component }}" \
+          --build-arg "BUILD_MODE=${{ inputs.build_mode }}" \
+          --build-arg "BUILD_REVISION=${GITHUB_SHA}" \
+          --build-arg "BUILD_JOBS=4" \
+          --cache-from "type=gha,scope=openmoonray-${{ inputs.candidate }}-${{ inputs.build_mode }}" \
+          --cache-to "type=gha,mode=max,scope=openmoonray-${{ inputs.candidate }}-${{ inputs.build_mode }}" \
+          --load \
+          --progress=plain \
+          --tag "${LOCAL_IMAGE}" \
+          . 2>&1 | tee "${RUNNER_TEMP}/moonray-evidence/build.log"
+          build_status=${PIPESTATUS[0]}
+          set -e
+          printf '%s\n' "${build_status}" \
+          | tee "${RUNNER_TEMP}/moonray-evidence/build.exit"
+          exit "${build_status}"
+
+      - name: Validate installation and plugin loading
+        shell: bash
+        run: |
+          set -euxo pipefail
+          docker image inspect "${LOCAL_IMAGE}" \
+          > "${RUNNER_TEMP}/moonray-evidence/image-inspect.json"
+          docker run --rm \
+          --volume "${PWD}/ci-moonray-hydra:/validation:ro" \
+          --volume "${RUNNER_TEMP}/moonray-evidence:/evidence" \
+          "${LOCAL_IMAGE}" \
+          /validation/validate-install.sh
+
+      - name: Log in to GHCR
+        shell: bash
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" \
+          | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Push run-specific candidate
+        id: pushed
+        shell: bash
+        run: |
+          set -euxo pipefail
+          docker tag "${LOCAL_IMAGE}" "${{ steps.candidate.outputs.candidate_tag }}"
+          docker push "${{ steps.candidate.outputs.candidate_tag }}" \
+          | tee "${RUNNER_TEMP}/moonray-evidence/push.log"
+          digest="$(
+            docker buildx imagetools inspect \
+            "${{ steps.candidate.outputs.candidate_tag }}" \
+            | awk '/^Digest:/ { print $2; exit }'
+          )"
+          test -n "${digest}"
+          printf '%s@%s\n' "${IMAGE_REPOSITORY}" "${digest}" \
+          | tee "${RUNNER_TEMP}/moonray-evidence/candidate-digest.txt"
+          printf 'digest=%s\n' "${digest}" >> "${GITHUB_OUTPUT}"
+
+      - name: Verify anonymous access by digest
+        shell: bash
+        run: |
+          set -euxo pipefail
+          empty_config="${RUNNER_TEMP}/empty-docker-config"
+          mkdir -p "${empty_config}"
+          printf '{"auths":{}}\n' > "${empty_config}/config.json"
+          DOCKER_CONFIG="${empty_config}" \
+          docker buildx imagetools inspect \
+          "${IMAGE_REPOSITORY}@${{ steps.pushed.outputs.digest }}" \
+          | tee "${RUNNER_TEMP}/moonray-evidence/anonymous-manifest.txt"
+
+      - name: Upload build evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: openmoonray-${{ inputs.candidate }}-${{ inputs.build_mode }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/moonray-evidence/
+          if-no-files-found: error
+          retention-days: 30
