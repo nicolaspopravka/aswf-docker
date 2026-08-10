@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "openmoonray_releases": {
+    "1.5.0.0": {
+      "ref": "05bc5eb926d89ffc4f6a609e70f7a08dee032d8c",
+      "tag": "openmoonray-1.5.0.0",
+      "legacy_ndr_plugins": true
+    },
+    "2.34.0.1": {
+      "ref": "6174812ea24e2724784c8c34d402ca466ebec14c",
+      "tag": "openmoonray-2.34.0.1",
+      "legacy_ndr_plugins": true
+    },
+    "3.6.0.1": {
+      "ref": "2efc058fadf5b8c1eae3870463a0fafb14315c99",
+      "tag": "openmoonray-3.6.0.1",
+      "legacy_ndr_plugins": true
+    }
+  },
+  "aswf_images": {
+    "cy2023": {
+      "git_ref": "aswf/ci-moonray/2023.4",
+      "profile": "vfx2023",
+      "image": "aswf/ci-moonray:2023.4",
+      "digest": "sha256:7273f5029fa7f6c481e1d0b4d2e85dbeb25718f60ce27bc3834b2be2f1a51c94",
+      "python": "3.10",
+      "compiler": "gcc11",
+      "cxx_standard": "17"
+    },
+    "cy2024": {
+      "git_ref": "aswf/ci-moonray/2024.8",
+      "profile": "vfx2024",
+      "image": "aswf/ci-moonray:2024.8",
+      "digest": "sha256:5547d18c9c6f14a175fa58f8b4ceab6e49bcef89f98e63bb147526bb7fad45f4",
+      "python": "3.11",
+      "compiler": "gcc11",
+      "cxx_standard": "17"
+    },
+    "cy2025": {
+      "git_ref": "aswf/ci-moonray/2025.7",
+      "profile": "vfx2025",
+      "image": "aswf/ci-moonray:2025.7",
+      "digest": "sha256:0a6fd225c6a58b673d980c5d8503bb8a35a122006b9274428911374a3bc5dead",
+      "python": "3.11",
+      "compiler": "gcc11",
+      "cxx_standard": "17"
+    },
+    "cy2026": {
+      "git_ref": "aswf/ci-moonray/2026.5",
+      "profile": "vfx2026",
+      "image": "aswf/ci-moonray:2026.5",
+      "digest": "sha256:0820df619ada2b7e07f8c5fcc28dda5bdb5408508f21a8273d05dc56a08a8fd9",
+      "python": "3.13",
+      "compiler": "gcc14",
+      "cxx_standard": "20"
+    },
+    "cy2027": {
+      "git_ref": "aswf/ci-moonray/2027.0",
+      "profile": "vfx2027",
+      "image": "aswf/ci-moonray:2027.0",
+      "digest": "sha256:e557d2c2d2fa80cd4bc6c3509693020472842fbd187df9c60b8dc0eb5ccb8aae",
+      "python": "3.13",
+      "compiler": "gcc14",
+      "cxx_standard": "20"
+    }
+  },
+  "candidates": [
+    {"id": "cy2023-moonray-1.5.0.0", "year": "cy2023", "release": "1.5.0.0"},
+    {"id": "cy2024-moonray-2.34.0.1", "year": "cy2024", "release": "2.34.0.1"},
+    {"id": "cy2025-moonray-2.34.0.1", "year": "cy2025", "release": "2.34.0.1"},
+    {"id": "cy2023-moonray-3.6.0.1", "year": "cy2023", "release": "3.6.0.1"},
+    {"id": "cy2024-moonray-3.6.0.1", "year": "cy2024", "release": "3.6.0.1"},
+    {"id": "cy2025-moonray-3.6.0.1", "year": "cy2025", "release": "3.6.0.1"},
+    {"id": "cy2026-moonray-3.6.0.1", "year": "cy2026", "release": "3.6.0.1"},
+    {"id": "cy2027-moonray-3.6.0.1", "year": "cy2027", "release": "3.6.0.1"}
+  ],
+  "observed_results": {
+    "cy2023-moonray-1.5.0.0": {
+      "outcome": "verified-failure",
+      "run_id": 31376932512,
+      "mode": "supplemented",
+      "finding": "Build reached mcrt_denoise and failed because OIDN 1.2.4 lacks OIDN_DEVICE_TYPE_CUDA and oidnGetBufferData."
+    },
+    "cy2024-moonray-2.34.0.1": {
+      "outcome": "verified-failure",
+      "run_id": 31375682002,
+      "mode": "supplemented",
+      "finding": "Build reached mcrt_denoise and failed because OIDN 1.2.4 lacks OIDN_DEVICE_TYPE_CUDA and oidnGetBufferData."
+    },
+    "cy2025-moonray-2.34.0.1": {
+      "outcome": "verified-success",
+      "run_id": 31378688698,
+      "mode": "supplemented",
+      "digest": "sha256:d7e3fa78882b68591d67d745bfb350912d363d7c7b77c74b5e0bb5f185f40dc8",
+      "finding": "Build, install, four-plugin validation, usdrecord discovery, publication and anonymous digest verification succeeded."
+    }
+  }
+}

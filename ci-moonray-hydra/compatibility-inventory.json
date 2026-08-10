@@ -1,0 +1,1003 @@
+{
+  "candidates": [
+    {
+      "id": "cy2023-moonray-1.5.0.0",
+      "image_versions": {
+        "boost": "1.80.0",
+        "cpython": "3.10.20",
+        "log4cplus": "2.1.2",
+        "lua": "5.4.4",
+        "materialx": "1.38.7",
+        "moonray": "3.6.0.1",
+        "onetbb": "2020.3",
+        "opencolorio": "2.2.1",
+        "openexr": "3.1.13",
+        "openimagedenoise": "1.2.4",
+        "openimageio": "2.4.17.0",
+        "opensubdiv": "3.5.1",
+        "openusd": "23.08"
+      },
+      "intent": "experimental",
+      "native_versions": {
+        "opencolorio": "2.0.2",
+        "openexr": "2.5.7",
+        "openimagedenoise": "2.0.1",
+        "openimageio": "2.3.20.0",
+        "opensubdiv": "3_5_0",
+        "openusd": "22.11"
+      },
+      "observed": {
+        "finding": "Build reached mcrt_denoise and failed because OIDN 1.2.4 lacks OIDN_DEVICE_TYPE_CUDA and oidnGetBufferData.",
+        "mode": "supplemented",
+        "outcome": "verified-failure",
+        "run_id": 31376932512
+      },
+      "outcome": "verified-failure",
+      "reasons": [
+        "Build reached mcrt_denoise and failed because OIDN 1.2.4 lacks OIDN_DEVICE_TYPE_CUDA and oidnGetBufferData."
+      ],
+      "release": "1.5.0.0",
+      "year": "cy2023"
+    },
+    {
+      "id": "cy2024-moonray-2.34.0.1",
+      "image_versions": {
+        "boost": "1.82.0",
+        "cpython": "3.11.15",
+        "log4cplus": "2.1.2",
+        "lua": "5.4.4",
+        "materialx": "1.39.1",
+        "moonray": "3.6.0.1",
+        "onetbb": "2020.3",
+        "opencolorio": "2.3.2",
+        "openexr": "3.2.10",
+        "openimagedenoise": "1.2.4",
+        "openimageio": "2.5.19.1",
+        "opensubdiv": "3.6.1",
+        "openusd": "24.08"
+      },
+      "intent": "experimental",
+      "native_versions": {
+        "onetbb": "2020.3.3",
+        "opencolorio": "2.2.1",
+        "openexr": "3.1.8",
+        "openimagedenoise": "2.3.3",
+        "openimageio": "2.4.8.0",
+        "opensubdiv": "3_5_0",
+        "openusd": "23.08"
+      },
+      "observed": {
+        "finding": "Build reached mcrt_denoise and failed because OIDN 1.2.4 lacks OIDN_DEVICE_TYPE_CUDA and oidnGetBufferData.",
+        "mode": "supplemented",
+        "outcome": "verified-failure",
+        "run_id": 31375682002
+      },
+      "outcome": "verified-failure",
+      "reasons": [
+        "Build reached mcrt_denoise and failed because OIDN 1.2.4 lacks OIDN_DEVICE_TYPE_CUDA and oidnGetBufferData."
+      ],
+      "release": "2.34.0.1",
+      "year": "cy2024"
+    },
+    {
+      "id": "cy2025-moonray-2.34.0.1",
+      "image_versions": {
+        "boost": "1.85.0",
+        "cpython": "3.11.15",
+        "log4cplus": "2.1.2",
+        "lua": "5.4.4",
+        "materialx": "1.39.3",
+        "moonray": "3.6.0.1",
+        "onetbb": "2021.13.0",
+        "opencolorio": "2.4.2",
+        "openexr": "3.3.12",
+        "openimagedenoise": "2.3.3",
+        "openimageio": "3.1.6.2",
+        "opensubdiv": "3.6.1",
+        "openusd": "25.05.01"
+      },
+      "intent": "experimental",
+      "native_versions": {
+        "onetbb": "2020.3.3",
+        "opencolorio": "2.2.1",
+        "openexr": "3.1.8",
+        "openimagedenoise": "2.3.3",
+        "openimageio": "2.4.8.0",
+        "opensubdiv": "3_5_0",
+        "openusd": "23.08"
+      },
+      "observed": {
+        "digest": "sha256:d7e3fa78882b68591d67d745bfb350912d363d7c7b77c74b5e0bb5f185f40dc8",
+        "finding": "Build, install, four-plugin validation, usdrecord discovery, publication and anonymous digest verification succeeded.",
+        "mode": "supplemented",
+        "outcome": "verified-success",
+        "run_id": 31378688698
+      },
+      "outcome": "verified-success",
+      "reasons": [
+        "Build, install, four-plugin validation, usdrecord discovery, publication and anonymous digest verification succeeded."
+      ],
+      "release": "2.34.0.1",
+      "year": "cy2025"
+    },
+    {
+      "id": "cy2023-moonray-3.6.0.1",
+      "image_versions": {
+        "boost": "1.80.0",
+        "cpython": "3.10.20",
+        "log4cplus": "2.1.2",
+        "lua": "5.4.4",
+        "materialx": "1.38.7",
+        "moonray": "3.6.0.1",
+        "onetbb": "2020.3",
+        "opencolorio": "2.2.1",
+        "openexr": "3.1.13",
+        "openimagedenoise": "1.2.4",
+        "openimageio": "2.4.17.0",
+        "opensubdiv": "3.5.1",
+        "openusd": "23.08"
+      },
+      "intent": "image-intended",
+      "native_versions": {
+        "onetbb": "2020.3.3",
+        "opencolorio": "2.2.1",
+        "openexr": "3.1.8",
+        "openimagedenoise": "2.3.3",
+        "openimageio": "2.4.8.0",
+        "opensubdiv": "3_5_0",
+        "openusd": "23.08"
+      },
+      "observed": null,
+      "outcome": "do-not-run",
+      "reasons": [
+        "OIDN API family differs: native 2.3.3, image 1.2.4."
+      ],
+      "release": "3.6.0.1",
+      "year": "cy2023"
+    },
+    {
+      "id": "cy2024-moonray-3.6.0.1",
+      "image_versions": {
+        "boost": "1.82.0",
+        "cpython": "3.11.15",
+        "log4cplus": "2.1.2",
+        "lua": "5.4.4",
+        "materialx": "1.39.1",
+        "moonray": "3.6.0.1",
+        "onetbb": "2020.3",
+        "opencolorio": "2.3.2",
+        "openexr": "3.2.10",
+        "openimagedenoise": "1.2.4",
+        "openimageio": "2.5.19.1",
+        "opensubdiv": "3.6.1",
+        "openusd": "24.08"
+      },
+      "intent": "image-intended",
+      "native_versions": {
+        "onetbb": "2020.3.3",
+        "opencolorio": "2.2.1",
+        "openexr": "3.1.8",
+        "openimagedenoise": "2.3.3",
+        "openimageio": "2.4.8.0",
+        "opensubdiv": "3_5_0",
+        "openusd": "23.08"
+      },
+      "observed": null,
+      "outcome": "do-not-run",
+      "reasons": [
+        "OIDN API family differs: native 2.3.3, image 1.2.4."
+      ],
+      "release": "3.6.0.1",
+      "year": "cy2024"
+    },
+    {
+      "id": "cy2025-moonray-3.6.0.1",
+      "image_versions": {
+        "boost": "1.85.0",
+        "cpython": "3.11.15",
+        "log4cplus": "2.1.2",
+        "lua": "5.4.4",
+        "materialx": "1.39.3",
+        "moonray": "3.6.0.1",
+        "onetbb": "2021.13.0",
+        "opencolorio": "2.4.2",
+        "openexr": "3.3.12",
+        "openimagedenoise": "2.3.3",
+        "openimageio": "3.1.6.2",
+        "opensubdiv": "3.6.1",
+        "openusd": "25.05.01"
+      },
+      "intent": "image-intended",
+      "native_versions": {
+        "onetbb": "2020.3.3",
+        "opencolorio": "2.2.1",
+        "openexr": "3.1.8",
+        "openimagedenoise": "2.3.3",
+        "openimageio": "2.4.8.0",
+        "opensubdiv": "3_5_0",
+        "openusd": "23.08"
+      },
+      "observed": null,
+      "outcome": "run-plausible",
+      "reasons": [
+        "No known hard API conflict was found; dependency versions are not an exact native match."
+      ],
+      "release": "3.6.0.1",
+      "year": "cy2025"
+    },
+    {
+      "id": "cy2026-moonray-3.6.0.1",
+      "image_versions": {
+        "boost": "1.88.0",
+        "cpython": "3.13.14",
+        "log4cplus": "2.1.2",
+        "lua": "5.4.4",
+        "materialx": "1.39.4",
+        "moonray": "3.6.0.1",
+        "onetbb": "2022.1.0",
+        "opencolorio": "2.5.2",
+        "openexr": "3.4.13",
+        "openimagedenoise": "2.3.3",
+        "openimageio": "3.1.14.1",
+        "opensubdiv": "3.7.0",
+        "openusd": "26.03"
+      },
+      "intent": "image-intended",
+      "native_versions": {
+        "onetbb": "2020.3.3",
+        "opencolorio": "2.2.1",
+        "openexr": "3.1.8",
+        "openimagedenoise": "2.3.3",
+        "openimageio": "2.4.8.0",
+        "opensubdiv": "3_5_0",
+        "openusd": "23.08"
+      },
+      "observed": null,
+      "outcome": "do-not-run",
+      "reasons": [
+        "OpenUSD 26.03 removes legacy NDR APIs used by the pinned shader plugins."
+      ],
+      "release": "3.6.0.1",
+      "year": "cy2026"
+    },
+    {
+      "id": "cy2027-moonray-3.6.0.1",
+      "image_versions": {
+        "boost": "1.91.0",
+        "cpython": "3.13.14",
+        "log4cplus": "2.1.2",
+        "lua": "5.4.4",
+        "materialx": "1.39.5",
+        "moonray": "3.6.0.1",
+        "onetbb": "2023.0.0",
+        "opencolorio": "2.5.2",
+        "openexr": "3.4.13",
+        "openimagedenoise": "2.3.3",
+        "openimageio": "3.1.14.1",
+        "opensubdiv": "3.7.0",
+        "openusd": "26.05"
+      },
+      "intent": "image-intended",
+      "native_versions": {
+        "onetbb": "2020.3.3",
+        "opencolorio": "2.2.1",
+        "openexr": "3.1.8",
+        "openimagedenoise": "2.3.3",
+        "openimageio": "2.4.8.0",
+        "opensubdiv": "3_5_0",
+        "openusd": "23.08"
+      },
+      "observed": null,
+      "outcome": "do-not-run",
+      "reasons": [
+        "OpenUSD 26.05 removes legacy NDR APIs used by the pinned shader plugins."
+      ],
+      "release": "3.6.0.1",
+      "year": "cy2027"
+    }
+  ],
+  "images": {
+    "cy2023": {
+      "commit": "b609d8678559c4c1d73ed9683809ae588000a0d8",
+      "compiler": "gcc11",
+      "cxx_standard": "17",
+      "digest": "sha256:7273f5029fa7f6c481e1d0b4d2e85dbeb25718f60ce27bc3834b2be2f1a51c94",
+      "git_ref": "aswf/ci-moonray/2023.4",
+      "image": "aswf/ci-moonray:2023.4",
+      "profile": "vfx2023",
+      "python": "3.10",
+      "sources": [
+        "aswf/ci-moonray/2023.4:packages/conan/settings/profiles/vfx2023",
+        "aswf/ci-moonray/2023.4:packages/conan/recipes/moonray/conanfile.py",
+        "aswf/ci-moonray/2023.4:ci-moonray/image.yaml"
+      ],
+      "versions": {
+        "boost": "1.80.0",
+        "cpython": "3.10.20",
+        "log4cplus": "2.1.2",
+        "lua": "5.4.4",
+        "materialx": "1.38.7",
+        "moonray": "3.6.0.1",
+        "onetbb": "2020.3",
+        "opencolorio": "2.2.1",
+        "openexr": "3.1.13",
+        "openimagedenoise": "1.2.4",
+        "openimageio": "2.4.17.0",
+        "opensubdiv": "3.5.1",
+        "openusd": "23.08"
+      }
+    },
+    "cy2024": {
+      "commit": "b609d8678559c4c1d73ed9683809ae588000a0d8",
+      "compiler": "gcc11",
+      "cxx_standard": "17",
+      "digest": "sha256:5547d18c9c6f14a175fa58f8b4ceab6e49bcef89f98e63bb147526bb7fad45f4",
+      "git_ref": "aswf/ci-moonray/2024.8",
+      "image": "aswf/ci-moonray:2024.8",
+      "profile": "vfx2024",
+      "python": "3.11",
+      "sources": [
+        "aswf/ci-moonray/2024.8:packages/conan/settings/profiles/vfx2024",
+        "aswf/ci-moonray/2024.8:packages/conan/recipes/moonray/conanfile.py",
+        "aswf/ci-moonray/2024.8:ci-moonray/image.yaml"
+      ],
+      "versions": {
+        "boost": "1.82.0",
+        "cpython": "3.11.15",
+        "log4cplus": "2.1.2",
+        "lua": "5.4.4",
+        "materialx": "1.39.1",
+        "moonray": "3.6.0.1",
+        "onetbb": "2020.3",
+        "opencolorio": "2.3.2",
+        "openexr": "3.2.10",
+        "openimagedenoise": "1.2.4",
+        "openimageio": "2.5.19.1",
+        "opensubdiv": "3.6.1",
+        "openusd": "24.08"
+      }
+    },
+    "cy2025": {
+      "commit": "b609d8678559c4c1d73ed9683809ae588000a0d8",
+      "compiler": "gcc11",
+      "cxx_standard": "17",
+      "digest": "sha256:0a6fd225c6a58b673d980c5d8503bb8a35a122006b9274428911374a3bc5dead",
+      "git_ref": "aswf/ci-moonray/2025.7",
+      "image": "aswf/ci-moonray:2025.7",
+      "profile": "vfx2025",
+      "python": "3.11",
+      "sources": [
+        "aswf/ci-moonray/2025.7:packages/conan/settings/profiles/vfx2025",
+        "aswf/ci-moonray/2025.7:packages/conan/recipes/moonray/conanfile.py",
+        "aswf/ci-moonray/2025.7:ci-moonray/image.yaml"
+      ],
+      "versions": {
+        "boost": "1.85.0",
+        "cpython": "3.11.15",
+        "log4cplus": "2.1.2",
+        "lua": "5.4.4",
+        "materialx": "1.39.3",
+        "moonray": "3.6.0.1",
+        "onetbb": "2021.13.0",
+        "opencolorio": "2.4.2",
+        "openexr": "3.3.12",
+        "openimagedenoise": "2.3.3",
+        "openimageio": "3.1.6.2",
+        "opensubdiv": "3.6.1",
+        "openusd": "25.05.01"
+      }
+    },
+    "cy2026": {
+      "commit": "b609d8678559c4c1d73ed9683809ae588000a0d8",
+      "compiler": "gcc14",
+      "cxx_standard": "20",
+      "digest": "sha256:0820df619ada2b7e07f8c5fcc28dda5bdb5408508f21a8273d05dc56a08a8fd9",
+      "git_ref": "aswf/ci-moonray/2026.5",
+      "image": "aswf/ci-moonray:2026.5",
+      "profile": "vfx2026",
+      "python": "3.13",
+      "sources": [
+        "aswf/ci-moonray/2026.5:packages/conan/settings/profiles/vfx2026",
+        "aswf/ci-moonray/2026.5:packages/conan/recipes/moonray/conanfile.py",
+        "aswf/ci-moonray/2026.5:ci-moonray/image.yaml"
+      ],
+      "versions": {
+        "boost": "1.88.0",
+        "cpython": "3.13.14",
+        "log4cplus": "2.1.2",
+        "lua": "5.4.4",
+        "materialx": "1.39.4",
+        "moonray": "3.6.0.1",
+        "onetbb": "2022.1.0",
+        "opencolorio": "2.5.2",
+        "openexr": "3.4.13",
+        "openimagedenoise": "2.3.3",
+        "openimageio": "3.1.14.1",
+        "opensubdiv": "3.7.0",
+        "openusd": "26.03"
+      }
+    },
+    "cy2027": {
+      "commit": "b609d8678559c4c1d73ed9683809ae588000a0d8",
+      "compiler": "gcc14",
+      "cxx_standard": "20",
+      "digest": "sha256:e557d2c2d2fa80cd4bc6c3509693020472842fbd187df9c60b8dc0eb5ccb8aae",
+      "git_ref": "aswf/ci-moonray/2027.0",
+      "image": "aswf/ci-moonray:2027.0",
+      "profile": "vfx2027",
+      "python": "3.13",
+      "sources": [
+        "aswf/ci-moonray/2027.0:packages/conan/settings/profiles/vfx2027",
+        "aswf/ci-moonray/2027.0:packages/conan/recipes/moonray/conanfile.py",
+        "aswf/ci-moonray/2027.0:ci-moonray/image.yaml"
+      ],
+      "versions": {
+        "boost": "1.91.0",
+        "cpython": "3.13.14",
+        "log4cplus": "2.1.2",
+        "lua": "5.4.4",
+        "materialx": "1.39.5",
+        "moonray": "3.6.0.1",
+        "onetbb": "2023.0.0",
+        "opencolorio": "2.5.2",
+        "openexr": "3.4.13",
+        "openimagedenoise": "2.3.3",
+        "openimageio": "3.1.14.1",
+        "opensubdiv": "3.7.0",
+        "openusd": "26.05"
+      }
+    }
+  },
+  "policy": {
+    "dispatch_requires_human_review": true,
+    "source_patches_allowed": false
+  },
+  "releases": {
+    "1.5.0.0": {
+      "external_projects": [
+        {
+          "git_tag": "5defb4ed1a4293b8e2bf641e16b156fb9de498cc",
+          "name": "JsonCpp",
+          "repository": "https://github.com/open-source-parsers/jsoncpp.git",
+          "version": "1.9.5"
+        },
+        {
+          "git_tag": "8ffa2b6566be10209529d7a0d1db02a0796b160c",
+          "name": "OpenSubdiv",
+          "repository": "https://github.com/PixarAnimationStudios/OpenSubdiv",
+          "version": "3_5_0"
+        },
+        {
+          "git_tag": "8bc3741131db146ad08a5b83af9e6e48f0e94a03",
+          "name": "OpenEXR",
+          "repository": "https://github.com/AcademySoftwareFoundation/openexr",
+          "version": "2.5.7"
+        },
+        {
+          "git_tag": "726a093cd9a73f3ec3c8d7a70ff10ed8efec8d13",
+          "name": "Random123",
+          "repository": "https://github.com/DEShawResearch/random123",
+          "version": "1.14.0"
+        },
+        {
+          "name": "ISPC",
+          "url": "https://github.com/ispc/ispc/releases/download/v1.20.0/ispc-v1.20.0-linux.tar.gz",
+          "version": "1.20.0"
+        },
+        {
+          "git_tag": "341ef8c45d1ae072ead1ab65cd76e88b03d9302c",
+          "name": "embree",
+          "repository": "https://github.com/embree/embree",
+          "version": "4.2.0"
+        },
+        {
+          "git_tag": "056b7b0cb0d087961e9dba75104820e44faf52a1",
+          "name": "OpenColorIO",
+          "repository": "https://github.com/AcademySoftwareFoundation/OpenColorIO",
+          "version": "2.0.2"
+        },
+        {
+          "git_tag": "331a323468928c8017ad048b26d47c4e57a724a7",
+          "name": "OpenImageIO",
+          "repository": "https://github.com/OpenImageIO/oiio",
+          "version": "2.3.20.0"
+        },
+        {
+          "name": "OpenImageDenoise",
+          "url": "https://github.com/OpenImageDenoise/oidn/releases/download/v2.0.1/oidn-2.0.1.src.tar.gz",
+          "version": "2.0.1"
+        },
+        {
+          "git_tag": "0c7b9a95f155c221ff7df9270a39a52e3b23af8b",
+          "name": "USD",
+          "repository": "https://github.com/PixarAnimationStudios/USD",
+          "version": "22.11"
+        }
+      ],
+      "legacy_ndr_plugins": true,
+      "native_versions": {
+        "opencolorio": "2.0.2",
+        "openexr": "2.5.7",
+        "openimagedenoise": "2.0.1",
+        "openimageio": "2.3.20.0",
+        "opensubdiv": "3_5_0",
+        "openusd": "22.11"
+      },
+      "os_packages": [
+        {
+          "command": "dnf install -y epel-release",
+          "version_note": ""
+        },
+        {
+          "command": "dnf install -y cuda-runtime-11-8 cuda-toolkit-11-8",
+          "version_note": ""
+        },
+        {
+          "command": "dnf install -y libglvnd-devel",
+          "version_note": ""
+        },
+        {
+          "command": "dnf install -y gcc gcc-c++",
+          "version_note": ""
+        },
+        {
+          "command": "dnf install -y bison flex wget git python3 python3-devel patch \\",
+          "version_note": ""
+        },
+        {
+          "command": "dnf install -y lsb_release",
+          "version_note": ""
+        },
+        {
+          "command": "dnf install libcgroup-0.42.2-5.el9.x86_64.rpm -y",
+          "version_note": ""
+        },
+        {
+          "command": "dnf install libcgroup-devel-0.42.2-5.el9.x86_64.rpm -y",
+          "version_note": ""
+        },
+        {
+          "command": "dnf install -y blosc blosc-devel",
+          "version_note": "1.21.2"
+        },
+        {
+          "command": "dnf install -y boost boost-chrono boost-date-time boost-filesystem boost-python3 boost-program-options boost-regex boost-thread boost-system boost-devel",
+          "version_note": "1.75.0"
+        },
+        {
+          "command": "dnf install -y lua lua-libs lua-devel",
+          "version_note": "5.4.4"
+        },
+        {
+          "command": "dnf install -y openvdb openvdb-libs openvdb-devel",
+          "version_note": "9.1.0"
+        },
+        {
+          "command": "dnf install -y tbb tbb-devel python3-tbb",
+          "version_note": "2020.3"
+        },
+        {
+          "command": "dnf install -y log4cplus log4cplus-devel",
+          "version_note": "2.0.5"
+        },
+        {
+          "command": "dnf install -y cppunit cppunit-devel",
+          "version_note": "1.15.1"
+        },
+        {
+          "command": "dnf install -y libmicrohttpd libmicrohttpd-devel",
+          "version_note": "0.9.72"
+        },
+        {
+          "command": "dnf install -y qt5-qtbase-devel qt5-qtscript-devel",
+          "version_note": ""
+        }
+      ],
+      "ref": "05bc5eb926d89ffc4f6a609e70f7a08dee032d8c",
+      "sources": [
+        "05bc5eb926d89ffc4f6a609e70f7a08dee032d8c:building/Rocky9/CMakeLists.txt",
+        "05bc5eb926d89ffc4f6a609e70f7a08dee032d8c:building/Rocky9/install_packages.sh"
+      ],
+      "submodules": [
+        "160000 commit d21f0df74f29b430fa3acbee896cdb4158eb47ba\tarras/arras4_core",
+        "160000 commit 53c94601d52e9329b150361698a783ad7becfdb8\tarras/arras_render",
+        "160000 commit 1e67fd509658e74f4f1f6fc6e424ced6d14a6a24\tarras/distributed/arras4_node",
+        "160000 commit 50fedd55c8b5afe7cdbd0a9dd12b91e92bfa7ce4\tarras/distributed/minicoord",
+        "160000 commit 107e041970eee4266712a779668d40d3959d4ed1\tcmake_modules",
+        "160000 commit c2c015bb3a15ee54a10abed1dcb94d4e5c774505\tmoonray/hydra/hdMoonray",
+        "160000 commit e432e549257009c34acfceb4e890382fb5a46080\tmoonray/hydra/moonray_sdr_plugins",
+        "160000 commit 921858f675309d1c78b46d189245cd88c66a9068\tmoonray/mcrt_denoise",
+        "160000 commit 002fe4648daa21609f4a0eacd05797cfc90c4e29\tmoonray/moonray",
+        "160000 commit 498007ee347005fc06479ee7424d8f062e2f119e\tmoonray/moonray_arras/mcrt_computation",
+        "160000 commit d6dab1844c8cbde40e34e7f79b93c8308f4106c1\tmoonray/moonray_arras/mcrt_dataio",
+        "160000 commit bc5335ae5d88f1b03bd53fa0d3bb49a7fd9ea274\tmoonray/moonray_arras/mcrt_messages",
+        "160000 commit 3c150d1a38b118153de3ba2c44a16e188db96a0a\tmoonray/moonray_dcc_plugins",
+        "160000 commit aa9cd1592185030524884183f4db3e6dedf6149e\tmoonray/moonray_gui",
+        "160000 commit 4e742cfe922674006248e0a6f3e48e11ea7e434a\tmoonray/moonshine",
+        "160000 commit 230178f01e25fd7e1c9599c6bb14e0f80fbbae1f\tmoonray/moonshine_usd",
+        "160000 commit fd3f488b672d077338e339eb0d4070093c32dfc8\tmoonray/render_profile_viewer",
+        "160000 commit 098877b520d19753929e7f3ecf2330328dfa3dd2\tmoonray/scene_rdl2"
+      ],
+      "tag": "openmoonray-1.5.0.0"
+    },
+    "2.34.0.1": {
+      "external_projects": [
+        {
+          "git_tag": "5defb4ed1a4293b8e2bf641e16b156fb9de498cc",
+          "name": "JsonCpp",
+          "repository": "https://github.com/open-source-parsers/jsoncpp.git",
+          "version": "1.9.5"
+        },
+        {
+          "git_tag": "8ffa2b6566be10209529d7a0d1db02a0796b160c",
+          "name": "OpenSubdiv",
+          "repository": "https://github.com/PixarAnimationStudios/OpenSubdiv",
+          "version": "3_5_0"
+        },
+        {
+          "git_tag": "68d9e1e17620cef00e59b43fa42c97fbcf90e72b",
+          "name": "OpenEXR",
+          "repository": "https://github.com/AcademySoftwareFoundation/openexr",
+          "version": "3.1.8"
+        },
+        {
+          "git_tag": "726a093cd9a73f3ec3c8d7a70ff10ed8efec8d13",
+          "name": "Random123",
+          "repository": "https://github.com/DEShawResearch/random123",
+          "version": "1.14.0"
+        },
+        {
+          "name": "ISPC",
+          "url": "https://github.com/ispc/ispc/releases/download/v1.21.0/ispc-v1.21.0-linux.tar.gz",
+          "version": "1.21.0"
+        },
+        {
+          "git_tag": "341ef8c45d1ae072ead1ab65cd76e88b03d9302c",
+          "name": "embree",
+          "repository": "https://github.com/embree/embree",
+          "version": "4.2.0"
+        },
+        {
+          "git_tag": "d1ef24cbf8021f642e42f45f50c2cd4cc77141ce",
+          "name": "OpenColorIO",
+          "repository": "https://github.com/AcademySoftwareFoundation/OpenColorIO",
+          "version": "2.2.1"
+        },
+        {
+          "git_tag": "4991ac482e09bd8feff9ad7d984271cfdc315bff",
+          "name": "OpenImageIO",
+          "repository": "https://github.com/OpenImageIO/oiio",
+          "version": "2.4.8.0"
+        },
+        {
+          "name": "TBB",
+          "url": "https://github.com/oneapi-src/oneTBB/archive/refs/tags/v2020.3.3.tar.gz",
+          "version": "2020.3.3"
+        },
+        {
+          "name": "OpenImageDenoise",
+          "url": "https://github.com/OpenImageDenoise/oidn/releases/download/v2.3.3/oidn-2.3.3.src.tar.gz",
+          "version": "2.3.3"
+        },
+        {
+          "git_tag": "10b62439e9242a55101cf8b200f2c7e02420e1b0",
+          "name": "USD",
+          "repository": "https://github.com/PixarAnimationStudios/USD",
+          "version": "23.08"
+        }
+      ],
+      "legacy_ndr_plugins": true,
+      "native_versions": {
+        "onetbb": "2020.3.3",
+        "opencolorio": "2.2.1",
+        "openexr": "3.1.8",
+        "openimagedenoise": "2.3.3",
+        "openimageio": "2.4.8.0",
+        "opensubdiv": "3_5_0",
+        "openusd": "23.08"
+      },
+      "os_packages": [
+        {
+          "command": "dnf install -y git",
+          "version_note": ""
+        },
+        {
+          "command": "dnf install -y git-lfs",
+          "version_note": ""
+        },
+        {
+          "command": "dnf install -y epel-release",
+          "version_note": ""
+        },
+        {
+          "command": "dnf install -y cuda-runtime-11-8 cuda-toolkit-11-8",
+          "version_note": ""
+        },
+        {
+          "command": "dnf install -y libglvnd-devel",
+          "version_note": ""
+        },
+        {
+          "command": "dnf install -y gcc gcc-c++",
+          "version_note": ""
+        },
+        {
+          "command": "dnf install -y bison flex wget python3 python3-devel pybind11-devel patch \\",
+          "version_note": ""
+        },
+        {
+          "command": "dnf install -y lsb_release",
+          "version_note": ""
+        },
+        {
+          "command": "dnf install libcgroup-0.42.2-5.el9.x86_64.rpm -y",
+          "version_note": ""
+        },
+        {
+          "command": "dnf install libcgroup-devel-0.42.2-5.el9.x86_64.rpm -y",
+          "version_note": ""
+        },
+        {
+          "command": "dnf install -y blosc blosc-devel",
+          "version_note": "1.21.2"
+        },
+        {
+          "command": "dnf install -y boost boost-chrono boost-date-time boost-filesystem boost-python3 boost-program-options boost-regex boost-thread boost-system boost-devel",
+          "version_note": "1.75.0"
+        },
+        {
+          "command": "dnf install -y lua lua-libs lua-devel",
+          "version_note": "5.4.4"
+        },
+        {
+          "command": "dnf install -y openvdb openvdb-libs openvdb-devel",
+          "version_note": "9.1.0"
+        },
+        {
+          "command": "dnf install -y tbb tbb-devel python3-tbb",
+          "version_note": "2020.3"
+        },
+        {
+          "command": "dnf install -y log4cplus log4cplus-devel",
+          "version_note": "2.0.5"
+        },
+        {
+          "command": "dnf install -y cppunit cppunit-devel",
+          "version_note": "1.15.1"
+        },
+        {
+          "command": "dnf install -y libmicrohttpd libmicrohttpd-devel",
+          "version_note": "0.9.72"
+        },
+        {
+          "command": "dnf install -y qt5-qtbase-devel qt5-qtscript-devel",
+          "version_note": ""
+        }
+      ],
+      "ref": "6174812ea24e2724784c8c34d402ca466ebec14c",
+      "sources": [
+        "6174812ea24e2724784c8c34d402ca466ebec14c:building/Rocky9/CMakeLists.txt",
+        "6174812ea24e2724784c8c34d402ca466ebec14c:building/Rocky9/install_packages.sh"
+      ],
+      "submodules": [
+        "160000 commit 92bd84158ac8cd0a725c047a4ccfe0cc3c95daab\tarras/arras4_core",
+        "160000 commit b95cb3a8a5cb8a098d792b0e3498e89ff2bebe18\tarras/arras_render",
+        "160000 commit 3b5e40d60db77053c61804928052e6e1ecea5486\tarras/distributed/arras4_node",
+        "160000 commit a9e677ec2d91d22acf529848b4eb44e2d78853e6\tarras/distributed/minicoord",
+        "160000 commit 63b26f05a1bb9854e977d04bcf3c0c50041689a3\tcmake_modules",
+        "160000 commit 7a0d7b340ebb07e73edb82784be08618edb6c705\tmoonray/hydra/hdMoonray",
+        "160000 commit 77a0ed6dd3ff9389d46d0ca9e3471a56335b875a\tmoonray/hydra/moonray_sdr_plugins",
+        "160000 commit bc826e2065c31fad5d4710ff46f28428770065ce\tmoonray/mcrt_denoise",
+        "160000 commit 809fe03dac96885d37e7e7b3ee6fc9b4dcb81a89\tmoonray/moonray",
+        "160000 commit f5cfb15e6f3d13295dff057229b726323306a0fd\tmoonray/moonray_arras/mcrt_computation",
+        "160000 commit 0fcb570a62626272378743de601c82866d4c6195\tmoonray/moonray_arras/mcrt_dataio",
+        "160000 commit 3012e096ab8cdc8aa7581cdf07de18f20c5d6b11\tmoonray/moonray_arras/mcrt_messages",
+        "160000 commit 0afcb038a901c8c9803243115074a602db950892\tmoonray/moonray_dcc_plugins",
+        "160000 commit 6ba0711886627ed72e74679a017546d896c51ddf\tmoonray/moonray_gui",
+        "160000 commit d6e559317ea9ee2863567409e6f35a65da0fe0b8\tmoonray/moonshine",
+        "160000 commit 777b60491e46bf57254ad2042efab5daf58f6a07\tmoonray/moonshine_usd",
+        "160000 commit 0882c3532219a604e80b83a804ceccc698d12876\tmoonray/render_profile_viewer",
+        "160000 commit 8fdd3fce9c62c7a3e9f141ebbad0d71dae97e049\tmoonray/scene_rdl2",
+        "160000 commit f3d72ebae4e0395f475d35b7e6db640d975d5c18\trats"
+      ],
+      "tag": "openmoonray-2.34.0.1"
+    },
+    "3.6.0.1": {
+      "external_projects": [
+        {
+          "git_tag": "5defb4ed1a4293b8e2bf641e16b156fb9de498cc",
+          "name": "JsonCpp",
+          "repository": "https://github.com/open-source-parsers/jsoncpp.git",
+          "version": "1.9.5"
+        },
+        {
+          "git_tag": "8ffa2b6566be10209529d7a0d1db02a0796b160c",
+          "name": "OpenSubdiv",
+          "repository": "https://github.com/PixarAnimationStudios/OpenSubdiv",
+          "version": "3_5_0"
+        },
+        {
+          "git_tag": "68d9e1e17620cef00e59b43fa42c97fbcf90e72b",
+          "name": "OpenEXR",
+          "repository": "https://github.com/AcademySoftwareFoundation/openexr",
+          "version": "3.1.8"
+        },
+        {
+          "git_tag": "726a093cd9a73f3ec3c8d7a70ff10ed8efec8d13",
+          "name": "Random123",
+          "repository": "https://github.com/DEShawResearch/random123",
+          "version": "1.14.0"
+        },
+        {
+          "name": "ISPC",
+          "url": "https://github.com/ispc/ispc/releases/download/v1.21.0/ispc-v1.21.0-linux.tar.gz",
+          "version": "1.21.0"
+        },
+        {
+          "git_tag": "341ef8c45d1ae072ead1ab65cd76e88b03d9302c",
+          "name": "embree",
+          "repository": "https://github.com/embree/embree",
+          "version": "4.2.0"
+        },
+        {
+          "git_tag": "d1ef24cbf8021f642e42f45f50c2cd4cc77141ce",
+          "name": "OpenColorIO",
+          "repository": "https://github.com/AcademySoftwareFoundation/OpenColorIO",
+          "version": "2.2.1"
+        },
+        {
+          "git_tag": "4991ac482e09bd8feff9ad7d984271cfdc315bff",
+          "name": "OpenImageIO",
+          "repository": "https://github.com/OpenImageIO/oiio",
+          "version": "2.4.8.0"
+        },
+        {
+          "name": "TBB",
+          "url": "https://github.com/oneapi-src/oneTBB/archive/refs/tags/v2020.3.3.tar.gz",
+          "version": "2020.3.3"
+        },
+        {
+          "name": "OpenImageDenoise",
+          "url": "https://github.com/OpenImageDenoise/oidn/releases/download/v2.3.3/oidn-2.3.3.src.tar.gz",
+          "version": "2.3.3"
+        },
+        {
+          "git_tag": "10b62439e9242a55101cf8b200f2c7e02420e1b0",
+          "name": "USD",
+          "repository": "https://github.com/PixarAnimationStudios/USD",
+          "version": "23.08"
+        },
+        {
+          "git_tag": "3.4",
+          "name": "GLFW",
+          "repository": "https://github.com/glfw/glfw"
+        },
+        {
+          "git_tag": "v7.6.0",
+          "name": "OptiXHeaders",
+          "repository": "https://github.com/NVIDIA/optix-dev"
+        }
+      ],
+      "legacy_ndr_plugins": true,
+      "native_versions": {
+        "onetbb": "2020.3.3",
+        "opencolorio": "2.2.1",
+        "openexr": "3.1.8",
+        "openimagedenoise": "2.3.3",
+        "openimageio": "2.4.8.0",
+        "opensubdiv": "3_5_0",
+        "openusd": "23.08"
+      },
+      "os_packages": [
+        {
+          "command": "dnf install -y git",
+          "version_note": ""
+        },
+        {
+          "command": "dnf install -y git-lfs",
+          "version_note": ""
+        },
+        {
+          "command": "dnf install -y epel-release",
+          "version_note": ""
+        },
+        {
+          "command": "dnf install -y cuda-runtime-11-8 cuda-toolkit-11-8",
+          "version_note": ""
+        },
+        {
+          "command": "dnf install -y libglvnd-devel",
+          "version_note": ""
+        },
+        {
+          "command": "dnf install -y gcc gcc-c++",
+          "version_note": ""
+        },
+        {
+          "command": "dnf install -y bison flex wget python3 python3-devel pybind11-devel patch \\",
+          "version_note": ""
+        },
+        {
+          "command": "dnf install -y lsb_release",
+          "version_note": ""
+        },
+        {
+          "command": "dnf install -y wayland-devel libxkbcommon-devel wayland-protocols-devel \\",
+          "version_note": ""
+        },
+        {
+          "command": "dnf install libcgroup-0.42.2-5.el9.x86_64.rpm -y",
+          "version_note": ""
+        },
+        {
+          "command": "dnf install libcgroup-devel-0.42.2-5.el9.x86_64.rpm -y",
+          "version_note": ""
+        },
+        {
+          "command": "dnf install -y blosc blosc-devel",
+          "version_note": "1.21.2"
+        },
+        {
+          "command": "dnf install -y boost boost-chrono boost-date-time boost-filesystem boost-python3 boost-program-options boost-regex boost-thread boost-system boost-devel",
+          "version_note": "1.75.0"
+        },
+        {
+          "command": "dnf install -y lua lua-libs lua-devel",
+          "version_note": "5.4.4"
+        },
+        {
+          "command": "dnf install -y openvdb openvdb-libs openvdb-devel",
+          "version_note": "9.1.0"
+        },
+        {
+          "command": "dnf install -y tbb tbb-devel python3-tbb",
+          "version_note": "2020.3"
+        },
+        {
+          "command": "dnf install -y log4cplus log4cplus-devel",
+          "version_note": "2.0.5"
+        },
+        {
+          "command": "dnf install -y cppunit cppunit-devel",
+          "version_note": "1.15.1"
+        },
+        {
+          "command": "dnf install -y libmicrohttpd libmicrohttpd-devel",
+          "version_note": "0.9.72"
+        },
+        {
+          "command": "dnf install -y qt5-qtbase-devel qt5-qtscript-devel",
+          "version_note": ""
+        }
+      ],
+      "ref": "2efc058fadf5b8c1eae3870463a0fafb14315c99",
+      "sources": [
+        "2efc058fadf5b8c1eae3870463a0fafb14315c99:building/Rocky9/CMakeLists.txt",
+        "2efc058fadf5b8c1eae3870463a0fafb14315c99:building/Rocky9/install_packages.sh"
+      ],
+      "submodules": [
+        "160000 commit 67803efe59fa3ca0012cefe6a4a6ff87fb5ee2dc\tarras/arras4_core",
+        "160000 commit ac41d1510936fab8013d77b2cf3aac0ebd97aef0\tarras/arras_render",
+        "160000 commit 3196cb1f158d0f45a49b01d118c4b54838d9039e\tarras/distributed/arras4_node",
+        "160000 commit a9e677ec2d91d22acf529848b4eb44e2d78853e6\tarras/distributed/minicoord",
+        "160000 commit 066c4cc6b1aba719b03ed39720a6fe82f94a958c\tcmake_modules",
+        "160000 commit 6366b993e276708ee4289e236fccef47f3b89d30\tmoonray/hydra/hdMoonray",
+        "160000 commit 77a0ed6dd3ff9389d46d0ca9e3471a56335b875a\tmoonray/hydra/moonray_sdr_plugins",
+        "160000 commit e6a61476d44055090ae2b1b0e1770e436e718b1c\tmoonray/mcrt_denoise",
+        "160000 commit 2343dde0bae2f70141b1004371282405e2d82215\tmoonray/moonray",
+        "160000 commit b079fba57a5c8ff25f9f27638baef81173f91f0b\tmoonray/moonray_arras/mcrt_computation",
+        "160000 commit 90fd490429b5b238e44ec04d5364efc61d114022\tmoonray/moonray_arras/mcrt_dataio",
+        "160000 commit 72f7af37576d4ce85d7930d83860200e5d3e752f\tmoonray/moonray_arras/mcrt_messages",
+        "160000 commit eda4e578a2adee2cd7478035e927e4b69c4f91bd\tmoonray/moonray_dcc_plugins",
+        "160000 commit 6836aa7aa581ea7c6a50b93add638861176de7ce\tmoonray/moonray_gui",
+        "160000 commit 32a6e64967677008bddf05ea2fc5fe5533c0f47b\tmoonray/moonshine",
+        "160000 commit d3452328c52fa60d891b4d5d7fbd18a14d9ba632\tmoonray/moonshine_usd",
+        "160000 commit 2e68fc1aa618b545646ac7efb091fff38f347e1f\tmoonray/render_profile_viewer",
+        "160000 commit b1309584b7340bc665fdbf0c2519e69b41b3a9f3\tmoonray/scene_rdl2",
+        "160000 commit f43a388d6e6b51a3437251454defea70b809a4a8\trats"
+      ],
+      "tag": "openmoonray-3.6.0.1"
+    }
+  },
+  "schema_version": 1
+}
