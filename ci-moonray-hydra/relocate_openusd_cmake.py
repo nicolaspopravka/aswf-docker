@@ -64,6 +64,7 @@ def main() -> int:
     config_hint_count = 0
     observed_prefixes: set[str] = set()
     observed_targets: set[str] = set()
+    observed_boost_python_components: set[str] = set()
 
     for path in files:
         text = path.read_text()
@@ -78,8 +79,10 @@ def main() -> int:
         config_hint_count += replaced_hints
         prefixes = set(CONAN_PREFIX.findall(text))
         targets = set(MATERIALX_CONAN_TARGET.findall(text))
+        boost_python_components = set(BOOST_PYTHON_CONAN_TARGET.findall(text))
         observed_prefixes.update(prefixes)
         observed_targets.update(targets)
+        observed_boost_python_components.update(boost_python_components)
         text, replaced = CONAN_PREFIX.subn("/usr/local", text)
         replacement_count += replaced
         text, replaced_targets = MATERIALX_CONAN_TARGET.subn(
@@ -99,7 +102,14 @@ def main() -> int:
     if DEPENDENCY_MARKER not in config:
         if TARGETS_INCLUDE not in config:
             raise SystemExit("cannot locate pxrTargets include in pxrConfig.cmake")
+        boost_dependencies = "\n".join(
+            f"find_dependency(Boost CONFIG COMPONENTS {component})"
+            for component in sorted(observed_boost_python_components)
+        )
         dependency_block = f"""{DEPENDENCY_MARKER}
+include(CMakeFindDependencyMacro)
+{boost_dependencies}
+
 if(NOT TARGET OpenSubdiv::osdcpu)
     add_library(OpenSubdiv::osdcpu SHARED IMPORTED)
     set_target_properties(OpenSubdiv::osdcpu PROPERTIES
@@ -163,6 +173,8 @@ endif()
         print(f"relocated_prefix={prefix}")
     for target in sorted(observed_targets):
         print(f"materialx_component={target}")
+    for component in sorted(observed_boost_python_components):
+        print(f"boost_python_component={component}")
     return 0
 
 

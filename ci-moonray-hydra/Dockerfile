@@ -133,6 +133,7 @@ RUN set -euxo pipefail && \
     -DBOOST_PYTHON_COMPONENT_NAME="${BOOST_PYTHON_COMPONENT}" \
     -DABI_VERSION=0 \
     -DBUILD_QT_APPS=NO \
+    -DMOONRAY_USE_CUDA=NO \
     -DMOONRAY_USE_OPTIX=NO \
     "${extra_args[@]}" && \
     cmake --build /opt/MoonRay/build --target install --parallel "${BUILD_JOBS}" && \
