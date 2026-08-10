@@ -28,6 +28,9 @@ MATERIALX_CONAN_TARGET = re.compile(
     r"(?P=component)_RELEASE"
 )
 PTEX_CONAN_TARGET = "CONAN_LIB::ptex_Ptex_Ptex_dynamic_Ptex_RELEASE"
+BOOST_PYTHON_CONAN_TARGET = re.compile(
+    r"CONAN_LIB::boost_Boost_python_boost_(?P<component>python[0-9]+)_RELEASE"
+)
 CONFIG_DIR_HINT = re.compile(
     r"if \(NOT \[\[(?P<path>/opt/conan_home/[^\]]+/generators)\]\] "
     r'STREQUAL ""\)\n'
@@ -57,6 +60,7 @@ def main() -> int:
     replacement_count = 0
     materialx_target_count = 0
     ptex_target_count = 0
+    boost_python_target_count = 0
     config_hint_count = 0
     observed_prefixes: set[str] = set()
     observed_targets: set[str] = set()
@@ -85,6 +89,10 @@ def main() -> int:
         ptex_replacements = text.count(PTEX_CONAN_TARGET)
         text = text.replace(PTEX_CONAN_TARGET, "Ptex::Ptex_dynamic")
         ptex_target_count += ptex_replacements
+        text, replaced_boost_python = BOOST_PYTHON_CONAN_TARGET.subn(
+            lambda match: f'Boost::{match.group("component")}', text
+        )
+        boost_python_target_count += replaced_boost_python
         path.write_text(text)
 
     config = PXR_CONFIG.read_text()
@@ -149,6 +157,7 @@ endif()
     print(f"path_replacements={replacement_count}")
     print(f"materialx_target_replacements={materialx_target_count}")
     print(f"ptex_target_replacements={ptex_target_count}")
+    print(f"boost_python_target_replacements={boost_python_target_count}")
     print(f"config_hint_replacements={config_hint_count}")
     for prefix in sorted(observed_prefixes):
         print(f"relocated_prefix={prefix}")
