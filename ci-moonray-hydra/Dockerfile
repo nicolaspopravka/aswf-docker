@@ -118,7 +118,7 @@ RUN set -euxo pipefail && \
     "-DLog4cplus_LIBRARIES:FILEPATH=/opt/MoonRay/dependencies/log4cplus/lib/liblog4cplus.so" \
     ); \
     fi && \
-    export PYTHONPATH=/opt/MoonRay/build/moonray/scene_rdl2/mod/python/py_scene_rdl2:${PYTHONPATH} && \
+    export PYTHONPATH=/opt/MoonRay/build/moonray/scene_rdl2/mod/python/py_scene_rdl2:${PYTHONPATH:-} && \
     cmake \
     -S /opt/MoonRay/source/openmoonray \
     -B /opt/MoonRay/build \
