@@ -86,6 +86,15 @@ RUN git clone \
     git -C openmoonray lfs pull && \
     git -C openmoonray submodule status --recursive
 
+COPY ci-moonray-hydra/hdmoonray-refine-zero-smooth-normals.patch \
+    /tmp/hdmoonray-refine-zero-smooth-normals.patch
+RUN git -C openmoonray/moonray/hydra/hdMoonray apply --check \
+        /tmp/hdmoonray-refine-zero-smooth-normals.patch && \
+    git -C openmoonray/moonray/hydra/hdMoonray apply \
+        /tmp/hdmoonray-refine-zero-smooth-normals.patch && \
+    sha256sum /tmp/hdmoonray-refine-zero-smooth-normals.patch \
+        > /tmp/hdmoonray-refine-zero-smooth-normals.patch.sha256
+
 RUN test -x /usr/local/bin/python3.11 && \
     test -f /usr/local/lib/libpython3.11.so && \
     test -f /usr/local/include/python3.11/Python.h && \
@@ -128,6 +137,8 @@ RUN test -x /usr/local/bin/python3.11 && \
         /opt/MoonRay/installs/openmoonray/testdata && \
     mkdir -p /opt/MoonRay/installs/openmoonray/share/openmoonray && \
     cp /usr/local/share/openusd-cmake-relocation.txt \
+        /opt/MoonRay/installs/openmoonray/share/openmoonray/ && \
+    cp /tmp/hdmoonray-refine-zero-smooth-normals.patch.sha256 \
         /opt/MoonRay/installs/openmoonray/share/openmoonray/ && \
     printf '%s\n' \
         "tag=${MOONRAY_TAG}" \
