@@ -2,6 +2,9 @@ name: GH13 Pixar dome-light probe
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - opencode/gh13-pixar-probe
 
 permissions:
   contents: read
