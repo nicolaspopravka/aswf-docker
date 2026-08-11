@@ -1,0 +1,134 @@
+name: Probe Cycles quath instancer handling
+
+on:
+  push:
+    branches:
+      - codex/diagnostics/cycles-quath-instancer
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cycles-quath-instancer-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: cycles-5.0-openusd-25.08-control
+            image: ghcr.io/nicolaspopravka/usd-render-benchmark-cycles@sha256:880723e5754e1a3794531410ea6e4d3a17dfee3b989d4deda19dda142c5e3a22
+            expect_mismatch: "true"
+          - name: cycles-5.2-openusd-25.11-current
+            image: ghcr.io/nicolaspopravka/usd-render-benchmark-cycles@sha256:96923ddadd83fbb7c7e5d33683a3152ac2ba3f977d85a213d3baeaf9cf1aa5f3
+            expect_mismatch: "false"
+
+    steps:
+      - name: Check out probe source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Reclaim runner disk
+        run: |
+          set -eux
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /usr/local/share/powershell /usr/share/swift /usr/local/.ghcup \
+            /usr/local/aws-cli /usr/local/aws-sam-cli /usr/local/julia* \
+            /usr/lib/jvm
+          sudo apt-get clean
+          docker system prune -af
+
+      - name: Pull pinned image
+        env:
+          IMAGE: ${{ matrix.image }}
+        run: |
+          set -euxo pipefail
+          [[ "$IMAGE" =~ @sha256:[0-9a-f]{64}$ ]]
+          docker pull "$IMAGE"
+          docker image inspect "$IMAGE" > "${{ runner.temp }}/image-inspect.json"
+
+      - name: Run PointInstancer probe
+        env:
+          IMAGE: ${{ matrix.image }}
+        run: |
+          set -euxo pipefail
+          output_dir="${{ runner.temp }}/cycles-quath-instancer"
+          mkdir -p "$output_dir"
+          docker run --rm \
+            --volume "$GITHUB_WORKSPACE/ci-cycles:/test:ro" \
+            --volume "$output_dir:/out" \
+            "$IMAGE" bash -c '
+              set -uxo pipefail
+              python3 /test/make_quath_instancer_probe.py \
+                /out/quath-instancer.usda > /out/stage-validation.log 2>&1
+              generation_status=$?
+              if [[ "$generation_status" -ne 0 ]]; then
+                exit "$generation_status"
+              fi
+
+              python3 -c "from pxr import Usd, UsdImagingGL; print(Usd.GetVersion()); plugins = UsdImagingGL.Engine.GetRendererPlugins(); names = [UsdImagingGL.Engine.GetRendererDisplayName(p) for p in plugins]; print(list(zip(plugins, names))); assert \"Cycles\" in names" \
+                > /out/plugin-discovery.log 2>&1
+              discovery_status=$?
+              if [[ "$discovery_status" -ne 0 ]]; then
+                exit "$discovery_status"
+              fi
+
+              export DISPLAY=:99
+              export LIBGL_ALWAYS_SOFTWARE=1
+              export GALLIUM_DRIVER=llvmpipe
+              export CYCLES_DEVICE=CPU
+              Xvfb :99 -screen 0 640x480x24 +extension GLX +render -noreset \
+                > /out/xvfb.log 2>&1 &
+              xvfb_pid=$!
+              trap "kill $xvfb_pid 2>/dev/null || true" EXIT
+              sleep 2
+              glxinfo -B > /out/glxinfo.log 2>&1
+
+              timeout 300 usdrecord \
+                --renderer Cycles --camera /World/Camera --imageWidth 128 \
+                /out/quath-instancer.usda /out/quath-instancer.png \
+                > /out/usdrecord.log 2>&1
+              printf "%s\n" "$?" > /out/usdrecord.status
+            '
+
+          cat "$output_dir/stage-validation.log"
+          cat "$output_dir/plugin-discovery.log"
+          cat "$output_dir/glxinfo.log"
+          cat "$output_dir/usdrecord.log"
+          grep -Fx 'orientations_type=quath[]' "$output_dir/stage-validation.log"
+          grep -Fx 'orientation_count=2' "$output_dir/stage-validation.log"
+          grep -Eqi 'OpenGL renderer string:.*llvmpipe|Device: llvmpipe' \
+            "$output_dir/glxinfo.log"
+          grep -F 'Renderer plugin: HdCyclesPlugin' "$output_dir/usdrecord.log"
+
+      - name: Check expected diagnostic split
+        env:
+          EXPECT_MISMATCH: ${{ matrix.expect_mismatch }}
+        run: |
+          set -euxo pipefail
+          log="${{ runner.temp }}/cycles-quath-instancer/usdrecord.log"
+          signature="Attempted to get value of type 'VtArray<GfVec4f>' from VtValue holding 'VtArray<GfQuath>'"
+          if [[ "$EXPECT_MISMATCH" == true ]]; then
+            grep -F "$signature" "$log"
+          else
+            if grep -F "$signature" "$log"; then
+              echo "unexpected quaternion type mismatch" >&2
+              exit 1
+            fi
+          fi
+
+      - name: Upload probe evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ${{ matrix.name }}-${{ github.sha }}
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            ${{ runner.temp }}/cycles-quath-instancer/
+            ${{ runner.temp }}/image-inspect.json
