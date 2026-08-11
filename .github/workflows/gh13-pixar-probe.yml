@@ -1,0 +1,42 @@
+name: GH13 Pixar dome-light probe
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Pull Pixar CY2023 runtime image
+        run: |
+          docker pull ghcr.io/nicolaspopravka/openusd-build-paths:pixar-cy2023-runtime-d97e11fc668c35d8418d446da2ce8cadcd48f0df
+
+      - name: Range-fetch skydome EXR from public techvars zip
+        run: |
+          python3 .github/workflows/scripts/gh13_zip_range_fetch.py \
+            --url https://dpel-assets.aswf.io/usd-alab/alab-techvars.v2.2.0.zip \
+            --output "$RUNNER_TEMP/nuke_texture_export.exr"
+          ls -l "$RUNNER_TEMP/nuke_texture_export.exr"
+          md5sum "$RUNNER_TEMP/nuke_texture_export.exr"
+
+      - name: Run probe inside Pixar container
+        run: |
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE":/probe \
+            -v "$RUNNER_TEMP":/probeout \
+            --entrypoint bash \
+            ghcr.io/nicolaspopravka/openusd-build-paths:pixar-cy2023-runtime-d97e11fc668c35d8418d446da2ce8cadcd48f0df \
+            -c "bash /probe/.github/workflows/scripts/gh13_pixar_probe.sh /probeout/nuke_texture_export.exr /probeout"
+
+      - name: Upload probe log
+        uses: actions/upload-artifact@v4
+        with:
+          name: gh13-pixar-probe-log
+          path: "${{ runner.temp }}/gh13-pixar-probe-*.log"
+          if-no-files-found: error
