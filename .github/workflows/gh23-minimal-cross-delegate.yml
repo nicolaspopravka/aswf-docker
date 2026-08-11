@@ -47,7 +47,7 @@ jobs:
             bash /probe/gh23_minimal_probe.sh /validation/minimal.usda /probeout
 
       - name: Upload probe evidence
-        uses: actions/upload-artifact@65a4d15a5210e72b8b0f8d5cbc9a4c83f1b13e3b # v4.6.3
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: gh23-minimal-cross-delegate
           path: |
