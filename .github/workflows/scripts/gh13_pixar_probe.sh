@@ -54,11 +54,19 @@ echo
 echo "----- [5] HioImage C++ probe (exact dome-light path) -----"
 if [ -f "$SCRIPT_DIR/gh13_pixar_probe.cpp" ]; then
   g++ -std=c++17 -o /tmp/hio_probe "$SCRIPT_DIR/gh13_pixar_probe.cpp" \
-    $(pxr-config --cflags --libs 2>/dev/null) 2>/dev/null
+    -I/usr/local/include -I/usr/local/include/python3.10 \
+    -L/usr/local/lib -Wl,-rpath,/usr/local/lib \
+    -lusd_hio -lusd_hf -lusd_ar -lusd_vt -lusd_gf -lusd_plug \
+    -lusd_work -lusd_trace -lusd_js -lusd_tf -lusd_arch \
+    -L/usr/local/lib -lpython3.10 \
+    2>/tmp/hio_compile.err
   if [ -x /tmp/hio_probe ]; then
-    /tmp/hio_probe "$TEX"
+    echo "(compile OK; running with PXR_PLUGINPATH_NAME=/usr/local/lib/usd:/usr/local/plugin/usd)"
+    PXR_PLUGINPATH_NAME=/usr/local/lib/usd:/usr/local/plugin/usd \
+      /tmp/hio_probe "$TEX"
   else
-    echo "(HioImage probe compile failed; pxr-config/libs not resolvable here)"
+    echo "(HioImage probe compile failed)"
+    tail -5 /tmp/hio_compile.err
   fi
 fi
 
@@ -66,21 +74,20 @@ echo
 echo "----- [6] bare OIIO C++ probe (OpenEXR input plugin, geterror) -----"
 if [ -f "$SCRIPT_DIR/gh13_pixar_oiio_probe.cpp" ]; then
   g++ -std=c++17 -o /tmp/oiio_probe "$SCRIPT_DIR/gh13_pixar_oiio_probe.cpp" \
-    $(pkg-config --cflags --libs OpenImageIO 2>/dev/null) 2>/dev/null
-  if [ ! -x /tmp/oiio_probe ] && [ -d /usr/local/include/OpenImageIO ]; then
-    g++ -std=c++17 -o /tmp/oiio_probe "$SCRIPT_DIR/gh13_pixar_oiio_probe.cpp" \
-      -I/usr/local/include -L/usr/local/lib -Wl,-rpath,/usr/local/lib -lOpenImageIO 2>/dev/null
-  fi
+    -I/usr/local/include -L/usr/local/lib -Wl,-rpath,/usr/local/lib \
+    -lOpenImageIO 2>/tmp/oiio_compile.err
   if [ -x /tmp/oiio_probe ]; then
     /tmp/oiio_probe "$TEX"
   else
-    echo "(bare OIIO probe compile failed too — capture tool versions manually)"
+    echo "(bare OIIO probe compile failed; no OpenImageIO headers/libs in this image — expected: OIIO support was Off)"
+    tail -3 /tmp/oiio_compile.err
   fi
 fi
 
 echo
 echo "----- [7] shared libs behind the EXR read -----"
 ldd /usr/local/bin/oiiotool 2>/dev/null | grep -iE "exr|oiio|osl|Imath" | head -10
+ldd /usr/local/lib/libusd_hio.so 2>/dev/null | grep -iE "exr|oiio|Imath" | head -10
 
 echo
 echo "===== probe done ====="
