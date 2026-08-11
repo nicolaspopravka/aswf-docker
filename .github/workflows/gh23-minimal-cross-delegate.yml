@@ -1,0 +1,56 @@
+name: GH23 Minimal Cross-Delegate Probe
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - opencode/gh23-minimal-cross-delegate
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      CANDIDATE_IMAGE: ghcr.io/nicolaspopravka/openmoonray-hydra@sha256:952bf3335d743b291e8ac6c92ee8049be88a30953e8a18551635c1c6f03844bd
+      VALIDATION_IMAGE: openmoonray-hydra:probe
+    steps:
+      - name: Check out probe scripts
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Free runner disk space
+        run: |
+          set -euxo pipefail
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell
+          sudo apt-get clean
+          docker system prune -af
+
+      - name: Pull candidate image
+        run: |
+          set -euxo pipefail
+          docker pull "${CANDIDATE_IMAGE}"
+          docker tag "${CANDIDATE_IMAGE}" "${VALIDATION_IMAGE}"
+
+      - name: Run cross-delegate probe
+        run: |
+          set -euxo pipefail
+          mkdir -p "${RUNNER_TEMP}/probeout"
+          docker run --rm \
+            --security-opt seccomp=unconfined \
+            --shm-size=2g \
+            --volume "${PWD}/ci-moonray-hydra:/validation:ro" \
+            --volume "${PWD}/.github/workflows/scripts:/probe:ro" \
+            --volume "${RUNNER_TEMP}/probeout:/probeout" \
+            "${VALIDATION_IMAGE}" \
+            bash /probe/gh23_minimal_probe.sh /validation/minimal.usda /probeout
+
+      - name: Upload probe evidence
+        uses: actions/upload-artifact@65a4d15a5210e72b8b0f8d5cbc9a4c83f1b13e3b # v4.6.3
+        with:
+          name: gh23-minimal-cross-delegate
+          path: |
+            ${{ runner.temp }}/probeout/
+            ci-moonray-hydra/minimal.usda
+          if-no-files-found: error
