@@ -1,4 +1,4 @@
-name: GH23 GDB FailGet Probe
+name: GH23 Scene-Index Emulation Toggle Probe
 
 on:
   workflow_dispatch:
@@ -33,23 +33,23 @@ jobs:
           docker pull "${CANDIDATE_IMAGE}"
           docker tag "${CANDIDATE_IMAGE}" "${VALIDATION_IMAGE}"
 
-      - name: Run gdb probe
+      - name: Run scene-index toggle probe
         run: |
           set -euxo pipefail
+          mkdir -p "${RUNNER_TEMP}/probeout"
           docker run --rm \
             --security-opt seccomp=unconfined \
-            --cap-add SYS_PTRACE \
             --shm-size=2g \
             --volume "${PWD}/ci-moonray-hydra:/validation:ro" \
             --volume "${PWD}/.github/workflows/scripts:/probe:ro" \
             --volume "${RUNNER_TEMP}/probeout:/probeout" \
             "${VALIDATION_IMAGE}" \
-            bash /probe/gh23_gdb_probe.sh /validation/minimal.usda /probeout
+            bash /probe/gh23_sceneindex_probe.sh /validation/minimal.usda /probeout
 
       - name: Upload probe evidence
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: gh23-gdb-failget
+          name: gh23-sceneindex-toggle
           path: |
             ${{ runner.temp }}/probeout/
           if-no-files-found: error
