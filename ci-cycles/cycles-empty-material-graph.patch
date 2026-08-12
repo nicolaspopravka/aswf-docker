@@ -1,0 +1,8 @@
+diff --git a/src/hydra/material.cpp b/src/hydra/material.cpp
+index f4e85f0e..e914d6aa 100644
+--- a/src/hydra/material.cpp
++++ b/src/hydra/material.cpp
+@@ -599,2 +599,3 @@ void HdCyclesMaterial::Initialize(HdRenderParam *renderParam)
+   _shader = lock.scene->create_node<Shader>();
++  _shader->set_graph(make_unique<ShaderGraph>());
+ }

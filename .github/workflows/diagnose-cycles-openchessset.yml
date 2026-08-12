@@ -1,0 +1,151 @@
+name: Diagnose Cycles OpenChessSet crash
+
+on:
+  push:
+    branches:
+      - codex/diagnostics/cycles-openchessset-empty-material
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cycles-openchessset-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  DEPENDENCY_IMAGE: ghcr.io/nicolaspopravka/ci-cycles@sha256:29eb03a0f21258adeb4031ba2720ca114638fb8f5015dba3cb7a9167823a5a0c
+  CYCLES_REVISION: 3b97e190c5ff1a2ed2160d879ad5bf95bea7b8ba
+  CYCLES_LIB_REVISION: 30d9f881c4b62c52323fd11637eeea56d460e35c
+  OPENUSD_REVISION: 1818e14bae0036ac4bc7b4e60826b5797076a4fe
+  ASSETS_REVISION: 907d5f17bbe933fc14441a3f3ab69a5bd8abe32a
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 180
+
+    steps:
+      - name: Checkout diagnostic source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Reclaim runner disk
+        run: |
+          set -eux
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /usr/local/share/powershell /usr/share/swift /usr/local/.ghcup \
+            /usr/local/aws-cli /usr/local/aws-sam-cli /usr/local/julia* \
+            /usr/lib/jvm
+          sudo apt-get clean
+          docker system prune -af
+
+      - name: Validate fixed inputs
+        run: |
+          set -euxo pipefail
+          [[ "$DEPENDENCY_IMAGE" == *@sha256:* ]]
+          [[ "$CYCLES_REVISION" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$CYCLES_LIB_REVISION" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$OPENUSD_REVISION" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$ASSETS_REVISION" =~ ^[0-9a-f]{40}$ ]]
+          test -f ci-cycles/cycles-empty-material-graph.patch
+          test -f ci-cycles/no-network-material.usda
+          test -f ci-cycles/no-material-control.usda
+          git diff --check
+
+      - name: Fetch exact OpenChessSet asset
+        run: |
+          set -euxo pipefail
+          git init "${{ runner.temp }}/assets"
+          git -C "${{ runner.temp }}/assets" remote add origin \
+            https://github.com/usd-wg/assets.git
+          git -C "${{ runner.temp }}/assets" fetch --depth=1 origin \
+            "$ASSETS_REVISION"
+          git -C "${{ runner.temp }}/assets" sparse-checkout set \
+            full_assets/OpenChessSet
+          git -C "${{ runner.temp }}/assets" checkout --detach FETCH_HEAD
+          test "$(git -C "${{ runner.temp }}/assets" rev-parse HEAD)" = \
+            "$ASSETS_REVISION"
+          test -f "${{ runner.temp }}/assets/full_assets/OpenChessSet/chess_set.usda"
+
+      - name: Build patched delegate image
+        run: |
+          set -euxo pipefail
+          docker build --progress=plain \
+            --file ci-cycles/Dockerfile \
+            --tag cycles-issue25:patched \
+            --build-arg DEPENDENCY_IMAGE="$DEPENDENCY_IMAGE" \
+            --build-arg ASWF_SOURCE_REVISION="$GITHUB_SHA" \
+            --build-arg WORKFLOW_REVISION="$GITHUB_SHA" \
+            --build-arg CYCLES_TAG=v5.2.0 \
+            --build-arg CYCLES_REVISION="$CYCLES_REVISION" \
+            --build-arg CYCLES_LIB_REVISION="$CYCLES_LIB_REVISION" \
+            --build-arg OPENUSD_TAG=v26.03 \
+            --build-arg OPENUSD_REVISION="$OPENUSD_REVISION" \
+            --build-arg USD_LINKAGE=split \
+            . 2>&1 | tee "${{ runner.temp }}/build.log"
+
+      - name: Validate delegate and patch
+        run: |
+          set -euxo pipefail
+          docker run --rm cycles-issue25:patched bash -c '
+            set -euxo pipefail
+            test -f /opt/cycles/hydra/hdCycles.so
+            test -s /opt/cycles-build-evidence/cycles-source.patch
+            grep -Fq "set_graph(make_unique<ShaderGraph>())" \
+              /opt/cycles-build-evidence/cycles-source.patch
+            ldd -r /opt/cycles/hydra/hdCycles.so | tee /tmp/ldd.txt
+            ! grep -Eq "not found|undefined symbol" /tmp/ldd.txt
+          ' | tee "${{ runner.temp }}/validation.log"
+
+      - name: Run reduced crash and control scenes
+        run: |
+          set -euxo pipefail
+          mkdir -p "${{ runner.temp }}/results"
+          for scene in no-network-material no-material-control; do
+            set +e
+            docker run --rm \
+              --volume "$GITHUB_WORKSPACE/ci-cycles:/test:ro" \
+              --volume "${{ runner.temp }}/results:/out" \
+              cycles-issue25:patched bash -c "
+                set -o pipefail
+                export CYCLES_DEVICE=CPU
+                timeout 60s usdrecord --disableGpu \
+                  --renderer Cycles --camera /World/main_cam \
+                  --imageWidth 128 /test/$scene.usda /out/$scene.png
+              " > "${{ runner.temp }}/results/$scene.log" 2>&1
+            status=$?
+            set -e
+            printf '%s\n' "$status" > "${{ runner.temp }}/results/$scene.status"
+            test "$status" -ne 139
+          done
+
+      - name: Run unmodified OpenChessSet
+        run: |
+          set -euxo pipefail
+          set +e
+          docker run --rm \
+            --volume "${{ runner.temp }}/assets/full_assets/OpenChessSet:/scene:ro" \
+            --volume "${{ runner.temp }}/results:/out" \
+            cycles-issue25:patched bash -c '
+              set -o pipefail
+              export CYCLES_DEVICE=CPU
+              timeout 300s usdrecord --disableGpu \
+                --renderer Cycles --camera main_cam --purposes render \
+                --imageWidth 128 /scene/chess_set.usda /out/OpenChessSet.png
+            ' > "${{ runner.temp }}/results/OpenChessSet.log" 2>&1
+          status=$?
+          set -e
+          printf '%s\n' "$status" > \
+            "${{ runner.temp }}/results/OpenChessSet.status"
+          test "$status" -ne 139
+
+      - name: Upload diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: cycles-openchessset-${{ github.run_attempt }}
+          retention-days: 30
+          if-no-files-found: error
+          path: |
+            ${{ runner.temp }}/build.log
+            ${{ runner.temp }}/validation.log
+            ${{ runner.temp }}/results/

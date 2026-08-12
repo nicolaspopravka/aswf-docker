@@ -44,6 +44,14 @@ else
   : > "$EVIDENCE_ROOT/cycles-hdsi.patch"
 fi
 
+git -C "$BUILD_ROOT/cycles" apply --check \
+  /usr/local/share/cycles-empty-material-graph.patch
+git -C "$BUILD_ROOT/cycles" apply \
+  /usr/local/share/cycles-empty-material-graph.patch
+git -C "$BUILD_ROOT/cycles" diff --check
+git -C "$BUILD_ROOT/cycles" diff \
+  > "$EVIDENCE_ROOT/cycles-source.patch"
+
 (
   cd "$BUILD_ROOT/cycles"
   rm -rf lib/linux_x64
