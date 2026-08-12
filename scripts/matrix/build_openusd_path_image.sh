@@ -27,12 +27,19 @@ for name in "${required_names[@]}"; do
 done
 
 case "${BUILD_PATH}" in
-  pixar-build-usd|aswf-docker-build-usd) ;;
+  pixar-build-usd|aswf-docker-build-usd|aswf-docker-build-usd-matched-mtlx) ;;
   *)
     echo "unsupported build path: ${BUILD_PATH}" >&2
     exit 2
     ;;
 esac
+
+if [[ "${BUILD_PATH}" == aswf-docker-build-usd-matched-mtlx ]]; then
+  [[ -n "${MATERIALX_SOURCE_SHA256:-}" ]] || {
+    echo "missing required input: MATERIALX_SOURCE_SHA256" >&2
+    exit 2
+  }
+fi
 
 case "${CY}" in
   2023|2024|2025|2026|2027) ;;
@@ -48,6 +55,7 @@ if [[ "${mode}" == dry-run ]]; then
     "cy=${CY}" \
     "openusd=${OPENUSD_VERSION}" \
     "materialx=${MATERIALX_VERSION}" \
+    "materialx_source_sha256=${MATERIALX_SOURCE_SHA256:-preinstalled}" \
     "source_revision=${SOURCE_REVISION}" \
     "source_sha256=${SOURCE_SHA256}" \
     "script_sha256=${SCRIPT_SHA256}" \
@@ -151,6 +159,7 @@ record_inputs() {
       "cy=${CY}" \
       "openusd_version=${OPENUSD_VERSION}" \
       "materialx_version=${MATERIALX_VERSION}" \
+      "materialx_source_sha256=${MATERIALX_SOURCE_SHA256:-preinstalled}" \
       "source_repository=${source_repository}" \
       "source_url=${source_url}" \
       "source_revision=${SOURCE_REVISION}" \
@@ -165,6 +174,53 @@ record_inputs() {
       '^(ASWF_|CC=|CXX=|PATH=|LD_LIBRARY_PATH=|PYTHONPATH=|PXR_|CMAKE_)' \
       || true
   } > "${evidence_root}/inputs.txt"
+}
+
+build_matched_materialx() {
+  materialx_url="https://github.com/AcademySoftwareFoundation/MaterialX/archive/v${MATERIALX_VERSION}.tar.gz"
+  materialx_archive="${downloads_root}/materialx-v${MATERIALX_VERSION}.tar.gz"
+  materialx_source="${work_root}/MaterialX-${MATERIALX_VERSION}"
+  materialx_build="${work_root}/MaterialX-${MATERIALX_VERSION}-build"
+
+  curl --fail --location --retry 3 \
+    --output "${materialx_archive}" "${materialx_url}"
+  printf '%s  %s\n' "${MATERIALX_SOURCE_SHA256}" "${materialx_archive}" \
+    | sha256sum --check
+
+  rm -rf "${materialx_source}" "${materialx_build}"
+  mkdir -p "${materialx_source}" "${materialx_build}"
+  tar -xzf "${materialx_archive}" --strip-components=1 \
+    -C "${materialx_source}"
+
+  # Remove the preinstalled MaterialX 1.39 files before installing 1.38.10 so
+  # the diagnostic cannot accidentally compile or run against a mixed prefix.
+  rm -rf \
+    "${INSTALL_PREFIX}/include/MaterialX"* \
+    "${INSTALL_PREFIX}/share/MaterialX" \
+    "${INSTALL_PREFIX}/lib/cmake/MaterialX"
+  find "${INSTALL_PREFIX}/lib" -maxdepth 1 \
+    \( -type f -o -type l \) -name 'libMaterialX*' -delete
+
+  cmake -S "${materialx_source}" -B "${materialx_build}" \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
+    -DCMAKE_CXX_STANDARD=17 \
+    -DMATERIALX_BUILD_SHARED_LIBS=ON \
+    -DMATERIALX_BUILD_PYTHON=OFF \
+    -DMATERIALX_BUILD_VIEWER=OFF \
+    -DMATERIALX_BUILD_GRAPH_EDITOR=OFF \
+    -DMATERIALX_BUILD_TESTS=OFF \
+    -DMATERIALX_TEST_RENDER=OFF \
+    -DMATERIALX_BUILD_GEN_MSL=OFF \
+    -DMATERIALX_INSTALL_STDLIB_PATH=share/MaterialX/libraries \
+    -DMATERIALX_INSTALL_RESOURCES_PATH=share/MaterialX/resources \
+    2>&1 | tee "${evidence_root}/materialx-configure.log"
+  cmake --build "${materialx_build}" -j"${BUILD_JOBS}" \
+    2>&1 | tee "${evidence_root}/materialx-build.log"
+  cmake --install "${materialx_build}" \
+    2>&1 | tee "${evidence_root}/materialx-install.log"
+  printf '%s  %s\n' "${MATERIALX_SOURCE_SHA256}" "${materialx_url}" \
+    > "${evidence_root}/materialx-source-sha256.txt"
 }
 
 download_source() {
@@ -418,9 +474,12 @@ else
   : > "${evidence_root}/prefix-before.txt"
 fi
 
+[[ "${BUILD_PATH}" != aswf-docker-build-usd-matched-mtlx ]] \
+  || build_matched_materialx
+
 case "${BUILD_PATH}" in
   pixar-build-usd) build_pixar ;;
-  aswf-docker-build-usd) build_aswf ;;
+  aswf-docker-build-usd|aswf-docker-build-usd-matched-mtlx) build_aswf ;;
 esac
 
 configure_runtime

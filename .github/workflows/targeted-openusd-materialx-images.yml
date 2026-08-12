@@ -16,6 +16,7 @@ on:
           - aswf-cy2023
           - pixar-cy2024
           - aswf-cy2024
+          - aswf-cy2024-mtlx138
           - pixar-cy2025
           - aswf-cy2025
           - pixar-cy2026
@@ -80,6 +81,18 @@ jobs:
             base: aswf/ci-usd:2024.8@sha256:df2a17348ada054cb013ddfe658852e88b1ddf6cad7615d41c34ad247ed8bb43
             openusd: "24.08"
             materialx: "1.39.1"
+            source_revision: 59992d2178afcebd89273759f2bddfe730e59aa8
+            source_sha256: 6640bb184bf602c6df14fa4a83af6ac5ae1ab8d1d38cf7bb7decfaa9a7ad5d06
+            script_sha256: 1247e6fb475885c414687813b93afd2e83d49b89566905be801fe998bd767ab2
+            gcc_major: 11
+            install_prefix: /usr/local
+          - name: aswf-cy2024-mtlx138
+            path: aswf-docker-build-usd-matched-mtlx
+            cy: 2024
+            base: aswf/ci-usd:2024.8@sha256:df2a17348ada054cb013ddfe658852e88b1ddf6cad7615d41c34ad247ed8bb43
+            openusd: "24.08"
+            materialx: "1.38.10"
+            materialx_sha256: 706f44100188bc283a135ad24b348e55b405ac9e70cb64b7457c381383cc2887
             source_revision: 59992d2178afcebd89273759f2bddfe730e59aa8
             source_sha256: 6640bb184bf602c6df14fa4a83af6ac5ae1ab8d1d38cf7bb7decfaa9a7ad5d06
             script_sha256: 1247e6fb475885c414687813b93afd2e83d49b89566905be801fe998bd767ab2
@@ -214,6 +227,7 @@ jobs:
             --build-arg CY="${{ matrix.cy }}" \
             --build-arg OPENUSD_VERSION="${{ matrix.openusd }}" \
             --build-arg MATERIALX_VERSION="${{ matrix.materialx }}" \
+            --build-arg MATERIALX_SOURCE_SHA256="${{ matrix.materialx_sha256 }}" \
             --build-arg SOURCE_REVISION="${{ matrix.source_revision }}" \
             --build-arg SOURCE_SHA256="${{ matrix.source_sha256 }}" \
             --build-arg SCRIPT_SHA256="${{ matrix.script_sha256 }}" \

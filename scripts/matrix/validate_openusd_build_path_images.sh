@@ -33,7 +33,7 @@ if grep -Fq 'HdStormRendererPlugin=True' "${harness}"; then
   exit 1
 fi
 
-[[ "$(grep -c 'name: .*cy20' "${workflow}")" == 10 ]]
+[[ "$(grep -c 'name: .*cy20' "${workflow}")" == 11 ]]
 grep -Fq 'ghcr.io/${{ github.repository_owner }}/openusd-build-paths' "${workflow}"
 grep -Fq 'permissions:' "${workflow}"
 grep -Fq 'packages: write' "${workflow}"
@@ -56,6 +56,14 @@ env "${common[@]}" \
   MATERIALX_VERSION=1.39.3 \
   SCRIPT_SHA256=b53a004a6536e24fad54de9fc263b6e2090aefbb23061a638d84c749160b4068 \
   INSTALL_PREFIX=/opt/openusd \
+  "${harness}" dry-run >/dev/null
+
+env "${common[@]}" \
+  BUILD_PATH=aswf-docker-build-usd-matched-mtlx \
+  MATERIALX_VERSION=1.38.10 \
+  MATERIALX_SOURCE_SHA256=706f44100188bc283a135ad24b348e55b405ac9e70cb64b7457c381383cc2887 \
+  SCRIPT_SHA256="${expected_helper_sha}" \
+  INSTALL_PREFIX=/usr/local \
   "${harness}" dry-run >/dev/null
 
 env "${common[@]}" \
