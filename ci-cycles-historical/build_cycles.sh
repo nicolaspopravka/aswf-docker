@@ -22,7 +22,17 @@ mkdir -p "$BUILD_ROOT" "$EVIDENCE_ROOT"
 
 git clone --branch "$CYCLES_TAG" --depth 1 "$CYCLES_URL" "$BUILD_ROOT/cycles"
 test "$(git -C "$BUILD_ROOT/cycles" rev-parse HEAD)" = "$CYCLES_REVISION"
-test -z "$(git -C "$BUILD_ROOT/cycles" status --short)"
+if [[ "$CYCLES_TAG" == v5.2.0 ]]; then
+  git -C "$BUILD_ROOT/cycles" apply --check \
+    /usr/local/share/cycles-empty-material-graph.patch
+  git -C "$BUILD_ROOT/cycles" apply \
+    /usr/local/share/cycles-empty-material-graph.patch
+  git -C "$BUILD_ROOT/cycles" diff --check
+  git -C "$BUILD_ROOT/cycles" diff > "$EVIDENCE_ROOT/cycles-source.patch"
+else
+  test -z "$(git -C "$BUILD_ROOT/cycles" status --short)"
+  : > "$EVIDENCE_ROOT/cycles-source.patch"
+fi
 
 (
   cd "$BUILD_ROOT/cycles"

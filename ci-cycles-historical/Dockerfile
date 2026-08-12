@@ -11,6 +11,7 @@ ARG TBB_ABI
 
 COPY ci-cycles-historical/build_cycles.sh /usr/local/bin/build_cycles.sh
 COPY ci-cycles-historical/import_openusd_dependencies.cmake /usr/local/share/cycles/import_openusd_dependencies.cmake
+COPY ci-cycles/cycles-empty-material-graph.patch /usr/local/share/cycles-empty-material-graph.patch
 
 RUN chmod +x /usr/local/bin/build_cycles.sh && \
     /usr/local/bin/build_cycles.sh
