@@ -37,10 +37,9 @@ jobs:
         run: |
           set -euxo pipefail
           mkdir -p "${RUNNER_TEMP}/probeout"
-          for scene in minimal nolight lightlink; do
+          for scene in minimal lightlink; do
             case "$scene" in
               minimal)  scene_path=/validation/minimal.usda ;;
-              nolight)  scene_path=/probe/gh23_nolight.usda ;;
               lightlink) scene_path=/probe/gh23_lightlink.usda ;;
             esac
             docker run --rm \

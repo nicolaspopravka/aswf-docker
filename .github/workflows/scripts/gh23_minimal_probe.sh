@@ -19,14 +19,14 @@ for renderer in "Moonray" "Moonray (debug)" "Storm"; do
   tag=$(echo "$renderer" | tr ' ()' '___')
   echo "===== delegate: $renderer ($tag) ====="
   set +e
-  timeout 600 xvfb-run -a usdrecord \
+  timeout -k 15 600 xvfb-run -a usdrecord \
     --renderer "$renderer" \
     --camera /World/Camera \
     --imageWidth 256 \
     "$SCENE" \
     "$OUT/minimal-$tag.exr" \
-    2>&1 | tee "$OUT/minimal-$tag.log"
-  status=${PIPESTATUS[0]}
+    > "$OUT/minimal-$tag.log" 2>&1
+  status=$?
   set -e
   echo "$status" > "$OUT/minimal-$tag.exit"
   echo "exit=$status"
