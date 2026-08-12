@@ -25,7 +25,7 @@ cat > /tmp/gdb.cmd <<'EOF'
 set pagination off
 set confirm off
 set breakpoint pending on
-rbreak _FailGet
+break _ZNK34pxrInternal_v0_25_5__pxrReserved__7VtValue8_FailGetEPFNS_21Vt_DefaultValueHolderEvERKSt9type_info
 commands
 silent
 printf "\n=== HIT _FailGet ===\n"
