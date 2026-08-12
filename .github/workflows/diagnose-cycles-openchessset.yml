@@ -90,7 +90,9 @@ jobs:
             set -euxo pipefail
             test -f /opt/cycles/hydra/hdCycles.so
             test -s /opt/cycles-build-evidence/cycles-source.patch
-            grep -Fq "set_graph(make_unique<ShaderGraph>())" \
+            grep -Fq "+      Initialize(renderParam);" \
+              /opt/cycles-build-evidence/cycles-source.patch
+            grep -Fq "+      TF_WARN(\"Could not get a material network" \
               /opt/cycles-build-evidence/cycles-source.patch
             ldd -r /opt/cycles/hydra/hdCycles.so | tee /tmp/ldd.txt
             ! grep -Eq "not found|undefined symbol" /tmp/ldd.txt
