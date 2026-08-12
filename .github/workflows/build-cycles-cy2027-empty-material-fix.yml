@@ -2,6 +2,9 @@ name: Build CY2027 Cycles empty-material fix
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - codex/diagnostics/cycles-openchessset-empty-material
 
 permissions:
   contents: read
