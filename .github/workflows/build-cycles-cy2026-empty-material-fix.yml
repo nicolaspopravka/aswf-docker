@@ -139,17 +139,3 @@ jobs:
             2>&1 | tee "${{ runner.temp }}/push-version.log"
           docker buildx imagetools inspect "$IMAGE_NAME:$IMAGE_TAG-$GITHUB_SHA" \
             | tee "${{ runner.temp }}/image-inspect.txt"
-
-      - name: Upload build and render evidence
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: cycles-cy2026-empty-material-${{ github.run_attempt }}
-          retention-days: 30
-          if-no-files-found: error
-          path: |
-            ${{ runner.temp }}/build.log
-            ${{ runner.temp }}/results/
-            ${{ runner.temp }}/image-inspect.txt
-            ${{ runner.temp }}/push-immutable.log
-            ${{ runner.temp }}/push-version.log
