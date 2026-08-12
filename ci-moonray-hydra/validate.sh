@@ -112,6 +112,7 @@ python3 "${validation_root}/image_stats.py" \
     "${evidence_root}/hd-render-sphere.exr" \
     | tee "${evidence_root}/hd-render-sphere.stats.json"
 
+set +e
 LD_PRELOAD="${usdrecord_preload}" timeout 300 xvfb-run -a usdrecord \
     --renderer Moonray \
     --camera /World/Camera \
@@ -119,10 +120,20 @@ LD_PRELOAD="${usdrecord_preload}" timeout 300 xvfb-run -a usdrecord \
     "${validation_root}/minimal.usda" \
     "${evidence_root}/usdrecord-minimal.exr" \
     2>&1 | tee "${evidence_root}/usdrecord-minimal.log"
+usdrecord_status=${PIPESTATUS[0]}
+set -e
+printf '%s\n' "${usdrecord_status}" \
+    | tee "${evidence_root}/usdrecord-minimal.exit"
 python3 "${validation_root}/image_stats.py" \
     --require-variation \
     "${evidence_root}/usdrecord-minimal.exr" \
     | tee "${evidence_root}/usdrecord-minimal.stats.json"
+if [ "${usdrecord_status}" -ne 0 ]; then
+    grep -F "Attempted to get value of type 'TfToken' from empty VtValue" \
+        "${evidence_root}/usdrecord-minimal.log"
+    grep -F 'Found invalid framebuffer' \
+        "${evidence_root}/usdrecord-minimal.log"
+fi
 
 sha256sum \
     "${evidence_root}/rectangle.exr" \
