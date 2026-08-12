@@ -115,7 +115,8 @@ jobs:
             status=$?
             set -e
             printf '%s\n' "$status" > "${{ runner.temp }}/results/$scene.status"
-            test "$status" -ne 139
+            test "$status" -eq 0
+            test -s "${{ runner.temp }}/results/$scene.png"
           done
 
       - name: Run unmodified OpenChessSet
@@ -136,7 +137,8 @@ jobs:
           set -e
           printf '%s\n' "$status" > \
             "${{ runner.temp }}/results/OpenChessSet.status"
-          test "$status" -ne 139
+          test "$status" -eq 0
+          test -s "${{ runner.temp }}/results/OpenChessSet.png"
 
       - name: Upload diagnostic evidence
         if: always()
