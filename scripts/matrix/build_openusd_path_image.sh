@@ -222,18 +222,18 @@ build_matched_materialx() {
   materialx_config="${INSTALL_PREFIX}/lib/cmake/MaterialX/MaterialXConfig.cmake"
   cp "${materialx_config}" "${evidence_root}/MaterialXConfig.cmake.original"
   sed -i \
-    -e "s#${INSTALL_PREFIX}/libraries#${INSTALL_PREFIX}/share/MaterialX/libraries#g" \
-    -e "s#${INSTALL_PREFIX}/resources#${INSTALL_PREFIX}/share/MaterialX/resources#g" \
+    -e 's#${PACKAGE_PREFIX_DIR}/libraries#${PACKAGE_PREFIX_DIR}/share/MaterialX/libraries#g' \
+    -e 's#${PACKAGE_PREFIX_DIR}/resources#${PACKAGE_PREFIX_DIR}/share/MaterialX/resources#g' \
     "${materialx_config}"
   diff -u "${evidence_root}/MaterialXConfig.cmake.original" \
     "${materialx_config}" \
     > "${evidence_root}/MaterialXConfig.cmake.patch" || config_diff_status=$?
   [[ "${config_diff_status:-0}" == 1 ]]
   grep -Fq \
-    "${INSTALL_PREFIX}/share/MaterialX/libraries" \
+    '${PACKAGE_PREFIX_DIR}/share/MaterialX/libraries' \
     "${materialx_config}"
   grep -Fq \
-    "${INSTALL_PREFIX}/share/MaterialX/resources" \
+    '${PACKAGE_PREFIX_DIR}/share/MaterialX/resources' \
     "${materialx_config}"
   [[ -d "${INSTALL_PREFIX}/share/MaterialX/libraries" ]]
   [[ -d "${INSTALL_PREFIX}/share/MaterialX/resources" ]]
