@@ -15,7 +15,7 @@ env:
   MOONRAY_TAG: v2026.29.1
   MOONRAY_COMMIT: d96c6e30a8c280d4b5eb3bafa5e54efc445d7ea8
   HDMOONRAY_REPOSITORY: https://github.com/nicolaspopravka/hdMoonray.git
-  HDMOONRAY_COMMIT: 034752b668cd8b2910fc2f2c3eb8ba6625a02281
+  HDMOONRAY_COMMIT: 32c48bd47886529f117534e7c99d1c90366ee165
   IMAGE_REPOSITORY: ghcr.io/nicolaspopravka/openmoonray-hydra
   VALIDATION_IMAGE: openmoonray-hydra-validation:${{ github.run_id }}
 
