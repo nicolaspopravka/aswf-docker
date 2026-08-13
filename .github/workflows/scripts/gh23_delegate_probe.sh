@@ -1,31 +1,36 @@
 #!/usr/bin/env bash
-# GH #23 gdb probe v5: dump the STATIC token objects (HdTokens->lightLink /
-# shadowLink) that the callers pass as the 4th arg in RCX, plus libusd's own
-# HdTokens->lightLink compare target in the adapter, plus static linkage
-# evidence for the hdMoonray-vs-libusd TfToken ABI question.
+# GH #23 gdb probe v6: corrected sret-first ABI + TfToken string decode.
 #
-# v4 established (all modes, both renderers, exit 0):
-#   - SI adapter hits 92x (2 per light) in default, 0 in emu0 (toggle works)
-#   - paramName reads {0x701, ...} / {0x3701|0x4401, ...} - masked ptrs
-#     0x700/0x3700/0x4400 that are NOT valid addresses (no symbol matches)
-#   - at _FailGet the VtValue is EMPTY (_info==0): {0,0,heap}
-#   - caller disasm: Sync+1314 `mov 0x66857(%rip),%rax #0x7fff843c5ea0`,
-#     +1321 `mov (%rax),%r14` (r14=HdTokens), +1353 `lea 0x38(%r14),%rcx`
-#     (RCX=&HdTokens->lightLink as spurious 4th arg), +1357 call, while the
-#     real paramName is RDX=r13=&stack-temp{0x701,0}
-#   - rdlClassName caller uses a DIFFERENT static: RCX=0x7fff843c78a8
-#     (=libhydramoonray data +0x698a8), i.e. a private token set, not the
-#     shared HdTokens. So there are (at least) two HdTokens-like statics.
+# v5.1 established (commit 20b3b9b, run 31685454550, exit 0, all modes):
+#   - hit counts: delegate 46, SI adapter 92, prim adapter 46, _FailGet 2
+#     (default, both renderers); all 0 in emu0 (toggle works)
+#   - every [RCX] dump at delegate/SI hits is a VALID _Rep pointer or a static
+#     (e.g. 0x267d398 bits 0x0, 0x35d18f8 bits 0x0, 0x38b71a9 bit 0x1), so the
+#     paramName is NEVER a corrupt token
+#   - the "0x701" literals are NOT corrupt paramNames: they are SdfPath pool
+#     handles (Sdf_Pool::Handle = (index<<RegionBits)|region, path.h:1044 says
+#     SdfPath is 8 bytes = {_primPart u32, _propPart u32})
 #
-# v5 adds:
-#   - dump x/2gx $rcx at delegate/SI hits: [RCX] = the static token object
-#     (lightLink for Sync calls, shadowLink/private-set for rdlClassName),
-#     answering: does the STATIC itself hold 0x701?
-#   - dump x/16gx $rcx-0x40 at SI hits: the token-set region around the static
-#   - adapter hit: disassemble the ADAPTER body (frame 0) to find libusd's
-#     own HdTokens->lightLink load (the == compare target) and dump both rdx
-#     and rcx content
-#   - static linkage: ldd/readelf/nm/strings on libhydramoonray.so
+# v6 ABI correction (x86-64 SysV, VtValue returned by hidden sret):
+#   GetLightParamValue(SdfPath const&, TfToken const&) -> VtValue is
+#     RDI=&sret-result, RSI=&this, RDX=&id(SdfPath), RCX=&paramName(TfToken)
+#   UsdImagingPrimAdapter::GetLightParamValue(UsdPrim const&, SdfPath const&,
+#     TfToken const&, UsdTimeCode) -> VtValue is
+#     RDI=&sret, RSI=&prim, RDX=&cachePath, RCX=&paramName, R8=time
+#   The v3-v5 "paramName in RDX / RCX=spurious 4th arg" reading was WRONG.
+#
+# v6 actions:
+#   - decode TfToken strings by walking TfToken::_Rep (token.h ctor order:
+#     _setNum u32, _compareCode u64, _str std::string, _cstr) ->
+#     _Rep+16 = std::string _M_p (char*), _Rep+24 = _M_len
+#   - print each function's entry prologue + caller frame disasm ONCE
+#     (per-breakpoint convenience counters), per-hit prints stay lean
+#   - print id node handle per hit ([RDX] as SdfPath) to see which prim each
+#     call is for
+#   - _FailGet: dump the empty VtValue (RDI), decode r13 (=&id temp in Sync),
+#     r14+0x38 / r14+0x160 / r14+0x168 (Sync's token-set bases; lightLink is
+#     at base+0x38 per v4 caller disasm), bt 4, frame-1 disasm
+#   - keeps range guards; no finish; no sizeof
 #
 # CPU-only; free GitHub Actions.
 set -u
@@ -82,60 +87,118 @@ if [ -n "${MOONRAY_SO:-}" ]; then
 fi
 echo
 
-# Body for the delegate + SI adapter breakpoints (2-arg members).
-# RDI=this, RSI=&id, RDX=&paramName. RCX = caller's leftover 4th arg, which at
-# the observed call sites is &HdTokens->lightLink / &private-token-set->member
-# (the `lea 0x38(%r14),%rcx` from Sync) - i.e. the STATIC token object.
-CAPTURE_BODY=$(cat <<'XEOF'
-  printf "  REGS rdi=0x%lx rsi=0x%lx rdx=0x%lx rcx=0x%lx\n", $rdi, $rsi, $rdx, $rcx
-  printf "  16 raw bytes at param_ptr(rdx):\n"
-  x/2gx $rdx
-  set $c = (unsigned long)$rcx
-  set $cok = 0
-  if $c > 0x100000 && $c < 0x00007fffffffffff
-    set $cok = 1
+# Decode the TfToken whose ADDRESS is in $tokaddr. Reads the 8-byte token
+# value (= _RepPtrAndBits), then the _Rep object: _str std::string at +16
+# (_M_p at +16, _M_len at +24). All reads range-guarded.
+# Single-quoted on purpose: the body must reach gdb with literal $tokaddr etc.
+DECODE_TOKEN='  set $tokrep = *(unsigned long*)$tokaddr
+  set $tokp = $tokrep & ~3ul
+  printf "      TfToken@0x%lx: rep=0x%lx  masked=0x%lx  bits=0x%lx\n", $tokaddr, $tokrep, $tokp, $tokrep & 3ul
+  set $tokok = 0
+  if $tokrep > 0x100000 && $tokp > 0x100000 && $tokp < 0x00007fffffffffff
+    set $tokok = 1
   end
-  if $cok
-    printf "  [rcx] static token object at 0x%lx:\n", $c
-    x/2gx $c
-    set $clit = *(unsigned long*)$c
-    printf "  [rcx] literal = 0x%lx  (masked ptr 0x%lx, bits 0x%lx)\n", $clit, $clit & ~3ul, $clit & 3ul
-    if $clit == *(unsigned long*)$rdx
-      printf "  [rcx] == [rdx] -> paramName IS the static token object\n"
+  if $tokok
+    set $toklen = *(unsigned long*)($tokp + 24)
+    set $tokmp = *(unsigned long*)($tokp + 16)
+    printf "      _Rep+16 (_M_p)=0x%lx  _Rep+24 (_M_len)=%lu\n", $tokmp, $toklen
+    set $tokmok = 0
+    if $tokmp > 0x100000 && $tokmp < 0x00007fffffffffff && $toklen > 0 && $toklen < 256
+      set $tokmok = 1
+    end
+    if $tokmok
+      printf "      string: "
+      x/s $tokmp
     else
-      printf "  [rcx] != [rdx] -> paramName is a DIFFERENT object/literal\n"
+      printf "      (string unreadable: len=%lu mp=0x%lx)\n", $toklen, $tokmp
     end
-    info symbol $c
-    if $clit > 0x100000 && $clit < 0x00007fffffffffff
-      info symbol $clit
+  else
+    printf "      (rep not a valid pointer)\n"
+  end'
+
+# Body for the delegate + SI adapter breakpoints (2-arg members, VtValue sret).
+# RDI=&sret-result, RSI=&this, RDX=&id(SdfPath), RCX=&paramName(TfToken).
+# The TfToken decode is INLINED (twice) rather than injected via a variable:
+# bash word-splits a bare $VAR on newlines and would re-expand $ inside
+# "$VAR", so nesting the decode block would corrupt it. All $ stay literal
+# inside this single-quoted heredoc.
+# __CTR__ = per-breakpoint counter convenience variable name (substituted by
+# bash) so each function's prologue/caller disasm prints exactly once.
+CAPTURE_BODY=$(cat <<'XEOF'
+  set $isFirst = (__CTR__ == 0)
+  set __CTR__ = __CTR__ + 1
+  printf "  REGS rdi(sret)=0x%lx rsi(this)=0x%lx rdx(&id)=0x%lx rcx(&name)=0x%lx\n", $rdi, $rsi, $rdx, $rcx
+  set $idv = *(unsigned long*)$rdx
+  printf "  [rdx] SdfPath = 0x%lx  (primPart=%lu propPart=%lu%s)\n", $idv, $idv & 0xffffffff, ($idv >> 32) & 0xffffffff, ($idv & 0xffffffff) == 0 ? "  [EMPTY PATH]" : ""
+  set $tokaddr = (unsigned long)$rcx
+  printf "  decode [rcx] as paramName:\n"
+  set $tokrep = *(unsigned long*)$tokaddr
+  set $tokp = $tokrep & ~3ul
+  printf "      TfToken@0x%lx: rep=0x%lx  masked=0x%lx  bits=0x%lx\n", $tokaddr, $tokrep, $tokp, $tokrep & 3ul
+  set $tokok = 0
+  if $tokrep > 0x100000 && $tokp > 0x100000 && $tokp < 0x00007fffffffffff
+    set $tokok = 1
+  end
+  if $tokok
+    set $toklen = *(unsigned long*)($tokp + 24)
+    set $tokmp = *(unsigned long*)($tokp + 16)
+    printf "      _Rep+16 (_M_p)=0x%lx  _Rep+24 (_M_len)=%lu\n", $tokmp, $toklen
+    set $tokmok = 0
+    if $tokmp > 0x100000 && $tokmp < 0x00007fffffffffff && $toklen > 0 && $toklen < 256
+      set $tokmok = 1
     end
-    printf "  token-set region around rcx-0x40:\n"
-    x/16gx $rcx-0x40
+    if $tokmok
+      printf "      string: "
+      x/s $tokmp
+    else
+      printf "      (string unreadable: len=%lu mp=0x%lx)\n", $toklen, $tokmp
+    end
+  else
+    printf "      (rep not a valid pointer)\n"
   end
-  printf "  frame 1 (caller) around call site:\n"
-  frame 1
-  x/16i $pc-0x40
-  frame 0
-  set $p = (unsigned long)$rdx
-  set $ok = 0
-  if $p > 0x100000 && $p < 0x00007fffffffffff
-    set $ok = 1
+  set $tokaddr = (unsigned long)$rdx
+  printf "  decode [rdx] as TfToken (id reinterpreted; expect string==path only if this is really a token):\n"
+  set $tokrep = *(unsigned long*)$tokaddr
+  set $tokp = $tokrep & ~3ul
+  printf "      TfToken@0x%lx: rep=0x%lx  masked=0x%lx  bits=0x%lx\n", $tokaddr, $tokrep, $tokp, $tokrep & 3ul
+  set $tokok = 0
+  if $tokrep > 0x100000 && $tokp > 0x100000 && $tokp < 0x00007fffffffffff
+    set $tokok = 1
   end
-  if $ok
-    set $lit = *(unsigned long*)$p
-    printf "  paramName literal = 0x%lx  (masked ptr 0x%lx, bits 0x%lx)\n", $lit, $lit & ~3ul, $lit & 3ul
-    info symbol $lit
-    info symbol ($lit & ~3ul)
+  if $tokok
+    set $toklen = *(unsigned long*)($tokp + 24)
+    set $tokmp = *(unsigned long*)($tokp + 16)
+    printf "      _Rep+16 (_M_p)=0x%lx  _Rep+24 (_M_len)=%lu\n", $tokmp, $toklen
+    set $tokmok = 0
+    if $tokmp > 0x100000 && $tokmp < 0x00007fffffffffff && $toklen > 0 && $toklen < 256
+      set $tokmok = 1
+    end
+    if $tokmok
+      printf "      string: "
+      x/s $tokmp
+    else
+      printf "      (string unreadable: len=%lu mp=0x%lx)\n", $toklen, $tokmp
+    end
+  else
+    printf "      (rep not a valid pointer)\n"
   end
-  set $idok = 0
+  if $isFirst
+    printf "  entry prologue (frame 0):\n"
+    x/40i $pc
+    printf "  caller (frame 1) around call site:\n"
+    frame 1
+    x/24i $pc-0x40
+    frame 0
+  end
   if (unsigned long)$rsi > 0x100000 && (unsigned long)$rsi < 0x00007fffffffffff
-    set $idok = 1
-  end
-  if $idok
-    printf "  id node handle = 0x%lx (0 == EMPTY path)\n", *(unsigned long*)$rsi
+    printf "  this=0x%lx vtable=0x%lx\n", $rsi, *(unsigned long*)$rsi
   end
 XEOF
 )
+
+# Same body but with per-breakpoint counter variables substituted.
+CAPTURE_DELEGATE=${CAPTURE_BODY//__CTR__/\$v6d}
+CAPTURE_SI=${CAPTURE_BODY//__CTR__/\$v6s}
 
 for mode in default emu0; do
   if [ "$mode" = emu0 ]; then
@@ -146,19 +209,23 @@ for mode in default emu0; do
 
   for renderer in "Moonray" "Moonray (debug)"; do
     tag=$(echo "$mode-$renderer" | tr ' ()' '___')
-    echo "===== gdb delegate-param v5: mode=$mode renderer=$renderer ($tag) ====="
+    echo "===== gdb delegate-param v6: mode=$mode renderer=$renderer ($tag) ====="
     cat > "/tmp/gdb-$tag.cmd" <<EOF
 set pagination off
 set confirm off
 set breakpoint pending on
 set print asm-demangle on
+set \$v6d = 0
+set \$v6s = 0
+set \$v6a = 0
+set \$v6f = 0
 file ${python3_bin}
 set args ${script_bin} --renderer "${renderer}" --camera /World/Camera --imageWidth 256 ${SCENE} ${OUT}/minimal-${tag}.exr
 break ${DELEGATE_SYM}
 commands
 silent
 printf "\\n=== HIT UsdImagingDelegate::GetLightParamValue ===\\n"
-${CAPTURE_BODY}
+${CAPTURE_DELEGATE}
 printf "=== END DELEGATE ===\\n"
 continue
 end
@@ -166,7 +233,7 @@ break ${SI_SYM}
 commands
 silent
 printf "\\n=== HIT HdSceneIndexAdapterSceneDelegate::GetLightParamValue ===\\n"
-${CAPTURE_BODY}
+${CAPTURE_SI}
 printf "=== END SI ADAPTER ===\\n"
 continue
 end
@@ -174,52 +241,22 @@ break ${ADAPTER_SYM}
 commands
 silent
 printf "\\n=== HIT UsdImagingPrimAdapter::GetLightParamValue ===\\n"
-printf "  REGS rdi=0x%lx rsi=0x%lx rdx=0x%lx rcx=0x%lx r8=0x%lx\\n", \$rdi, \$rsi, \$rdx, \$rcx, \$r8
-printf "  adapter entry disasm (frame 0) - looking for libusd HdTokens->lightLink compare:\\n"
-x/24i \$pc
-set \$d = (unsigned long)\$rdx
-set \$dok = 0
-if \$d > 0x100000 && \$d < 0x00007fffffffffff
-  set \$dok = 1
+set \$isFirst = (\$v6a == 0)
+set \$v6a = \$v6a + 1
+printf "  REGS rdi(sret)=0x%lx rsi(&prim)=0x%lx rdx(&cachePath)=0x%lx rcx(&name)=0x%lx r8(time)=0x%lx\\n", \$rdi, \$rsi, \$rdx, \$rcx, \$r8
+set \$idv = *(unsigned long*)\$rdx
+printf "  [rdx] cachePath SdfPath = 0x%lx  (primPart=%lu propPart=%lu%s)\\n", \$idv, \$idv & 0xffffffff, (\$idv >> 32) & 0xffffffff, (\$idv & 0xffffffff) == 0 ? "  [EMPTY PATH]" : ""
+set \$tokaddr = (unsigned long)\$rcx
+printf "  decode [rcx] as paramName:\\n"
+${DECODE_TOKEN}
+if \$isFirst
+  printf "  entry prologue (frame 0):\\n"
+  x/40i \$pc
+  printf "  caller (frame 1) around call site:\\n"
+  frame 1
+  x/24i \$pc-0x40
+  frame 0
 end
-if \$dok
-  printf "  16 raw bytes at rdx (arg):\\n"
-  x/2gx \$rdx
-end
-set \$c2 = (unsigned long)\$rcx
-set \$c2ok = 0
-if \$c2 > 0x100000 && \$c2 < 0x00007fffffffffff
-  set \$c2ok = 1
-end
-if \$c2ok
-  printf "  16 raw bytes at rcx (arg):\\n"
-  x/2gx \$rcx
-end
-printf "  frame 1 (caller) around call site:\\n"
-frame 1
-x/16i \$pc-0x40
-frame 0
-set \$p = (unsigned long)\$rcx
-set \$ok = 0
-if \$p > 0x100000 && \$p < 0x00007fffffffffff
-  set \$ok = 1
-end
-if \$ok
-  set \$lit = *(unsigned long*)\$p
-  printf "  paramName literal (rcx) = 0x%lx  (masked ptr 0x%lx, bits 0x%lx)\\n", \$lit, \$lit & ~3ul, \$lit & 3ul
-  info symbol \$lit
-  info symbol (\$lit & ~3ul)
-end
-set \$p2 = (unsigned long)\$rdx
-set \$ok2 = 0
-if \$p2 > 0x100000 && \$p2 < 0x00007fffffffffff
-  set \$ok2 = 1
-end
-if \$ok2
-  set \$lit2 = *(unsigned long*)\$p2
-  printf "  rdx literal = 0x%lx  (masked ptr 0x%lx, bits 0x%lx)\\n", \$lit2, \$lit2 & ~3ul, \$lit2 & 3ul
-end
-printf "  cachePath node handle = 0x%lx (0 == EMPTY)\\n", *(unsigned long*)\$rdx
 printf "=== END ADAPTER ===\\n"
 continue
 end
@@ -227,11 +264,28 @@ break ${FAILGET_SYM}
 commands
 silent
 printf "\\n=== HIT _FailGet ===\\n"
+set \$v6f = \$v6f + 1
 printf "  empty VtValue object (RDI=&this):\\n"
 x/3gx \$rdi
+printf "  backtrace:\\n"
+bt 4
+printf "  frame 1 (hdMoonray::Light::Sync) callee-saved regs hold query state; decode:\\n"
+set \$tokaddr = (unsigned long)\$r13
+printf "  [r13] as TfToken (candidate &id temp):\\n"
+${DECODE_TOKEN}
+set \$tokaddr = (unsigned long)\$r14 + 0x38
+printf "  [r14+0x38] as TfToken (candidate HdTokens->lightLink):\\n"
+${DECODE_TOKEN}
+set \$tokaddr = (unsigned long)\$r14 + 0x168
+printf "  [r14+0x168] as TfToken (candidate shadowLink/other):\\n"
+${DECODE_TOKEN}
+set \$tokaddr = (unsigned long)\$r14 + 0x160
+printf "  [r14+0x160] as TfToken (candidate neighbor):\\n"
+${DECODE_TOKEN}
 printf "  frame 1 = hdMoonray::Light::Sync; disasm around call site:\\n"
 frame 1
 x/80i \$pc-0x120
+frame 0
 printf "=== END FAILGET ===\\n"
 continue
 end
