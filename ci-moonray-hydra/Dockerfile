@@ -9,6 +9,8 @@ FROM ${BASE_IMAGE} AS builder
 ARG BASE_IMAGE
 ARG MOONRAY_TAG=v2026.29.1
 ARG MOONRAY_COMMIT=d96c6e30a8c280d4b5eb3bafa5e54efc445d7ea8
+ARG HDMOONRAY_REPOSITORY=https://github.com/nicolaspopravka/hdMoonray.git
+ARG HDMOONRAY_COMMIT=034752b668cd8b2910fc2f2c3eb8ba6625a02281
 ARG BUILD_JOBS=4
 
 USER root
@@ -84,6 +86,12 @@ RUN git clone \
         https://github.com/OpenMoonRay/openmoonray.git && \
     test "$(git -C openmoonray rev-parse HEAD)" = "${MOONRAY_COMMIT}" && \
     git -C openmoonray lfs pull && \
+    git -C openmoonray/moonray/hydra/hdMoonray fetch \
+        --depth 1 "${HDMOONRAY_REPOSITORY}" "${HDMOONRAY_COMMIT}" && \
+    git -C openmoonray/moonray/hydra/hdMoonray checkout \
+        --detach "${HDMOONRAY_COMMIT}" && \
+    test "$(git -C openmoonray/moonray/hydra/hdMoonray rev-parse HEAD)" = \
+        "${HDMOONRAY_COMMIT}" && \
     git -C openmoonray submodule status --recursive
 
 RUN test -x /usr/local/bin/python3.11 && \
@@ -132,6 +140,8 @@ RUN test -x /usr/local/bin/python3.11 && \
     printf '%s\n' \
         "tag=${MOONRAY_TAG}" \
         "commit=${MOONRAY_COMMIT}" \
+        "hdmoonray_repository=${HDMOONRAY_REPOSITORY}" \
+        "hdmoonray_commit=${HDMOONRAY_COMMIT}" \
         "base_image=${BASE_IMAGE}" \
         "build_materialx_shaders=ON" \
         "lua_tool_version=5.4.4" \
