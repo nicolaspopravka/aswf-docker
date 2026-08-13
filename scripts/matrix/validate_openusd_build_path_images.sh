@@ -29,6 +29,8 @@ grep -Fq "grep -R -l -F '\"HdStormRendererPlugin\"'" "${harness}"
 grep -Fq "MaterialXCore/Generated.h" "${harness}"
 grep -Fq '${PACKAGE_PREFIX_DIR}/share/MaterialX/libraries' "${harness}"
 grep -Fq 'MaterialXConfig-paths.txt' "${harness}"
+grep -Fq 'aswf-build_usd-matched-mtlx.patch' "${harness}"
+grep -Fq '! grep -Fq '\''OpenUSD/pull/3159.diff' "${harness}"
 grep -Fq "cd \"\${evidence_root}\"" "${harness}"
 if grep -Fq 'HdStormRendererPlugin=True' "${harness}"; then
   echo "Plug package names must not be confused with renderer type names." >&2

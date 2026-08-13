@@ -371,11 +371,39 @@ build_aswf() {
     return 1
   }
   cp "${helper}" "${evidence_root}/aswf-build_usd.sh"
+  if [[ "${BUILD_PATH}" == aswf-docker-build-usd-matched-mtlx ]]; then
+    matched_helper="${work_root}/aswf-build_usd-matched-mtlx.sh"
+    cp "${helper}" "${matched_helper}"
+    python3 - "${matched_helper}" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+block = '''if [[ $ASWF_OPENUSD_VERSION == 24.08 ]]; then
+    # Apply patch from https://github.com/PixarAnimationStudios/USD/pull/3159
+    curl --location "https://patch-diff.githubusercontent.com/raw/PixarAnimationStudios/OpenUSD/pull/3159.diff" | patch -p1
+fi
+'''
+if text.count(block) != 1:
+    raise SystemExit(f"expected one OpenUSD PR #3159 block, found {text.count(block)}")
+path.write_text(text.replace(block, ""))
+PY
+    diff -u "${helper}" "${matched_helper}" \
+      > "${evidence_root}/aswf-build_usd-matched-mtlx.patch" \
+      || helper_diff_status=$?
+    [[ "${helper_diff_status:-0}" == 1 ]]
+    ! grep -Fq 'OpenUSD/pull/3159.diff' "${matched_helper}"
+    helper="${matched_helper}"
+  fi
   printf '%s\n' "bash ${helper}" > "${evidence_root}/build-argv.txt"
 
   source_archive="${downloads_root}/usd-${OPENUSD_VERSION}.tar.gz"
   download_source "${source_archive}"
-  [[ "${OPENUSD_VERSION}" != 24.08 ]] || prepare_cy2024_patch_shim
+  if [[ "${OPENUSD_VERSION}" == 24.08 \
+      && "${BUILD_PATH}" != aswf-docker-build-usd-matched-mtlx ]]; then
+    prepare_cy2024_patch_shim
+  fi
 
   export ASWF_OPENUSD_VERSION="${OPENUSD_VERSION}"
   export ASWF_MATERIALX_VERSION="${MATERIALX_VERSION}"
