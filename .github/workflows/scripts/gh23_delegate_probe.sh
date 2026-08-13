@@ -25,7 +25,6 @@
 #   - adapter hit: disassemble the ADAPTER body (frame 0) to find libusd's
 #     own HdTokens->lightLink load (the == compare target) and dump both rdx
 #     and rcx content
-#   - sizeof(pxr::TfToken) once (first hit) to confirm the 8-byte layout
 #   - static linkage: ldd/readelf/nm/strings on libhydramoonray.so
 #
 # CPU-only; free GitHub Actions.
@@ -89,12 +88,6 @@ echo
 # (the `lea 0x38(%r14),%rcx` from Sync) - i.e. the STATIC token object.
 CAPTURE_BODY=$(cat <<'XEOF'
   printf "  REGS rdi=0x%lx rsi=0x%lx rdx=0x%lx rcx=0x%lx\n", $rdi, $rsi, $rdx, $rcx
-  set $cnt = $cnt + 1
-  if $cnt == 1
-    printf "  sizeof(pxr::TfToken) / SdfPath (from this lib's debug info if present):\n"
-    p sizeof(pxr::TfToken)
-    p sizeof(pxr::SdfPath)
-  end
   printf "  16 raw bytes at param_ptr(rdx):\n"
   x/2gx $rdx
   set $c = (unsigned long)$rcx
@@ -116,9 +109,9 @@ CAPTURE_BODY=$(cat <<'XEOF'
     if $clit > 0x100000 && $clit < 0x00007fffffffffff
       info symbol $clit
     end
+    printf "  token-set region around rcx-0x40:\n"
+    x/16gx $rcx-0x40
   end
-  printf "  token-set region around rcx-0x40:\n"
-  x/16gx $rcx-0x40
   printf "  frame 1 (caller) around call site:\n"
   frame 1
   x/16i $pc-0x40
@@ -159,7 +152,6 @@ set pagination off
 set confirm off
 set breakpoint pending on
 set print asm-demangle on
-set \$cnt = 0
 file ${python3_bin}
 set args ${script_bin} --renderer "${renderer}" --camera /World/Camera --imageWidth 256 ${SCENE} ${OUT}/minimal-${tag}.exr
 break ${DELEGATE_SYM}
@@ -185,10 +177,24 @@ printf "\\n=== HIT UsdImagingPrimAdapter::GetLightParamValue ===\\n"
 printf "  REGS rdi=0x%lx rsi=0x%lx rdx=0x%lx rcx=0x%lx r8=0x%lx\\n", \$rdi, \$rsi, \$rdx, \$rcx, \$r8
 printf "  adapter entry disasm (frame 0) - looking for libusd HdTokens->lightLink compare:\\n"
 x/24i \$pc
-printf "  16 raw bytes at rdx (arg):\\n"
-x/2gx \$rdx
-printf "  16 raw bytes at rcx (arg):\\n"
-x/2gx \$rcx
+set \$d = (unsigned long)\$rdx
+set \$dok = 0
+if \$d > 0x100000 && \$d < 0x00007fffffffffff
+  set \$dok = 1
+end
+if \$dok
+  printf "  16 raw bytes at rdx (arg):\\n"
+  x/2gx \$rdx
+end
+set \$c2 = (unsigned long)\$rcx
+set \$c2ok = 0
+if \$c2 > 0x100000 && \$c2 < 0x00007fffffffffff
+  set \$c2ok = 1
+end
+if \$c2ok
+  printf "  16 raw bytes at rcx (arg):\\n"
+  x/2gx \$rcx
+end
 printf "  frame 1 (caller) around call site:\\n"
 frame 1
 x/16i \$pc-0x40
