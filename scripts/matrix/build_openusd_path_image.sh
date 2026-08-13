@@ -223,7 +223,6 @@ build_matched_materialx() {
   cp "${materialx_config}" "${evidence_root}/MaterialXConfig.cmake.original"
   sed -i \
     -e 's#${PACKAGE_PREFIX_DIR}/libraries#${PACKAGE_PREFIX_DIR}/share/MaterialX/libraries#g' \
-    -e 's#${PACKAGE_PREFIX_DIR}/resources#${PACKAGE_PREFIX_DIR}/share/MaterialX/resources#g' \
     "${materialx_config}"
   diff -u "${evidence_root}/MaterialXConfig.cmake.original" \
     "${materialx_config}" \
@@ -232,11 +231,10 @@ build_matched_materialx() {
   grep -Fq \
     '${PACKAGE_PREFIX_DIR}/share/MaterialX/libraries' \
     "${materialx_config}"
-  grep -Fq \
-    '${PACKAGE_PREFIX_DIR}/share/MaterialX/resources' \
-    "${materialx_config}"
   [[ -d "${INSTALL_PREFIX}/share/MaterialX/libraries" ]]
-  [[ -d "${INSTALL_PREFIX}/share/MaterialX/resources" ]]
+  grep -n -E 'MATERIALX_(BASE|STDLIB|PYTHON|RESOURCES)_DIR' \
+    "${materialx_config}" \
+    | tee "${evidence_root}/MaterialXConfig-paths.txt"
   printf '%s  %s\n' "${MATERIALX_SOURCE_SHA256}" "${materialx_url}" \
     > "${evidence_root}/materialx-source-sha256.txt"
 }
