@@ -219,6 +219,24 @@ build_matched_materialx() {
     2>&1 | tee "${evidence_root}/materialx-build.log"
   cmake --install "${materialx_build}" \
     2>&1 | tee "${evidence_root}/materialx-install.log"
+  materialx_config="${INSTALL_PREFIX}/lib/cmake/MaterialX/MaterialXConfig.cmake"
+  cp "${materialx_config}" "${evidence_root}/MaterialXConfig.cmake.original"
+  sed -i \
+    -e "s#${INSTALL_PREFIX}/libraries#${INSTALL_PREFIX}/share/MaterialX/libraries#g" \
+    -e "s#${INSTALL_PREFIX}/resources#${INSTALL_PREFIX}/share/MaterialX/resources#g" \
+    "${materialx_config}"
+  diff -u "${evidence_root}/MaterialXConfig.cmake.original" \
+    "${materialx_config}" \
+    > "${evidence_root}/MaterialXConfig.cmake.patch" || config_diff_status=$?
+  [[ "${config_diff_status:-0}" == 1 ]]
+  grep -Fq \
+    "${INSTALL_PREFIX}/share/MaterialX/libraries" \
+    "${materialx_config}"
+  grep -Fq \
+    "${INSTALL_PREFIX}/share/MaterialX/resources" \
+    "${materialx_config}"
+  [[ -d "${INSTALL_PREFIX}/share/MaterialX/libraries" ]]
+  [[ -d "${INSTALL_PREFIX}/share/MaterialX/resources" ]]
   printf '%s  %s\n' "${MATERIALX_SOURCE_SHA256}" "${materialx_url}" \
     > "${evidence_root}/materialx-source-sha256.txt"
 }
