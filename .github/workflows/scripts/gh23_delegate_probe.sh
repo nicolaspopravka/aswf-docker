@@ -1,20 +1,20 @@
 #!/usr/bin/env bash
-# GH #23 gdb probe v3: capture the RETURN VALUE of each GetLightParamValue
-# implementation and identify the paramName token.
+# GH #23 gdb probe v4: identify the paramName token by disassembling the CALLER
+# (Light::Sync) at every GetLightParamValue hit + the _FailGet call site.
 #
-# v2 established: every GetLightParamValue call comes from hdMoonray::Light::Sync;
-# _FailGet fires 2x in BOTH default and emu0 modes; paramName slot reads 0x700
-# (not a valid string pointer).
+# v3 showed the token object at param_ptr reads {0x701, heap_ptr} - 0x701 masks
+# to a pointer (0x700) that is NOT a valid address, i.e. not a valid TfToken
+# _Rep. Two possibilities: (a) ABI/token-encoding mismatch between hdMoonray
+# and libusd, or (b) my register read is wrong.
 #
-# This version:
-#   - prints ALL arg registers + raw token bytes (x/2gx) + `info symbol`
-#     resolution of the paramName pointer and rep value
-#   - runs `finish` at each breakpoint and prints the RETURN VtValue:
-#       RAX = VtValue::_info (0 == EMPTY VtValue)
-#       RDX = VtValue::_storage low word (TfToken _rep if _info != 0)
-#   - at _FailGet, dumps the empty VtValue object (RDI) and disassembles
-#     Light::Sync around the call site (frame 1) to expose both
-#     GetLightParamValue calls and the tokens passed.
+# v4 (no `finish` - it terminates a batch command list):
+#   - at each delegate/SI/adapter hit: print ALL arg regs, dump 16 raw bytes at
+#     the paramName object, info-symbol the param ptr and rep, and disassemble
+#     the caller frame (frame 1) around the call site to show the exact lea/mov
+#     that supplied paramName (and thus its true address/encoding)
+#   - at _FailGet: dump the empty VtValue (RDI) and disassemble a wide window of
+#     Light::Sync around $pc (frame 1) to expose both GetLightParamValue calls
+#     and the .Get<TfToken>() empty-checks
 #
 # CPU-only; free GitHub Actions.
 set -u
@@ -50,24 +50,26 @@ for lib in /usr/local/lib/libusd_usdImaging.so /usr/local/lib/libusd_hd.so; do
 done
 echo
 
-# Token/decode body for the delegate + SI adapter breakpoints.
-# 2-arg member: RDI=this (or sret), RSI=&id, RDX=&paramName.
-# We print every relevant register + raw memory, then `finish` to capture the
-# VtValue return (RAX=_info, RDX=_storage).
+# Body for the delegate + SI adapter breakpoints (2-arg members).
+# RDI=this, RSI=&id, RDX=&paramName.
 CAPTURE_BODY=$(cat <<'XEOF'
   printf "  REGS rdi=0x%lx rsi=0x%lx rdx=0x%lx rcx=0x%lx\n", $rdi, $rsi, $rdx, $rcx
-  info symbol $rdx
-  printf "  raw token object at param_ptr:\n"
+  printf "  16 raw bytes at param_ptr(rdx):\n"
   x/2gx $rdx
+  printf "  frame 1 (caller) around call site:\n"
+  frame 1
+  x/16i $pc-0x40
+  frame 0
   set $p = (unsigned long)$rdx
   set $ok = 0
   if $p > 0x100000 && $p < 0x00007fffffffffff
     set $ok = 1
   end
   if $ok
-    set $rep = (*(unsigned long*)$p) & ~3ul
-    printf "  paramName rep (masked) = 0x%lx\n", $rep
-    info symbol $rep
+    set $lit = *(unsigned long*)$p
+    printf "  paramName literal = 0x%lx  (masked ptr 0x%lx, bits 0x%lx)\n", $lit, $lit & ~3ul, $lit & 3ul
+    info symbol $lit
+    info symbol ($lit & ~3ul)
   end
   set $idok = 0
   if (unsigned long)$rsi > 0x100000 && (unsigned long)$rsi < 0x00007fffffffffff
@@ -75,14 +77,6 @@ CAPTURE_BODY=$(cat <<'XEOF'
   end
   if $idok
     printf "  id node handle = 0x%lx (0 == EMPTY path)\n", *(unsigned long*)$rsi
-  end
-  finish
-  printf "  RETURN VtValue: rax(_info)=0x%lx rdx(_storage)=0x%lx\n", $rax, $rdx
-  if $rax == 0
-    printf "  >>> RETURNED EMPTY VtValue (this is what triggers _FailGet)\n"
-  else
-    printf "  VtValue holds a value; storage word 0x%lx = rep if TfToken\n", $rdx
-    info symbol $rdx
   end
 XEOF
 )
@@ -96,11 +90,12 @@ for mode in default emu0; do
 
   for renderer in "Moonray" "Moonray (debug)"; do
     tag=$(echo "$mode-$renderer" | tr ' ()' '___')
-    echo "===== gdb delegate-param v3: mode=$mode renderer=$renderer ($tag) ====="
+    echo "===== gdb delegate-param v4: mode=$mode renderer=$renderer ($tag) ====="
     cat > "/tmp/gdb-$tag.cmd" <<EOF
 set pagination off
 set confirm off
 set breakpoint pending on
+set print asm-demangle on
 file ${python3_bin}
 set args ${script_bin} --renderer "${renderer}" --camera /World/Camera --imageWidth 256 ${SCENE} ${OUT}/minimal-${tag}.exr
 break ${DELEGATE_SYM}
@@ -124,28 +119,24 @@ commands
 silent
 printf "\\n=== HIT UsdImagingPrimAdapter::GetLightParamValue ===\\n"
 printf "  REGS rdi=0x%lx rsi=0x%lx rdx=0x%lx rcx=0x%lx r8=0x%lx\\n", \$rdi, \$rsi, \$rdx, \$rcx, \$r8
-info symbol \$rcx
-printf "  raw token object at param_ptr(rcx):\\n"
+printf "  16 raw bytes at param_ptr(rcx):\\n"
 x/2gx \$rcx
+printf "  frame 1 (caller) around call site:\\n"
+frame 1
+x/16i \$pc-0x40
+frame 0
 set \$p = (unsigned long)\$rcx
 set \$ok = 0
 if \$p > 0x100000 && \$p < 0x00007fffffffffff
   set \$ok = 1
 end
 if \$ok
-  set \$rep = (*(unsigned long*)\$p) & ~3ul
-  printf "  paramName rep (masked) = 0x%lx\\n", \$rep
-  info symbol \$rep
+  set \$lit = *(unsigned long*)\$p
+  printf "  paramName literal = 0x%lx  (masked ptr 0x%lx, bits 0x%lx)\\n", \$lit, \$lit & ~3ul, \$lit & 3ul
+  info symbol \$lit
+  info symbol (\$lit & ~3ul)
 end
 printf "  cachePath node handle = 0x%lx (0 == EMPTY)\\n", *(unsigned long*)\$rdx
-finish
-printf "  RETURN VtValue: rax(_info)=0x%lx rdx(_storage)=0x%lx\\n", \$rax, \$rdx
-if \$rax == 0
-  printf "  >>> RETURNED EMPTY VtValue (this is what triggers _FailGet)\\n"
-else
-  printf "  VtValue holds a value; storage word 0x%lx = rep if TfToken\\n", \$rdx
-  info symbol \$rdx
-end
 printf "=== END ADAPTER ===\\n"
 continue
 end
@@ -153,11 +144,11 @@ break ${FAILGET_SYM}
 commands
 silent
 printf "\\n=== HIT _FailGet ===\\n"
-printf "  RDI = &this VtValue; raw object:\\n"
-x/2gx \$rdi
+printf "  empty VtValue object (RDI=&this):\\n"
+x/3gx \$rdi
 printf "  frame 1 = hdMoonray::Light::Sync; disasm around call site:\\n"
 frame 1
-x/48i \$pc-0xc0
+x/80i \$pc-0x120
 printf "=== END FAILGET ===\\n"
 continue
 end
@@ -174,7 +165,6 @@ EOF
     echo "SI adapter hits: $(grep -c '=== HIT HdSceneIndexAdapterSceneDelegate' "$OUT/gdb-$tag.log" || true)"
     echo "adapter hits:   $(grep -c '=== HIT UsdImagingPrimAdapter' "$OUT/gdb-$tag.log" || true)"
     echo "FailGet hits:   $(grep -c '=== HIT _FailGet' "$OUT/gdb-$tag.log" || true)"
-    echo "empty returns:  $(grep -c 'RETURNED EMPTY VtValue' "$OUT/gdb-$tag.log" || true)"
     echo
   done
 done
