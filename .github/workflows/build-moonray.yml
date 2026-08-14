@@ -1,12 +1,6 @@
-name: Build OpenMoonRay Hydra Delegate
+name: Validate MoonRay GH 26 Fix
 
-on:
-  workflow_dispatch:
-    inputs:
-      candidate_image:
-        description: Existing immutable candidate image to validate without rebuilding
-        required: false
-        type: string
+on: workflow_dispatch
 
 permissions:
   contents: read
@@ -20,13 +14,13 @@ env:
   BASE_IMAGE: aswf/ci-moonray:2025.7@sha256:0a6fd225c6a58b673d980c5d8503bb8a35a122006b9274428911374a3bc5dead
   MOONRAY_TAG: v2026.29.1
   MOONRAY_COMMIT: d96c6e30a8c280d4b5eb3bafa5e54efc445d7ea8
-  ASSETS_COMMIT: 907d5f17bbe933fc14441a3f3ab69a5bd8abe32a
+  MOONRAY_SDR_REPOSITORY: https://github.com/nicolaspopravka/moonray_sdr_plugins.git
+  MOONRAY_SDR_COMMIT: 5f76b3b183a326470a09fdaeecc966b867c1c1f0
   IMAGE_REPOSITORY: ghcr.io/nicolaspopravka/openmoonray-hydra
   VALIDATION_IMAGE: openmoonray-hydra-validation:${{ github.run_id }}
 
 jobs:
   build_candidate:
-    if: ${{ inputs.candidate_image == '' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 360
     outputs:
@@ -80,6 +74,8 @@ jobs:
             --build-arg "BASE_IMAGE=${BASE_IMAGE}" \
             --build-arg "MOONRAY_TAG=${MOONRAY_TAG}" \
             --build-arg "MOONRAY_COMMIT=${MOONRAY_COMMIT}" \
+            --build-arg "MOONRAY_SDR_REPOSITORY=${MOONRAY_SDR_REPOSITORY}" \
+            --build-arg "MOONRAY_SDR_COMMIT=${MOONRAY_SDR_COMMIT}" \
             --build-arg "BUILD_REVISION=${GITHUB_SHA}" \
             --build-arg "BUILD_JOBS=4" \
             --cache-from type=gha,scope=openmoonray-hydra-2026-29-1 \
@@ -102,19 +98,12 @@ jobs:
           printf 'image=%s@%s\n' "${IMAGE_REPOSITORY}" "${digest}" \
             | tee -a "${GITHUB_OUTPUT}"
 
-  validate-and-publish:
+  validate:
     needs: build_candidate
-    if: >-
-      ${{ always() &&
-          (needs.build_candidate.result == 'success' ||
-           needs.build_candidate.result == 'skipped') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 360
     env:
-      CANDIDATE_IMAGE: >-
-        ${{ inputs.candidate_image != '' &&
-            inputs.candidate_image ||
-            needs.build_candidate.outputs.image }}
+      CANDIDATE_IMAGE: ${{ needs.build_candidate.outputs.image }}
 
     steps:
       - name: Check out validation scripts
@@ -161,98 +150,6 @@ jobs:
             --volume "${RUNNER_TEMP}/moonray-evidence:/evidence" \
             "${VALIDATION_IMAGE}" \
             /validation/validate.sh
-
-      - name: Run non-gating OpenChessSet diagnostic
-        continue-on-error: true
-        run: |
-          set -euo pipefail
-          readonly assets_root="${RUNNER_TEMP}/usd-assets"
-          readonly output_root="${RUNNER_TEMP}/openchessset-output"
-          readonly evidence_root="${RUNNER_TEMP}/moonray-evidence"
-          mkdir -p "${assets_root}" "${output_root}" "${evidence_root}"
-
-          git -C "${assets_root}" init
-          git -C "${assets_root}" remote add origin https://github.com/usd-wg/assets.git
-          git -C "${assets_root}" sparse-checkout init --cone
-          git -C "${assets_root}" sparse-checkout set full_assets/OpenChessSet
-          git -C "${assets_root}" fetch --depth=1 origin "${ASSETS_COMMIT}"
-          git -C "${assets_root}" checkout --detach FETCH_HEAD
-          git -C "${assets_root}" rev-parse HEAD \
-            | tee "${evidence_root}/openchessset-assets-commit.txt"
-
-          set +e
-          docker run --rm \
-            --security-opt seccomp=unconfined \
-            --shm-size=2g \
-            --volume "${PWD}/ci-moonray-hydra:/validation:ro" \
-            --volume "${assets_root}:/assets:ro" \
-            --volume "${output_root}:/output" \
-            --volume "${evidence_root}:/evidence" \
-            "${VALIDATION_IMAGE}" \
-            bash -lc '
-              set -o pipefail
-              export LIBGL_ALWAYS_SOFTWARE=1
-              export MESA_GL_VERSION_OVERRIDE=4.5
-              export LD_PRELOAD=/usr/local/lib/libOpenImageIO_Util.so:/usr/local/lib/liboslquery.so
-              test -f /usr/local/lib/libOpenImageIO_Util.so
-              test -f /usr/local/lib/liboslquery.so
-              timeout 900 xvfb-run -a usdrecord \
-                --renderer Moonray \
-                --camera main_cam \
-                --purposes render \
-                --imageWidth 512 \
-                /assets/full_assets/OpenChessSet/chess_set.usda \
-                /output/openchessset.exr \
-                2>&1 | tee /evidence/openchessset.log
-              render_status=${PIPESTATUS[0]}
-              if test -f /output/openchessset.exr; then
-                python3 /validation/image_stats.py /output/openchessset.exr \
-                  | tee /evidence/openchessset.stats.json
-                sha256sum /output/openchessset.exr \
-                  | sed "s#/output/openchessset.exr#openchessset.exr#" \
-                  > /evidence/openchessset.sha256
-              fi
-              printf "%s\n" "${render_status}" > /evidence/openchessset.exit
-              exit "${render_status}"
-            '
-          diagnostic_status=$?
-          set -e
-          printf '%s\n' "${diagnostic_status}" \
-            | tee "${evidence_root}/openchessset-container.exit"
-          exit 0
-
-      - name: Publish validated image
-        run: |
-          set -euxo pipefail
-          readonly version_tag="${IMAGE_REPOSITORY}:2026.29.1-aswf-2025.7"
-          readonly build_revision="$(
-            docker image inspect \
-              --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' \
-              "${VALIDATION_IMAGE}"
-          )"
-          readonly revision_tag="${IMAGE_REPOSITORY}:git-${build_revision}"
-          readonly latest_tag="${IMAGE_REPOSITORY}:latest"
-          test -n "${build_revision}"
-          test "${build_revision}" != unknown
-          docker tag "${VALIDATION_IMAGE}" "${version_tag}"
-          docker tag "${VALIDATION_IMAGE}" "${revision_tag}"
-          docker tag "${VALIDATION_IMAGE}" "${latest_tag}"
-          docker push "${version_tag}"
-          docker push "${revision_tag}"
-          docker push "${latest_tag}"
-          docker buildx imagetools inspect "${version_tag}" \
-            | tee "${RUNNER_TEMP}/moonray-evidence/published-image.txt"
-
-      - name: Verify anonymous GHCR access
-        run: |
-          set -euxo pipefail
-          readonly empty_config="${RUNNER_TEMP}/empty-docker-config"
-          mkdir -p "${empty_config}"
-          printf '{"auths":{}}\n' > "${empty_config}/config.json"
-          DOCKER_CONFIG="${empty_config}" \
-            docker buildx imagetools inspect \
-              "${IMAGE_REPOSITORY}:2026.29.1-aswf-2025.7" \
-            | tee "${RUNNER_TEMP}/moonray-evidence/anonymous-manifest.txt"
 
       - name: Upload test scenes, renders, and logs
         if: always()

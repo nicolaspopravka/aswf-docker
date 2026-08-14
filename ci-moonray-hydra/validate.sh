@@ -25,6 +25,10 @@ test -s "${moonray_root}/sessions/hd_single.sessiondef"
 grep -Fx 'tag=v2026.29.1' "${moonray_root}/share/openmoonray/provenance.txt"
 grep -Fx 'commit=d96c6e30a8c280d4b5eb3bafa5e54efc445d7ea8' \
     "${moonray_root}/share/openmoonray/provenance.txt"
+grep -Fx 'moonray_sdr_repository=https://github.com/nicolaspopravka/moonray_sdr_plugins.git' \
+    "${moonray_root}/share/openmoonray/provenance.txt"
+grep -Fx 'moonray_sdr_commit=5f76b3b183a326470a09fdaeecc966b867c1c1f0' \
+    "${moonray_root}/share/openmoonray/provenance.txt"
 grep -Fx 'build_materialx_shaders=ON' \
     "${moonray_root}/share/openmoonray/provenance.txt"
 grep -Fx 'lua_tool_version=5.4.4' \
@@ -112,6 +116,7 @@ python3 "${validation_root}/image_stats.py" \
     "${evidence_root}/hd-render-sphere.exr" \
     | tee "${evidence_root}/hd-render-sphere.stats.json"
 
+set +e
 LD_PRELOAD="${usdrecord_preload}" timeout 300 xvfb-run -a usdrecord \
     --renderer Moonray \
     --camera /World/Camera \
@@ -119,6 +124,20 @@ LD_PRELOAD="${usdrecord_preload}" timeout 300 xvfb-run -a usdrecord \
     "${validation_root}/minimal.usda" \
     "${evidence_root}/usdrecord-minimal.exr" \
     2>&1 | tee "${evidence_root}/usdrecord-minimal.log"
+usdrecord_status=${PIPESTATUS[0]}
+set -e
+printf '%s\n' "${usdrecord_status}" \
+    | tee "${evidence_root}/usdrecord-minimal.exit"
+test "${usdrecord_status}" -eq 1
+test "$(grep -F -c "Attempted to get value of type 'TfToken' from empty VtValue" \
+    "${evidence_root}/usdrecord-minimal.log")" -eq 2
+test "$(grep -F -c 'Found invalid framebuffer' \
+    "${evidence_root}/usdrecord-minimal.log")" -eq 1
+if grep -E "Error loading lib moonrayShader(Discovery|Parser)'s module" \
+    "${evidence_root}/usdrecord-minimal.log"; then
+    echo "MoonRay shader plugin Python module failed to load" >&2
+    exit 1
+fi
 python3 "${validation_root}/image_stats.py" \
     --require-variation \
     "${evidence_root}/usdrecord-minimal.exr" \

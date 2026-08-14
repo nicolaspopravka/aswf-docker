@@ -9,6 +9,8 @@ FROM ${BASE_IMAGE} AS builder
 ARG BASE_IMAGE
 ARG MOONRAY_TAG=v2026.29.1
 ARG MOONRAY_COMMIT=d96c6e30a8c280d4b5eb3bafa5e54efc445d7ea8
+ARG MOONRAY_SDR_REPOSITORY=https://github.com/nicolaspopravka/moonray_sdr_plugins.git
+ARG MOONRAY_SDR_COMMIT=5f76b3b183a326470a09fdaeecc966b867c1c1f0
 ARG BUILD_JOBS=4
 
 USER root
@@ -84,6 +86,12 @@ RUN git clone \
         https://github.com/OpenMoonRay/openmoonray.git && \
     test "$(git -C openmoonray rev-parse HEAD)" = "${MOONRAY_COMMIT}" && \
     git -C openmoonray lfs pull && \
+    git -C openmoonray/moonray/hydra/moonray_sdr_plugins fetch \
+        --depth 1 "${MOONRAY_SDR_REPOSITORY}" "${MOONRAY_SDR_COMMIT}" && \
+    git -C openmoonray/moonray/hydra/moonray_sdr_plugins checkout \
+        --detach "${MOONRAY_SDR_COMMIT}" && \
+    test "$(git -C openmoonray/moonray/hydra/moonray_sdr_plugins rev-parse HEAD)" = \
+        "${MOONRAY_SDR_COMMIT}" && \
     git -C openmoonray submodule status --recursive
 
 RUN test -x /usr/local/bin/python3.11 && \
@@ -132,6 +140,8 @@ RUN test -x /usr/local/bin/python3.11 && \
     printf '%s\n' \
         "tag=${MOONRAY_TAG}" \
         "commit=${MOONRAY_COMMIT}" \
+        "moonray_sdr_repository=${MOONRAY_SDR_REPOSITORY}" \
+        "moonray_sdr_commit=${MOONRAY_SDR_COMMIT}" \
         "base_image=${BASE_IMAGE}" \
         "build_materialx_shaders=ON" \
         "lua_tool_version=5.4.4" \
