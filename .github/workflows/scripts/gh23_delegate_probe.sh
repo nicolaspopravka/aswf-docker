@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# GH #23 gdb probe v7.1: adapter EPILOGUE breakpoint captures the sret (fixes
-# the v7 `finish` bug, run 31692448310, commit 95f8c74).
+# GH #23 gdb probe v7.2: adapter epilogue via ~UsdLuxLightAPI breakpoint.
+# (v7.1's `break *(<sym>+0x287)` address form FAILED to pend at parse time:
+# "No symbol ... in current context" -> batch exit 1, run 31774485352.)
 #
-# ABI PROVEN by v7 (decoded from the delegate's call-site disasm + reg dumps):
+# ABI PROVEN by v7 (run 31692448310, commit 95f8c74):
 #   UsdImagingDelegate::GetLightParamValue(SdfPath const&, TfToken const&):
 #     RDI=&sret, RSI=&this, RDX=&id(SdfPath), RCX=&paramName(TfToken)
 #   HdSceneIndexAdapterSceneDelegate::GetLightParamValue(...): same 4-reg shape
@@ -23,30 +24,31 @@
 # REFUTED for this call and _IsCompatible() passed. The empty-FG paradox for
 # shadowLink is still OPEN - it needs the adapter's RETURN VALUE captured.
 #
-# v7 BUG (why v7 logs died after 1 hit per breakpoint): a resuming command
-# (`finish`, `continue`, `step`, ...) inside a breakpoint `commands` block
-# makes gdb DISCARD the rest of that block, including the trailing
-# `continue`. v7's first `finish` (SI adapter) therefore halted the sequence:
-# counts collapsed to delegate 1 / SI 1 / adapter 1 / FailGet 0 in all 4 logs,
-# only the first param (intensity) was captured, and the batch exited 0.
+# gdb lessons baked in:
+#   - a resuming command (`finish`, `continue`, `step`, ...) inside a
+#     breakpoint `commands` block makes gdb DISCARD the rest of that block
+#     (v7 bug; collapsed counts to 1/1/1/0). No resuming commands anywhere.
+#   - `break *(<addr-expr>)` does NOT pend when the symbol is only in a .so
+#     loaded later (v7.1 failure). Only function-name location specs pend.
 #
-# v7.1 changes:
-#   - drop `finish` everywhere; entry breakpoints end with `continue`
-#   - NEW epilogue breakpoint at UsdImagingPrimAdapter::GetLightParamValue
-#     +0x287 (= decimal +647, the `add $0xa8,%rsp`; r12 = saved RDI = &sret,
-#     still intact until popped at +659). Its commands decode r13 (= &paramName,
-#     saved from r8 at +12) and dump the 16-byte VtValue at *(r12). All 46
-#     adapter calls funnel through the common +639..+661 epilogue, so 46
-#     epilogue hits are expected. If gdb cannot pend the address form
-#     `break *(<sym>+0x287)` at parse time the batch aborts with a clear error
-#     - fallback: compute `set $epi=$pc+0x287` on the first entry hit and use
-#     `tbreak *$epi` (captures only the first call), or break on VtValue::_Move
-#     (adapter+484, intensity path) and read its sret source.
-#   - SI adapter reverted to entry-only dump (v6 behavior): its lightLink
-#     return path is already documented (no valueDs in Hd_DataSourceLight ->
-#     HdSceneIndexAdapterSceneDelegate::GetLightParamValue returns VtValue()).
+# v7.2 changes:
+#   - drop the address-form epilogue breakpoint. NEW: break on the adapter's
+#     epilogue via the pending-capable function symbol
+#     UsdLuxLightAPI::~UsdLuxLightAPI (D1Ev/D0Ev): the v7 disasm shows the
+#     adapter constructs UsdLuxLightAPI (primAdapter.cpp:725) and calls its
+#     destructor at adapter+642, immediately before the common epilogue
+#     `add $0xa8,%rsp` at +647. At the destructor entry (still in the adapter's
+#     frame, pre-call) r12 = &sret (saved RDI) and r13 = &paramName are final.
+#   - dump is gated on the destructor's return address ($rsp at entry = the
+#     adapter's call-site, via the bound PLT jmp) falling inside
+#     [$adapter_lo, $adapter_hi], which is captured on the first adapter entry
+#     hit. Non-adapter ~UsdLuxLightAPI calls (e.g. the SI lightAPIAdapter) stay
+#     silent. The exact D1Ev mangling is SELF-DISCOVERED at runtime via
+#     `nm -D`/`nm` on the shipped libusd_usdLux.so (primary path), not guessed.
+#   - SI adapter entry-only (v6 behavior); its lightLink empty return is
+#     already documented (no valueDs -> VtValue()).
 #   - VtValue is 16 bytes in v25.05.01: {storage@0, typeInfo@8}; EMPTY iff
-#     BOTH words are 0 (value.h). _FailGet dump widened to x/4gx accordingly.
+#     BOTH words are 0 (value.h). _FailGet dump is x/4gx.
 #
 # CPU-only; free GitHub Actions.
 set -u
@@ -71,6 +73,19 @@ DELEGATE_SYM='_ZN34pxrInternal_v0_25_5__pxrReserved__18UsdImagingDelegate18GetLi
 SI_SYM='_ZN34pxrInternal_v0_25_5__pxrReserved__32HdSceneIndexAdapterSceneDelegate18GetLightParamValueERKNS_7SdfPathERKNS_7TfTokenE'
 ADAPTER_SYM='_ZNK34pxrInternal_v0_25_5__pxrReserved__21UsdImagingPrimAdapter18GetLightParamValueERKNS_7UsdPrimERKNS_7SdfPathERKNS_7TfTokenENS_11UsdTimeCodeE'
 FAILGET_SYM='_ZNK34pxrInternal_v0_25_5__pxrReserved__7VtValue8_FailGetEPFNS_21Vt_DefaultValueHolderEvERKSt9type_info'
+
+# v7.2: self-discover the ~UsdLuxLightAPI D1Ev mangling from the shipped
+# libusd_usdLux.so (primAdapter.cpp:725 constructs UsdLuxLightAPI; the v7
+# disasm shows its dtor called at adapter+0x282, ret at +0x287). Prefer D1Ev
+# (complete-object dtor, called for the stack-local); fall back to D0Ev.
+LIGHT_DTOR_SYM=$({ nm -D /usr/local/lib/libusd_usdLux.so; nm /usr/local/lib/libusd_usdLux.so; } 2>/dev/null | \
+  awk '/UsdLuxLightAPID1Ev/{print $3; exit}')
+if [ -z "$LIGHT_DTOR_SYM" ]; then
+  LIGHT_DTOR_SYM=$({ nm -D /usr/local/lib/libusd_usdLux.so; nm /usr/local/lib/libusd_usdLux.so; } 2>/dev/null | \
+    awk '/UsdLuxLightAPID0Ev/{print $3; exit}')
+fi
+echo "--- ~UsdLuxLightAPI destructor symbol (v7.2 epilogue anchor) ---"
+echo "  LIGHT_DTOR_SYM=$LIGHT_DTOR_SYM"
 
 python3_bin=$(command -v python3)
 script_bin=$(command -v usdrecord)
@@ -131,6 +146,39 @@ DECODE_TOKEN='  set $tokrep = *(unsigned long*)$tokaddr
   else
     printf "      (rep not a valid pointer)\n"
   end'
+
+# gdb commands body for the v7.2 epilogue capture. Built AFTER DECODE_TOKEN
+# (referenced below) as a bash var with an UNQUOTED heredoc so ${DECODE_TOKEN}
+# expands here; gdb `$`-vars are escaped as \$ and gdb \n as \\n. Inserted into
+# the outer heredoc via ${EPILOGUE_BLOCK} (inserted values are NOT re-scanned).
+if [ -n "$LIGHT_DTOR_SYM" ]; then
+EPILOGUE_BLOCK=$(cat <<EOF
+break ${LIGHT_DTOR_SYM}
+commands
+silent
+set \$dret = *(unsigned long*)\$rsp
+if \$adapter_lo != 0 && \$dret >= \$adapter_lo && \$dret <= \$adapter_hi
+  printf "\\n=== ADAPTER EPILOGUE via ~UsdLuxLightAPI (dtor ret=0x%lx, adapter lo=0x%lx hi=0x%lx) ===\\n", \$dret, \$adapter_lo, \$adapter_hi
+  set \$tokaddr = (unsigned long)\$r13
+  printf "  paramName (r13):\\n"
+  ${DECODE_TOKEN}
+  set \$w0 = *(unsigned long*)\$r12
+  set \$w1 = *(unsigned long*)(\$r12+8)
+  printf "  sret VtValue 16B @0x%lx (r12): [0]=0x%lx [1]=0x%lx  => %s\\n", \$r12, \$w0, \$w1, (\$w0 == 0 && \$w1 == 0) ? "EMPTY VtValue" : "NON-EMPTY"
+  if \$w0 != 0 || \$w1 != 0
+    set \$tokaddr = \$r12
+    printf "  attempt TfToken decode of storage word:\\n"
+    ${DECODE_TOKEN}
+  end
+  printf "=== END ADAPTER EPILOGUE ===\\n"
+end
+continue
+end
+EOF
+)
+else
+EPILOGUE_BLOCK="# LIGHT_DTOR_SYM unresolved via nm; epilogue capture SKIPPED"
+fi
 
 # Body for the delegate + SI adapter breakpoints (2-arg members, VtValue sret).
 # RDI=&sret-result, RSI=&this, RDX=&id(SdfPath), RCX=&paramName(TfToken).
@@ -225,7 +273,7 @@ for mode in default emu0; do
 
   for renderer in "Moonray" "Moonray (debug)"; do
     tag=$(echo "$mode-$renderer" | tr ' ()' '___')
-    echo "===== gdb delegate-param v7.1: mode=$mode renderer=$renderer ($tag) ====="
+    echo "===== gdb delegate-param v7.2: mode=$mode renderer=$renderer ($tag) ====="
     cat > "/tmp/gdb-$tag.cmd" <<EOF
 set pagination off
 set confirm off
@@ -235,6 +283,8 @@ set \$v6d = 0
 set \$v6s = 0
 set \$v6a = 0
 set \$v6f = 0
+set \$adapter_lo = 0
+set \$adapter_hi = 0
 file ${python3_bin}
 set args ${script_bin} --renderer "${renderer}" --camera /World/Camera --imageWidth 256 ${SCENE} ${OUT}/minimal-${tag}.exr
 break ${DELEGATE_SYM}
@@ -275,29 +325,14 @@ if \$isFirst
   frame 1
   x/24i \$pc-0x40
   frame 0
+  set \$adapter_lo = \$pc
+  set \$adapter_hi = \$adapter_lo + 0x400
+  printf "  v7.2: adapter range captured for ~UsdLuxLightAPI gate: lo=0x%lx hi=0x%lx\\n", \$adapter_lo, \$adapter_hi
 end
-printf "  --- v7.1: adapter epilogue breakpoint will capture return value ---\\n"
 printf "=== END ADAPTER ===\\n"
 continue
 end
-break *(${ADAPTER_SYM}+0x287)
-commands
-silent
-printf "\\n=== ADAPTER EPILOGUE (sret in r12) ===\\n"
-set \$tokaddr = (unsigned long)\$r13
-printf "  paramName (r13):\\n"
-${DECODE_TOKEN}
-set \$w0 = *(unsigned long*)\$r12
-set \$w1 = *(unsigned long*)(\$r12+8)
-printf "  sret VtValue 16B @0x%lx (r12): [0]=0x%lx [1]=0x%lx  => %s\\n", \$r12, \$w0, \$w1, (\$w0 == 0 && \$w1 == 0) ? "EMPTY VtValue" : "NON-EMPTY"
-if \$w0 != 0 || \$w1 != 0
-  set \$tokaddr = \$r12
-  printf "  attempt TfToken decode of storage word:\\n"
-  ${DECODE_TOKEN}
-end
-printf "=== END ADAPTER EPILOGUE ===\\n"
-continue
-end
+${EPILOGUE_BLOCK}
 break ${FAILGET_SYM}
 commands
 silent

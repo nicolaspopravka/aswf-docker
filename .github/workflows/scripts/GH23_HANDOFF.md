@@ -46,27 +46,43 @@ modes behave differently:
   inside a breakpoint `commands` block makes gdb DISCARD the rest of that block
   (incl. the trailing `continue`). v7 (commit 95f8c74, run 31692448310) therefore
   captured only the first param (intensity) per breakpoint; hit counts collapsed
-  to 1/1/1/0. Exit 0. **v7.1 removes all `finish` and instead breaks at the
-  adapter epilogue.**
+  to 1/1/1/0. Exit 0.
+- **Address-form breakpoints don't pend** (v7.1 lesson): `break *(<sym>+0x287)`
+  is NOT a pending-capable location spec. When the symbol only exists in a .so
+  loaded later, gdb fails at parse time with `No symbol "...GetLightParamValue..."
+  in current context` (batch exit 1). **Only function-name location specs pend.**
 
-## v7.1 probe (this commit)
+## v7.1 probe (commit 8392922, run 31774485352) — FAILED, replaced by v7.2
 
-- Entry breakpoints (delegate / SI adapter / prim adapter) now end with
-  `continue` only.
-- New breakpoint at `UsdImagingPrimAdapter::GetLightParamValue + 0x287`
-  (= decimal +647, `add $0xa8,%rsp`; r12 = saved RDI = `&sret`, intact until
-  popped at +659). Commands: decode r13 (`&paramName`, saved from r8 at +12),
-  dump the 16-byte VtValue at `*(r12)`, TfToken-decode word 0, `continue`.
-  Expect 46 epilogue hits (one per adapter call), all funnelling through the
-  common +639..+661 epilogue.
-- **Fallback if `break *(<sym>+0x287)` won't pend at parse time**: batch will
-  abort with a clear gdb error in the log. Then either compute
-  `set $epi=$pc+0x287` on the first entry hit and `tbreak *$epi` (captures only
-  the first call), or break on `VtValue::_Move` (adapter+484) on the intensity
-  path. The +0x287 offset was read from the v7 disasm (entry 0x7fffcf06cd30 ->
-  add rsp at 0x7fffcf06cfb7 = +0x287).
-- SI adapter epilogue intentionally NOT instrumented (its lightLink empty-return
-  is already documented; keeping SI at entry-only keeps the log decodable).
+- Entry breakpoints (delegate / SI adapter / prim adapter) end with `continue`
+  only. **This part survived into v7.2.**
+- The new epilogue breakpoint used `break *(${ADAPTER_SYM}+0x287)` — the
+  address form above. Result: all 4 `.exit` files = 1, zero hits, gdb error
+  `Error in sourced command file: /tmp/gdb-emu0-Moonray.cmd:211: No symbol
+  "...GetLightParamValue..." in current context.` Do NOT reuse the address form.
+
+## v7.2 probe (current commit) — adapter epilogue via ~UsdLuxLightAPI
+
+- Same entry breakpoints as v7.1 (`continue` only), plus on the FIRST prim
+  adapter entry hit: `$adapter_lo = $pc`, `$adapter_hi = $adapter_lo + 0x400`
+  (the function extent; observed dtor call-site at +0x282, ret at +0x287).
+- NEW epilogue breakpoint on the PENDING-CAPABLE function symbol
+  `UsdLuxLightAPI::~UsdLuxLightAPI` (D1Ev preferred, D0Ev fallback). v7 disasm:
+  the adapter constructs `UsdLuxLightAPI` (primAdapter.cpp:725) and calls its
+  destructor at adapter+642 (`call ...@plt`), immediately before the common
+  epilogue `add $0xa8,%rsp` at +647. At the destructor's entry (still the
+  adapter's frame, pre-call) r12 = `&sret` (saved RDI) and r13 = `&paramName`
+  (saved R8) are final.
+- The destructor dump is GATED on `$dret = *(unsigned long*)$rsp` (the return
+  address = adapter call-site +5, i.e. `$adapter_lo + 0x287`) falling inside
+  `[$adapter_lo, $adapter_hi]` — non-adapter ~UsdLuxLightAPI calls (e.g. the
+  SI lightAPIAdapter, if any) stay silent.
+- The D1Ev mangling is SELF-DISCOVERED at runtime via `nm -D`/`nm` on the
+  shipped `/usr/local/lib/libusd_usdLux.so` (primary), not guessed; if neither
+  D1 nor D0 resolves, the probe prints `LIGHT_DTOR_SYM=... SKIPPED` and still
+  captures all entry data (probe stays useful).
+- Expect 46 epilogue hits per mode (one per adapter call). `_FailGet` dump
+  unchanged (`x/4gx`).
 
 ## To run / pick up
 
@@ -116,3 +132,6 @@ gh run download <RUN_ID> -R nicolaspopravka/aswf-docker
   - `/Users/nicolas/Projects/USD/pxr/base/vt/value.h:146-181`
 - v7 artifacts (for reference): `/private/tmp/gh23-v7/gh23-delegate-param/`
   (download of run 31692448310).
+- v7.1 artifacts (failed run): `/private/tmp/gh23-v71/gh23-delegate-param/`
+  (download of run 31774485352 — `.exit` = 1, zero hits, cmd line 211
+  "No symbol ... in current context").
