@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
-# GH #23 gdb probe v7.2: adapter epilogue via ~UsdLuxLightAPI breakpoint.
+# GH #23 gdb probe v7.3: adapter epilogue via ~UsdLuxLightAPI + saved paramName.
 # (v7.1's `break *(<sym>+0x287)` address form FAILED to pend at parse time:
 # "No symbol ... in current context" -> batch exit 1, run 31774485352.)
+# (v7.2 run 31778768608: dtor breakpoint WORKS - dtor ret=0x7fffcf06cfb7 =
+# adapter_lo+0x287 exactly; but r13 is CLOBBERED by +430 (lea 0x40(%rsp),%r13
+# reuses it as a VtValue::_Move temp), so decoding r13 as paramName read
+# garbage (rep=0x0 / 0x3000000002) and gdb died at "Cannot access memory at
+# address 0x3000000018" -> .exit=1, batch killed before lightLink/shadowLink.)
 #
 # ABI PROVEN by v7 (run 31692448310, commit 95f8c74):
 #   UsdImagingDelegate::GetLightParamValue(SdfPath const&, TfToken const&):
@@ -45,6 +50,12 @@
 #     hit. Non-adapter ~UsdLuxLightAPI calls (e.g. the SI lightAPIAdapter) stay
 #     silent. The exact D1Ev mangling is SELF-DISCOVERED at runtime via
 #     `nm -D`/`nm` on the shipped libusd_usdLux.so (primary path), not guessed.
+#   - v7.3: r13 is NOT &paramName at the dtor call (clobbered at +430 as a
+#     VtValue::_Move temp). The paramName ADDRESS is captured at adapter entry
+#     (from r8) into $v7pname and decoded in the epilogue instead. r12 = &sret
+#     IS stable + final at +642: sret written by VtValue::_Move at +484 (attr
+#     path) or the collection branches, and `mov %r12,%rax` at +654 is the
+#     sret return. All paths converge at +639 -> dtor +642 -> epilogue +647.
 #   - SI adapter entry-only (v6 behavior); its lightLink empty return is
 #     already documented (no valueDs -> VtValue()).
 #   - VtValue is 16 bytes in v25.05.01: {storage@0, typeInfo@8}; EMPTY iff
@@ -158,10 +169,14 @@ commands
 silent
 set \$dret = *(unsigned long*)\$rsp
 if \$adapter_lo != 0 && \$dret >= \$adapter_lo && \$dret <= \$adapter_hi
-  printf "\\n=== ADAPTER EPILOGUE via ~UsdLuxLightAPI (dtor ret=0x%lx, adapter lo=0x%lx hi=0x%lx) ===\\n", \$dret, \$adapter_lo, \$adapter_hi
-  set \$tokaddr = (unsigned long)\$r13
-  printf "  paramName (r13):\\n"
-  ${DECODE_TOKEN}
+  printf "\\n=== ADAPTER EPILOGUE via ~UsdLuxLightAPI (dtor ret=0x%lx, adapter lo=0x%lx hi=0x%lx, entry-count=%lu) ===\\n", \$dret, \$adapter_lo, \$adapter_hi, \$v6a
+  if \$v7pname != 0
+    set \$tokaddr = \$v7pname
+    printf "  paramName (saved at entry from r8):\\n"
+    ${DECODE_TOKEN}
+  else
+    printf "  (no saved paramName; \$v7pname==0)\\n"
+  end
   set \$w0 = *(unsigned long*)\$r12
   set \$w1 = *(unsigned long*)(\$r12+8)
   printf "  sret VtValue 16B @0x%lx (r12): [0]=0x%lx [1]=0x%lx  => %s\\n", \$r12, \$w0, \$w1, (\$w0 == 0 && \$w1 == 0) ? "EMPTY VtValue" : "NON-EMPTY"
@@ -273,7 +288,7 @@ for mode in default emu0; do
 
   for renderer in "Moonray" "Moonray (debug)"; do
     tag=$(echo "$mode-$renderer" | tr ' ()' '___')
-    echo "===== gdb delegate-param v7.2: mode=$mode renderer=$renderer ($tag) ====="
+    echo "===== gdb delegate-param v7.3: mode=$mode renderer=$renderer ($tag) ====="
     cat > "/tmp/gdb-$tag.cmd" <<EOF
 set pagination off
 set confirm off
@@ -285,6 +300,7 @@ set \$v6a = 0
 set \$v6f = 0
 set \$adapter_lo = 0
 set \$adapter_hi = 0
+set \$v7pname = 0
 file ${python3_bin}
 set args ${script_bin} --renderer "${renderer}" --camera /World/Camera --imageWidth 256 ${SCENE} ${OUT}/minimal-${tag}.exr
 break ${DELEGATE_SYM}
@@ -310,6 +326,7 @@ printf "\\n=== HIT UsdImagingPrimAdapter::GetLightParamValue (v7 ABI) ===\\n"
 set \$isFirst = (\$v6a == 0)
 set \$v6a = \$v6a + 1
 printf "  REGS rdi(sret)=0x%lx rsi(this)=0x%lx rdx(&usdPrim)=0x%lx rcx(&cachePath)=0x%lx r8(&name)=0x%lx r9(time)=0x%lx\\n", \$rdi, \$rsi, \$rdx, \$rcx, \$r8, \$r9
+set \$v7pname = (unsigned long)\$r8
 printf "  [rdx] usdPrim: _type=0x%lx (0=obj 1=prim 2=prop 3=attr 4=rel) _prim=0x%lx _proxyPrimPath=0x%lx _propName=0x%lx\\n", *(unsigned long*)\$rdx, *(unsigned long*)(\$rdx+8), *(unsigned long*)(\$rdx+16), *(unsigned long*)(\$rdx+24)
 set \$cpv = *(unsigned long*)\$rcx
 printf "  [rcx] cachePath SdfPath = 0x%lx  (primPart=%lu propPart=%lu%s)\\n", \$cpv, \$cpv & 0xffffffff, (\$cpv >> 32) & 0xffffffff, (\$cpv & 0xffffffff) == 0 ? "  [EMPTY PATH]" : ""

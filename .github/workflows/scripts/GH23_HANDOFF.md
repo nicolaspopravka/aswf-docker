@@ -61,28 +61,37 @@ modes behave differently:
   `Error in sourced command file: /tmp/gdb-emu0-Moonray.cmd:211: No symbol
   "...GetLightParamValue..." in current context.` Do NOT reuse the address form.
 
-## v7.2 probe (current commit) — adapter epilogue via ~UsdLuxLightAPI
+## v7.3 probe (current commit) — epilogue via ~UsdLuxLightAPI + saved paramName
 
-- Same entry breakpoints as v7.1 (`continue` only), plus on the FIRST prim
-  adapter entry hit: `$adapter_lo = $pc`, `$adapter_hi = $adapter_lo + 0x400`
-  (the function extent; observed dtor call-site at +0x282, ret at +0x287).
+- Same entry breakpoints as v7.1 (`continue` only). On EVERY prim adapter entry
+  hit: `$v7pname = (unsigned long)$r8` (the paramName TfToken address, saved
+  for the epilogue block). On the FIRST entry: `$adapter_lo = $pc`,
+  `$adapter_hi = $adapter_lo + 0x400`.
 - NEW epilogue breakpoint on the PENDING-CAPABLE function symbol
-  `UsdLuxLightAPI::~UsdLuxLightAPI` (D1Ev preferred, D0Ev fallback). v7 disasm:
-  the adapter constructs `UsdLuxLightAPI` (primAdapter.cpp:725) and calls its
-  destructor at adapter+642 (`call ...@plt`), immediately before the common
-  epilogue `add $0xa8,%rsp` at +647. At the destructor's entry (still the
-  adapter's frame, pre-call) r12 = `&sret` (saved RDI) and r13 = `&paramName`
-  (saved R8) are final.
-- The destructor dump is GATED on `$dret = *(unsigned long*)$rsp` (the return
-  address = adapter call-site +5, i.e. `$adapter_lo + 0x287`) falling inside
-  `[$adapter_lo, $adapter_hi]` — non-adapter ~UsdLuxLightAPI calls (e.g. the
-  SI lightAPIAdapter, if any) stay silent.
+  `UsdLuxLightAPI::~UsdLuxLightAPI` (D1Ev preferred, D0Ev fallback). v7.2 run
+  (commit d305ffd, run 31778768608) PROVED it works: dtor ret = `$adapter_lo +
+  0x287` (0x7fffcf06cfb7), the adapter's call-site, exactly as the v7 disasm
+  predicted. The destructor is called at adapter+642, epilogue `add $0xa8,%rsp`
+  at +647, `mov %r12,%rax` (sret) at +654.
+- The dump is GATED on `$dret = *(unsigned long*)$rsp` inside
+  `[$adapter_lo, $adapter_hi]` — non-adapter ~UsdLuxLightAPI calls stay silent.
+- **v7.2 DISCOVERY — r13 is clobbered by +642**: `lea 0x40(%rsp),%r13` at
+  adapter+430 reuses r13 as a `VtValue::_Move` source temp, so the epilogue's
+  r13-as-paramName decode read garbage (`rep=0x0` then `0x3000000002`) and gdb
+  aborted on `Cannot access memory at address 0x3000000018` (guard
+  `0x3000000000 < 0x7fffffffffff` passes) → all 4 `.exit`=1, batch killed
+  before the lightLink/shadowLink calls. **Fix (v7.3): decode `$v7pname`
+  (saved from r8 at entry) instead of r13.**
+- **r12 = &sret is stable and final at dtor entry**: the sret is written by
+  `VtValue::_Move` at +484 (attr path; the source temp is filled by the
+  virtual call at +520) or by the collection branches (lightLink/shadowLink);
+  all paths converge at +639 → dtor +642 → epilogue +647 → `mov %r12,%rax`
+  +654. So the 16-byte sret dump at `*(r12)` IS the returned value.
 - The D1Ev mangling is SELF-DISCOVERED at runtime via `nm -D`/`nm` on the
-  shipped `/usr/local/lib/libusd_usdLux.so` (primary), not guessed; if neither
-  D1 nor D0 resolves, the probe prints `LIGHT_DTOR_SYM=... SKIPPED` and still
-  captures all entry data (probe stays useful).
-- Expect 46 epilogue hits per mode (one per adapter call). `_FailGet` dump
-  unchanged (`x/4gx`).
+  shipped `/usr/local/lib/libusd_usdLux.so`; if neither D1 nor D0 resolves,
+  the probe prints `LIGHT_DTOR_SYM=... SKIPPED` and still captures all entry
+  data. Expect one epilogue hit per adapter call. `_FailGet` dump unchanged
+  (`x/4gx`).
 
 ## To run / pick up
 
@@ -135,3 +144,8 @@ gh run download <RUN_ID> -R nicolaspopravka/aswf-docker
 - v7.1 artifacts (failed run): `/private/tmp/gh23-v71/gh23-delegate-param/`
   (download of run 31774485352 — `.exit` = 1, zero hits, cmd line 211
   "No symbol ... in current context").
+- v7.2 artifacts (run 31778768608): `/private/tmp/gh23-v72/gh23-delegate-param/`
+  — dtor breakpoint works (ret=lo+0x287), but r13 clobbered → gdb crash at
+  `0x3000000018`, `.exit`=1, 5-6 hits/mode, FailGet never reached. Disasm of
+  adapter +336..+661 (incl. the `_Move`/collection branch structure) is in
+  `gdb-emu0-Moonray.log` lines ~179-270.
