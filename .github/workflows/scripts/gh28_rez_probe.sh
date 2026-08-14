@@ -56,6 +56,22 @@ log "PASS: rez --version reports ${REZ_VERSION}"
 # Ensure the benchmark env does NOT contain a pip install
 pip show rez 2>/dev/null && { echo "FAIL: rez is pip-installed"; exit 1; } || true
 
+# Build a minimal packages path mirroring the benchmark repo (packages/usd/...)
+# so `rez env usd -- usdrecord --help` can resolve. ASWF images provide
+# /usr/local/bin/usdrecord, and the package adds /usr/local/bin to PATH.
+PKG_DIR="${OUT}/packages"
+mkdir -p "${PKG_DIR}/usd/26.03"
+cat > "${PKG_DIR}/usd/26.03/package.py" <<'PY'
+name = "usd"
+version = "26.03"
+
+def commands():
+    path = "/usr/local"
+    env.PYTHONPATH.append(path + "/lib/python")
+    env.PATH.append(path + "/bin")
+PY
+export REZ_PACKAGES_PATH="${PKG_DIR}"
+
 # Resolve the usd env and exercise usdrecord; capture stderr for the warning check
 set +e
 rez env usd -- usdrecord --help >"${OUT}/usdrecord-help.txt" 2>"${OUT}/usdrecord-help.err"
