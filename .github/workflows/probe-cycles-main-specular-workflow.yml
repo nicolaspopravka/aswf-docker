@@ -15,7 +15,7 @@ concurrency:
 env:
   BASE_IMAGE: ghcr.io/nicolaspopravka/usd-render-benchmark-cycles@sha256:5c1359c29c619c72afdcb39aab50b73c630f2dafa6e9a1fdc44d8b7bd9b30311
   CYCLES_REVISION: 6eee9e0c2b0d4c6fc3f7e09ca1c1add09351c556
-  CYCLES_LIB_REVISION: ecbd06cf6d2a4aa6b00a61ffb479fc81b17aba08
+  CYCLES_LIB_REVISION: 30d9f881c4b62c52323fd11637eeea56d460e35c
   IMAGE_NAME: cycles-main-issue21
 
 jobs:
