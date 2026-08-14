@@ -1,0 +1,45 @@
+name: GH28 Rez pinned source-install probe
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - opencode/gh28-rez-pinned-probe
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      IMAGE: aswf/ci-vfxall:2026
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Free runner disk space
+        run: |
+          set -euxo pipefail
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell
+          sudo apt-get clean
+          docker system prune -af
+
+      - name: Run Rez source-install probe
+        run: |
+          set -euxo pipefail
+          mkdir -p "${RUNNER_TEMP}/probeout"
+          docker run --rm \
+            --volume "${GITHUB_WORKSPACE}/.github/workflows/scripts:/probe:ro" \
+            --volume "${RUNNER_TEMP}/probeout:/probeout" \
+            --entrypoint bash \
+            "${IMAGE}" \
+            /probe/gh28_rez_probe.sh /probeout
+
+      - name: Upload probe evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: gh28-rez-pinned-probe
+          path: "${{ runner.temp }}/probeout/"
+          if-no-files-found: error
