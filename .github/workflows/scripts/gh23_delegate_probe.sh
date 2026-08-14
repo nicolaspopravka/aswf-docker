@@ -1,52 +1,52 @@
 #!/usr/bin/env bash
-# GH #23 gdb probe v7: adapter return-value capture via `finish` + ABI fix.
+# GH #23 gdb probe v7.1: adapter EPILOGUE breakpoint captures the sret (fixes
+# the v7 `finish` bug, run 31692448310, commit 95f8c74).
 #
-# v6 (commit 6bf3265, run 31687455742, exit 0) decoded and REVEALED that the
-# v6 ABI header was still WRONG for the prim adapter. Correct x86-64 SysV ABI
-# (VtValue returned via hidden sret), verified from the delegate's call-site
-# disasm (lea 0x10(%rbp) = &_HdPrimInfo.usdPrim; usdPrim@+0x10 because
-# UsdImagingPrimAdapterSharedPtr = std::shared_ptr = 16 bytes):
+# ABI PROVEN by v7 (decoded from the delegate's call-site disasm + reg dumps):
 #   UsdImagingDelegate::GetLightParamValue(SdfPath const&, TfToken const&):
 #     RDI=&sret, RSI=&this, RDX=&id(SdfPath), RCX=&paramName(TfToken)
 #   HdSceneIndexAdapterSceneDelegate::GetLightParamValue(...): same 4-reg shape
 #   UsdImagingPrimAdapter::GetLightParamValue(UsdPrim const&, SdfPath const&,
 #     TfToken const&, UsdTimeCode) const:
 #     RDI=&sret, RSI=&this(adapter), RDX=&usdPrim, RCX=&cachePath,
-#     R8=&paramName(TfToken), R9=time  (v6 printed "rsi=&prim rdx=&cachePath
-#     rcx=&name r8=time" = everything shifted by one; R8 really = &paramName)
+#     R8=&paramName(TfToken), R9=time
+# v7 caller disasm (delegate+89..+147):
+#   mov 0x0(%rbp),%rsi   adapter = _HdPrimInfo.adapter (shared_ptr 16B @+0)
+#   lea 0x10(%rbp),%rdx  &usdPrim = _HdPrimInfo.usdPrim @+0x10
+#   mov %r14,%rcx        &cachePath
+#   mov %r13,%r8         &paramName
+#   mov 0x4a0(%rbx),%r9  time
+# v7 first-hit observation (intensity, emu0): usdPrim = {_type=0x1 (Prim,
+# object.h enum UsdTypeObject=0, UsdTypePrim=1), _prim=0x2653230 (valid),
+# _proxyPrimPath=0, _propName=0}; [rcx] cachePath=0x701; paramName decoded
+# "intensity". So the adapter's `if (!light) return VtValue()` early-exit is
+# REFUTED for this call and _IsCompatible() passed. The empty-FG paradox for
+# shadowLink is still OPEN - it needs the adapter's RETURN VALUE captured.
 #
-# v6 new facts baked into v7:
-#   - VtValue in v25.05.01 is 16 bytes: {storage(8), typeInfo(8)} (value.h:
-#     _MaxLocalSize = sizeof(void*); comment "total structure 16 bytes").
-#     A VtValue is EMPTY iff BOTH words are 0. So the _FailGet object at
-#     0x7fffffffc150 ({0,0}, [0x160]=0x3818688 is the NEXT stack slot) really
-#     is empty - the coding error text ("from empty VtValue", value.cpp:501)
-#     is ground truth.
-#   - usdPrim member layout (object.h): UsdObject = {UsdObjType _type@0,
-#     Usd_PrimDataHandle _prim@8, SdfPath _proxyPrimPath@0x10, TfToken
-#     _propName@0x18} (32 bytes). [RDX]=0x1 is UsdObjType::Prim (enum object.h:
-#     UsdTypeObject=0, UsdTypePrim=1), NOT "cachePath=0x1" as v6 labeled.
-#     cachePath is really [RCX]=0x701 = the delegate's id (identity convert).
-#   - emu0 FG#1 chain: delegate("shadowLink", sret=0x7fffffffc150) ->
-#     adapter(same sret) -> the returned VtValue at sret is empty at the FG.
-#     The adapter's source (primAdapter.cpp) returns non-empty
-#     VtValue(GetIdForCollection(...)) for lightLink/shadowLink, so emptiness
-#     means either the `if (!light) return VtValue()` path (usdPrim._prim
-#     null or _IsCompatible() false) or the fallback. v6 never captured the
-#     adapter's RETURN VALUE - that is v7's core job.
-#   - FG call site (Light::Sync+335): `mov -0x78(%rbp),%rax; test; je +1968;
-#     and $~7,%rcx; cmpl $0xd,0x10(%rcx); je +1560` = inline IsHolding<TfToken>
-#     with the empty path sharing the _FailGet@plt call at +522 (return +527).
+# v7 BUG (why v7 logs died after 1 hit per breakpoint): a resuming command
+# (`finish`, `continue`, `step`, ...) inside a breakpoint `commands` block
+# makes gdb DISCARD the rest of that block, including the trailing
+# `continue`. v7's first `finish` (SI adapter) therefore halted the sequence:
+# counts collapsed to delegate 1 / SI 1 / adapter 1 / FailGet 0 in all 4 logs,
+# only the first param (intensity) was captured, and the batch exited 0.
 #
-# v7 actions:
-#   - prim adapter: corrected REGS printout, usdPrim field dump (_type/_prim/
-#     _proxyPrimPath/_propName), cachePath from [RCX], paramName from [R8],
-#     `finish` to capture the sret VtValue (16B) + TfToken decode of storage
-#   - SI adapter: `finish` + sret dump too, with a $v7depth counter (the 1st
-#     hit per param forwards and re-enters -> depth 1..2; the 2nd hit's dump
-#     proves the empty return). Interleaved HIT markers are decodable by depth.
-#   - _FailGet: widen dump to 4x8B; note the 16-byte VtValue layout.
-#   - keeps range guards; entry prologue + caller disasm once per function.
+# v7.1 changes:
+#   - drop `finish` everywhere; entry breakpoints end with `continue`
+#   - NEW epilogue breakpoint at UsdImagingPrimAdapter::GetLightParamValue
+#     +0x287 (= decimal +647, the `add $0xa8,%rsp`; r12 = saved RDI = &sret,
+#     still intact until popped at +659). Its commands decode r13 (= &paramName,
+#     saved from r8 at +12) and dump the 16-byte VtValue at *(r12). All 46
+#     adapter calls funnel through the common +639..+661 epilogue, so 46
+#     epilogue hits are expected. If gdb cannot pend the address form
+#     `break *(<sym>+0x287)` at parse time the batch aborts with a clear error
+#     - fallback: compute `set $epi=$pc+0x287` on the first entry hit and use
+#     `tbreak *$epi` (captures only the first call), or break on VtValue::_Move
+#     (adapter+484, intensity path) and read its sret source.
+#   - SI adapter reverted to entry-only dump (v6 behavior): its lightLink
+#     return path is already documented (no valueDs in Hd_DataSourceLight ->
+#     HdSceneIndexAdapterSceneDelegate::GetLightParamValue returns VtValue()).
+#   - VtValue is 16 bytes in v25.05.01: {storage@0, typeInfo@8}; EMPTY iff
+#     BOTH words are 0 (value.h). _FailGet dump widened to x/4gx accordingly.
 #
 # CPU-only; free GitHub Actions.
 set -u
@@ -225,7 +225,7 @@ for mode in default emu0; do
 
   for renderer in "Moonray" "Moonray (debug)"; do
     tag=$(echo "$mode-$renderer" | tr ' ()' '___')
-    echo "===== gdb delegate-param v7: mode=$mode renderer=$renderer ($tag) ====="
+    echo "===== gdb delegate-param v7.1: mode=$mode renderer=$renderer ($tag) ====="
     cat > "/tmp/gdb-$tag.cmd" <<EOF
 set pagination off
 set confirm off
@@ -235,7 +235,6 @@ set \$v6d = 0
 set \$v6s = 0
 set \$v6a = 0
 set \$v6f = 0
-set \$v7depth = 0
 file ${python3_bin}
 set args ${script_bin} --renderer "${renderer}" --camera /World/Camera --imageWidth 256 ${SCENE} ${OUT}/minimal-${tag}.exr
 break ${DELEGATE_SYM}
@@ -251,19 +250,6 @@ commands
 silent
 printf "\\n=== HIT HdSceneIndexAdapterSceneDelegate::GetLightParamValue ===\\n"
 ${CAPTURE_SI}
-set \$v7depth = \$v7depth + 1
-set \$v7sret = (unsigned long)\$rdi
-printf "  --- v7: finishing SI adapter (depth=%d, sret=0x%lx) ---\\n", \$v7depth, \$v7sret
-finish
-set \$w0 = *(unsigned long*)\$v7sret
-set \$w1 = *(unsigned long*)(\$v7sret+8)
-printf "  POST-RETURN sret VtValue 16B @0x%lx: [0]=0x%lx [1]=0x%lx  => %s\\n", \$v7sret, \$w0, \$w1, (\$w0 == 0 && \$w1 == 0) ? "EMPTY VtValue" : "NON-EMPTY"
-if \$w0 != 0 || \$w1 != 0
-  set \$tokaddr = \$v7sret
-  printf "  attempt TfToken decode of storage word:\\n"
-  ${DECODE_TOKEN}
-end
-set \$v7depth = \$v7depth - 1
 printf "=== END SI ADAPTER ===\\n"
 continue
 end
@@ -273,7 +259,6 @@ silent
 printf "\\n=== HIT UsdImagingPrimAdapter::GetLightParamValue (v7 ABI) ===\\n"
 set \$isFirst = (\$v6a == 0)
 set \$v6a = \$v6a + 1
-set \$v7sret = (unsigned long)\$rdi
 printf "  REGS rdi(sret)=0x%lx rsi(this)=0x%lx rdx(&usdPrim)=0x%lx rcx(&cachePath)=0x%lx r8(&name)=0x%lx r9(time)=0x%lx\\n", \$rdi, \$rsi, \$rdx, \$rcx, \$r8, \$r9
 printf "  [rdx] usdPrim: _type=0x%lx (0=obj 1=prim 2=prop 3=attr 4=rel) _prim=0x%lx _proxyPrimPath=0x%lx _propName=0x%lx\\n", *(unsigned long*)\$rdx, *(unsigned long*)(\$rdx+8), *(unsigned long*)(\$rdx+16), *(unsigned long*)(\$rdx+24)
 set \$cpv = *(unsigned long*)\$rcx
@@ -291,17 +276,26 @@ if \$isFirst
   x/24i \$pc-0x40
   frame 0
 end
-printf "  --- v7: finish adapter to capture return at sret 0x%lx ---\\n", \$v7sret
-finish
-set \$w0 = *(unsigned long*)\$v7sret
-set \$w1 = *(unsigned long*)(\$v7sret+8)
-printf "  POST-RETURN sret VtValue 16B @0x%lx: [0]=0x%lx [1]=0x%lx  => %s\\n", \$v7sret, \$w0, \$w1, (\$w0 == 0 && \$w1 == 0) ? "EMPTY VtValue" : "NON-EMPTY"
+printf "  --- v7.1: adapter epilogue breakpoint will capture return value ---\\n"
+printf "=== END ADAPTER ===\\n"
+continue
+end
+break *(${ADAPTER_SYM}+0x287)
+commands
+silent
+printf "\\n=== ADAPTER EPILOGUE (sret in r12) ===\\n"
+set \$tokaddr = (unsigned long)\$r13
+printf "  paramName (r13):\\n"
+${DECODE_TOKEN}
+set \$w0 = *(unsigned long*)\$r12
+set \$w1 = *(unsigned long*)(\$r12+8)
+printf "  sret VtValue 16B @0x%lx (r12): [0]=0x%lx [1]=0x%lx  => %s\\n", \$r12, \$w0, \$w1, (\$w0 == 0 && \$w1 == 0) ? "EMPTY VtValue" : "NON-EMPTY"
 if \$w0 != 0 || \$w1 != 0
-  set \$tokaddr = \$v7sret
+  set \$tokaddr = \$r12
   printf "  attempt TfToken decode of storage word:\\n"
   ${DECODE_TOKEN}
 end
-printf "=== END ADAPTER ===\\n"
+printf "=== END ADAPTER EPILOGUE ===\\n"
 continue
 end
 break ${FAILGET_SYM}
