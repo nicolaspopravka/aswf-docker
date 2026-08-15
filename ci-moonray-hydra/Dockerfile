@@ -89,6 +89,13 @@ RUN git clone \
 RUN test -x /usr/local/bin/python3.11 && \
     test -f /usr/local/lib/libpython3.11.so && \
     test -f /usr/local/include/python3.11/Python.h && \
+    test -x /usr/local/cuda/bin/nvcc && \
+    test -f /usr/local/NVIDIA-OptiX-SDK-8.0.0/include/optix.h && \
+    test "${ASWF_CUDA_VERSION}" = "12.6.3" && \
+    test "${ASWF_OPTIX_VERSION}" = "8.0.0" && \
+    export OPTIX_ROOT=/usr/local/NVIDIA-OptiX-SDK-8.0.0 && \
+    export PATH=/usr/local/cuda/bin:${PATH} && \
+    export LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH} && \
     export PYTHONPATH=/opt/MoonRay/build/moonray/scene_rdl2/mod/python/py_scene_rdl2:${PYTHONPATH} && \
     cmake \
         -S /opt/MoonRay/source/openmoonray \
@@ -96,6 +103,7 @@ RUN test -x /usr/local/bin/python3.11 && \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_INSTALL_PREFIX=/opt/MoonRay/installs/openmoonray \
         -DCMAKE_PREFIX_PATH=/usr/local \
+        -DCUDAToolkit_ROOT=/usr/local/cuda \
         -DLUA_BIN_LUA:FILEPATH=/opt/MoonRay/dependencies/lua/bin/lua \
         -DLUA_BIN_LUAC:FILEPATH=/opt/MoonRay/dependencies/lua/bin/luac \
         -DLog4cplus_INCLUDE_DIR:PATH=/opt/MoonRay/dependencies/log4cplus/include/log4cplus \
@@ -107,8 +115,14 @@ RUN test -x /usr/local/bin/python3.11 && \
         -DBOOST_PYTHON_COMPONENT_NAME=python311 \
         -DABI_VERSION=0 \
         -DBUILD_QT_APPS=NO \
-        -DMOONRAY_USE_OPTIX=NO \
+        -DMOONRAY_USE_OPTIX=ON \
         -DBUILD_MATERIALX_SHADERS=ON && \
+    grep -Fx \
+        'MOONRAY_USE_OPTIX:BOOL=ON' \
+        /opt/MoonRay/build/CMakeCache.txt && \
+    grep -F \
+        '/usr/local/NVIDIA-OptiX-SDK-8.0.0/include' \
+        /opt/MoonRay/build/CMakeCache.txt && \
     grep -Fx \
         'Log4cplus_LIBRARIES:FILEPATH=/opt/MoonRay/dependencies/log4cplus/lib/liblog4cplus.so' \
         /opt/MoonRay/build/CMakeCache.txt && \
@@ -119,6 +133,7 @@ RUN test -x /usr/local/bin/python3.11 && \
         'LUA_BIN_LUAC:FILEPATH=/opt/MoonRay/dependencies/lua/bin/luac' \
         /opt/MoonRay/build/CMakeCache.txt && \
     cmake --build /opt/MoonRay/build --target install --parallel "${BUILD_JOBS}" && \
+    test -f /opt/MoonRay/installs/openmoonray/shaders/GPUShaders.ptx && \
     mkdir -p /opt/MoonRay/installs/openmoonray/shader_json && \
     /opt/MoonRay/installs/openmoonray/bin/rdl2_json_exporter \
         --out /opt/MoonRay/installs/openmoonray/shader_json/ \
@@ -134,6 +149,9 @@ RUN test -x /usr/local/bin/python3.11 && \
         "commit=${MOONRAY_COMMIT}" \
         "base_image=${BASE_IMAGE}" \
         "build_materialx_shaders=ON" \
+        "build_moonray_optix=ON" \
+        "cuda_version=${ASWF_CUDA_VERSION}" \
+        "optix_version=${ASWF_OPTIX_VERSION}" \
         "lua_tool_version=5.4.4" \
         "log4cplus_version=2.1.2" \
         "log4cplus_unicode=OFF" \
@@ -152,6 +170,7 @@ LABEL org.opencontainers.image.version="${MOONRAY_TAG}"
 LABEL org.opencontainers.image.revision="${BUILD_REVISION}"
 LABEL io.openmoonray.source.commit="${MOONRAY_COMMIT}"
 LABEL io.openmoonray.materialx-shaders="true"
+LABEL io.openmoonray.optix="true"
 
 USER root
 RUN dnf install -y mesa-dri-drivers xorg-x11-server-Xvfb && \
@@ -178,7 +197,7 @@ ENV PATH=/opt/MoonRay/installs/openmoonray/bin:${PATH}
 ENV PYTHONPATH=/opt/MoonRay/installs/openmoonray/python/lib/python3.11:/usr/local/lib/python:${PYTHONPATH}
 ENV PXR_PLUGINPATH_NAME=/opt/MoonRay/installs/openmoonray/plugin/pxr
 ENV PXR_PLUGIN_PATH=/opt/MoonRay/installs/openmoonray/plugin/pxr
-ENV LD_LIBRARY_PATH=/opt/MoonRay/dependencies/log4cplus/lib:/opt/MoonRay/installs/openmoonray/lib:/opt/MoonRay/installs/openmoonray/lib64:${LD_LIBRARY_PATH}
+ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64:/opt/MoonRay/dependencies/log4cplus/lib:/opt/MoonRay/installs/openmoonray/lib:/opt/MoonRay/installs/openmoonray/lib64:${LD_LIBRARY_PATH}
 ENV HDMOONRAY_DEBUG_MODE=1
 
 WORKDIR /work

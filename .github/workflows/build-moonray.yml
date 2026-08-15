@@ -1,4 +1,4 @@
-name: Build OpenMoonRay Hydra Delegate
+name: Build OpenMoonRay Hydra Delegate (XPU)
 
 on:
   workflow_dispatch:
@@ -82,8 +82,8 @@ jobs:
             --build-arg "MOONRAY_COMMIT=${MOONRAY_COMMIT}" \
             --build-arg "BUILD_REVISION=${GITHUB_SHA}" \
             --build-arg "BUILD_JOBS=4" \
-            --cache-from type=gha,scope=openmoonray-hydra-2026-29-1 \
-            --cache-to type=gha,mode=max,scope=openmoonray-hydra-2026-29-1 \
+            --cache-from type=gha,scope=openmoonray-hydra-2026-29-1-xpu \
+            --cache-to type=gha,mode=max,scope=openmoonray-hydra-2026-29-1-xpu \
             --push \
             --tag "${{ steps.candidate_tag.outputs.image }}" \
             .
@@ -224,14 +224,14 @@ jobs:
       - name: Publish validated image
         run: |
           set -euxo pipefail
-          readonly version_tag="${IMAGE_REPOSITORY}:2026.29.1-aswf-2025.7"
+          readonly version_tag="${IMAGE_REPOSITORY}:2026.29.1-aswf-2025.7-xpu"
           readonly build_revision="$(
             docker image inspect \
               --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' \
               "${VALIDATION_IMAGE}"
           )"
           readonly revision_tag="${IMAGE_REPOSITORY}:git-${build_revision}"
-          readonly latest_tag="${IMAGE_REPOSITORY}:latest"
+          readonly latest_tag="${IMAGE_REPOSITORY}:latest-xpu"
           test -n "${build_revision}"
           test "${build_revision}" != unknown
           docker tag "${VALIDATION_IMAGE}" "${version_tag}"
@@ -251,7 +251,7 @@ jobs:
           printf '{"auths":{}}\n' > "${empty_config}/config.json"
           DOCKER_CONFIG="${empty_config}" \
             docker buildx imagetools inspect \
-              "${IMAGE_REPOSITORY}:2026.29.1-aswf-2025.7" \
+              "${IMAGE_REPOSITORY}:2026.29.1-aswf-2025.7-xpu" \
             | tee "${RUNNER_TEMP}/moonray-evidence/anonymous-manifest.txt"
 
       - name: Upload test scenes, renders, and logs

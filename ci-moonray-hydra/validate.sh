@@ -74,6 +74,16 @@ grep -F \
     '/opt/MoonRay/dependencies/log4cplus/lib/liblog4cplus.so' \
     "${evidence_root}/log4cplus-ldd.txt"
 
+test -f "${moonray_root}/shaders/GPUShaders.ptx"
+readonly renderer_binary="${moonray_root}/bin/moonray"
+test -x "${renderer_binary}"
+ldd "${renderer_binary}" | tee "${evidence_root}/moonray-ldd.txt"
+if grep -F 'not found' "${evidence_root}/moonray-ldd.txt"; then
+    echo "moonray binary has an unresolved dependency" >&2
+    exit 1
+fi
+grep -F '/usr/local/cuda/lib64/libcudart.so' "${evidence_root}/moonray-ldd.txt"
+
 python3 - <<'PY' | tee "${evidence_root}/renderer-discovery.txt"
 from pxr import UsdImagingGL
 
@@ -90,11 +100,13 @@ PY
 
 export LIBGL_ALWAYS_SOFTWARE=1
 export MESA_GL_VERSION_OVERRIDE=4.5
+export HDMOONRAY_EXEC_MODE=vector
 readonly usdrecord_preload=/usr/local/lib/libOpenImageIO_Util.so:/usr/local/lib/liboslquery.so
 test -f /usr/local/lib/libOpenImageIO_Util.so
 test -f /usr/local/lib/liboslquery.so
 
 timeout 300 moonray \
+    -exec_mode vector \
     -in "${moonray_root}/testdata/rectangle.rdla" \
     -out "${evidence_root}/rectangle.exr" \
     2>&1 | tee "${evidence_root}/rectangle.log"
