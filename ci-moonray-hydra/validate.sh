@@ -74,7 +74,7 @@ grep -F \
     '/opt/MoonRay/dependencies/log4cplus/lib/liblog4cplus.so' \
     "${evidence_root}/log4cplus-ldd.txt"
 
-test -f "${moonray_root}/shaders/GPUShaders.ptx"
+test -f "${moonray_root}/shaders/OptixGPUPrograms.ptx"
 readonly renderer_binary="${moonray_root}/bin/moonray"
 test -x "${renderer_binary}"
 ldd "${renderer_binary}" | tee "${evidence_root}/moonray-ldd.txt"

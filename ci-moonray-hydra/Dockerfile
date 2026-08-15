@@ -133,8 +133,10 @@ RUN test -x /usr/local/bin/python3.11 && \
     grep -Fx \
         'LUA_BIN_LUAC:FILEPATH=/opt/MoonRay/dependencies/lua/bin/luac' \
         /opt/MoonRay/build/CMakeCache.txt && \
-    cmake --build /opt/MoonRay/build --target install --parallel "${BUILD_JOBS}" && \
-    test -f /opt/MoonRay/installs/openmoonray/shaders/GPUShaders.ptx && \
+    cmake --build /opt/MoonRay/build --target install --parallel "${BUILD_JOBS}"
+
+RUN test -f /opt/MoonRay/installs/openmoonray/shaders/OptixGPUPrograms.ptx && \
+    export LD_LIBRARY_PATH=/opt/MoonRay/installs/openmoonray/lib:/opt/MoonRay/installs/openmoonray/lib64:/opt/MoonRay/dependencies/log4cplus/lib:${LD_LIBRARY_PATH} && \
     mkdir -p /opt/MoonRay/installs/openmoonray/shader_json && \
     /opt/MoonRay/installs/openmoonray/bin/rdl2_json_exporter \
         --out /opt/MoonRay/installs/openmoonray/shader_json/ \
