@@ -1,0 +1,56 @@
+name: MoonRay rez isolation probe
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - opencode/moonray-rez-isolate-probe
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Pull MoonRay image
+        run: |
+          docker pull ghcr.io/nicolaspopravka/openmoonray-hydra@sha256:75945fa61e05ee39c46d9f82c6e2add7759ac242568f5a51127d76170e1661fc
+
+      - name: Run rez isolation battery
+        continue-on-error: true
+        run: |
+          mkdir -p "$RUNNER_TEMP/probe"
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE":/probe \
+            -v "$RUNNER_TEMP":/out \
+            --entrypoint bash \
+            ghcr.io/nicolaspopravka/openmoonray-hydra@sha256:75945fa61e05ee39c46d9f82c6e2add7759ac242568f5a51127d76170e1661fc \
+            -c "
+              set -uo pipefail
+              python3 -m pip install -qq rez
+              export REPO=/probe/.github/workflows/scripts/moonray-rez-isolate
+              export REZ_PACKAGES_PATH=\$REPO/packages
+              export LIBGL_ALWAYS_SOFTWARE=1
+              export RENDER_PREFIX=\"xvfb-run -a\"
+              export RENDER_PROG=/usr/local/bin/usdrecord
+              export SCENE=\$REPO/probe/minimal.usda
+              export CAMERA=/World/Camera
+              export RUN_RENDER=1
+              export OUTDIR=/out/probe
+              mkdir -p /out/probe
+              bash \$REPO/tools/moonray_rez_isolate_check.sh 2>&1 | tee /out/probe/isolate.log
+              rc=\${PIPESTATUS[0]}
+              echo \"BATTERY_EXIT=\$rc\"
+              exit \$rc
+            "
+
+      - name: Upload probe artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: moonray-rez-isolate
+          path: "${{ runner.temp }}/probe"
+          if-no-files-found: error
