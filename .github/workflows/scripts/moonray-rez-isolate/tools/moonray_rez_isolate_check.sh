@@ -173,7 +173,8 @@ fi
 echo "  -- hdMoonray --"
 HDMX="$(rez env hdMoonray -- python3 -c "
 from pxr import UsdImagingGL
-names = [str(e.GetRendererDisplayName()) for e in UsdImagingGL.Engine.GetRendererPlugins()]
+plugins = UsdImagingGL.Engine.GetRendererPlugins()
+names = [str(UsdImagingGL.Engine.GetRendererDisplayName(p)) for p in plugins]
 print('|'.join(names))
 " 2>&1)"; HDMX_RC=$?
 if is_sigill "${HDMX_RC}" "${HDMX}"; then
@@ -190,7 +191,8 @@ echo "== T2: remove-one necessity =="
 echo "  -- PXR_PLUGINPATH_NAME (cheap, no render) --"
 HDMX2="$(rez env hdMoonray -- env -u PXR_PLUGINPATH_NAME python3 -c "
 from pxr import UsdImagingGL
-names = [str(e.GetRendererDisplayName()) for e in UsdImagingGL.Engine.GetRendererPlugins()]
+plugins = UsdImagingGL.Engine.GetRendererPlugins()
+names = [str(UsdImagingGL.Engine.GetRendererDisplayName(p)) for p in plugins]
 print('|'.join(names))
 " 2>&1)"; HDMX2_RC=$?
 if is_sigill "${HDMX2_RC}" "${HDMX2}"; then
