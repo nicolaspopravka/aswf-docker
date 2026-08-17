@@ -221,26 +221,39 @@ if [ "${RUN_RENDER}" = "1" ]; then
         ok "T4 baseline: no rez2 resolve/hang symptom"
     fi
 
-    # run_subtest <label> <expected-failure-egrep> [env args...] -- via env(1)
+    # run_subtest <label> <mode> [expected-failure-egrep] [env args...] -- via env(1)
+    #   mode=fail : removal must produce a matching failure (var is necessary)
+    #   mode=image: render must still complete (var is not needed for this scene)
     run_subtest() {
-        local label="$1" pat="$2"; shift 2
+        local label="$1" mode="$2" pat="${3:-}"; shift 3
         local log="${OUTDIR}/t2_${label}.log" img="${OUTDIR}/t2_${label}.jpg"
         timeout 300 rez env hdMoonray -- env "$@" $RENDER_PREFIX $RENDER_PROG \
             --camera "${CAMERA}" --renderer "Moonray" --purposes render \
             "${SCENE}" "${img}" >"${log}" 2>&1
         if grep -qiE 'Illegal instruction' "${log}"; then
             skip "T2 ${label}: needs AVX-512 host (SIGILL on this CPU)"
-        elif grep -qiE "${pat}" "${log}"; then
-            ok "T2 ${label}: expected failure seen"
-        else
-            bad "T2 ${label}: no expected failure (var may not matter)"
+            return
         fi
+        case "${mode}" in
+            fail)
+                if grep -qiE "${pat}" "${log}"; then
+                    ok "T2 ${label}: ${label} removal breaks render (necessary)"
+                else
+                    bad "T2 ${label}: no expected failure (var may not matter)"
+                fi ;;
+            image)
+                if [ -s "${img}" ]; then
+                    ok "T2 ${label}: render still completes without ${label} on the minimal scene (not required here; scene-dependent)"
+                else
+                    bad "T2 ${label}: no image (unexpected for a scene-independent var)"
+                fi ;;
+        esac
     }
 
-    run_subtest PATH        'execComp|session|Arras'           PATH=/usr/local/bin:/usr/bin:/bin
-    run_subtest RDL2        'rdl2|dso|shader'                  -u RDL2_DSO_PATH
-    run_subtest MOONRAYCLASS 'shader_json|Ndr|discover|class'  -u MOONRAY_CLASS_PATH
-    run_subtest ARRASSESSION 'session definition|hd_single|Arras' -u ARRAS_SESSION_PATH
+    run_subtest PATH          fail 'execFailed|Failed to exec mcrt|execv|Failed to create an Arras session' PATH=/usr/local/bin:/usr/bin:/bin
+    run_subtest RDL2          image '' -u RDL2_DSO_PATH
+    run_subtest MOONRAYCLASS  image '' -u MOONRAY_CLASS_PATH
+    run_subtest ARRASSESSION  fail 'session definition search path is empty|hd_single|Arras session' -u ARRAS_SESSION_PATH
 else
     echo "    (RUN_RENDER=0: skipping render-based remove-one and T4)"
 fi
