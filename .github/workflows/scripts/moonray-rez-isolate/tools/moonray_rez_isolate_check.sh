@@ -145,22 +145,26 @@ else
     bad "moonray: shader_json missing under ${IMAGEROOT}"
 fi
 
-echo "  -- arras4_core --"
+echo "  -- arras4_core (empty marker; ARRAS_SESSION_PATH from image) --"
 ARRAS="$(rez env arras4_core -- printenv ARRAS_SESSION_PATH 2>/dev/null || true)"
-case "${ARRAS}" in
-    "${IMAGEROOT}/sessions") ok "arras4_core: ARRAS_SESSION_PATH=sessions" ;;
-    *) bad "arras4_core: ARRAS_SESSION_PATH odd ('${ARRAS}')" ;;
-esac
-if [ -f "${IMAGEROOT}/sessions/hd_single.sessiondef" ] || [ -f "${ARRAS}/hd_single.sessiondef" ]; then
+ARRAS_IMG="$(printenv ARRAS_SESSION_PATH 2>/dev/null || true)"
+if [ -n "${ARRAS}" ] && [ "${ARRAS}" = "${ARRAS_IMG}" ]; then
+    ok "arras4_core: ARRAS_SESSION_PATH unchanged from image base (${ARRAS})"
+else
+    bad "arras4_core: ARRAS_SESSION_PATH differs from image ('${ARRAS}' vs '${ARRAS_IMG}')"
+fi
+if [ -f "${ARRAS}/hd_single.sessiondef" ] || [ -f "${IMAGEROOT}/sessions/hd_single.sessiondef" ]; then
     ok "arras4_core: hd_single.sessiondef present"
 else
     bad "arras4_core: hd_single.sessiondef missing"
 fi
-EXECCOMP="$(rez env arras4_core -- bash -c 'command -v execComp 2>/dev/null || true')"
-case "${EXECCOMP}" in
-    "${IMAGEROOT}/bin/execComp") ok "arras4_core: execComp on PATH (consolidated PATH)" ;;
-    *) bad "arras4_core: execComp not found/odd ('${EXECCOMP}')" ;;
-esac
+PATH_REZ="$(rez env arras4_core -- printenv PATH 2>/dev/null || true)"
+PATH_IMG="$(printenv PATH 2>/dev/null || true)"
+if [ -n "${PATH_REZ}" ] && [ "${PATH_REZ}" = "${PATH_IMG}" ]; then
+    ok "arras4_core: PATH unchanged from image base (execComp via image)"
+else
+    bad "arras4_core: PATH differs from image base"
+fi
 
 echo "  -- mcrt_computation (empty package; covered by image LD_LIBRARY_PATH + arras4_core PATH) --"
 COMPDSO=""
