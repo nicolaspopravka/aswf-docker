@@ -159,14 +159,20 @@ else
     bad "arras4_core: hd_single.sessiondef missing"
 fi
 PATH_REZ="$(rez env arras4_core -- printenv PATH 2>/dev/null || true)"
-PATH_IMG="$(printenv PATH 2>/dev/null || true)"
-# rez prepends its own bin to PATH for ANY resolved package, so exact equality
-# is never expected. Assert the image's execComp dir is still reachable, i.e.
-# the package did not remove the image base PATH.
-IMG_BIN="$(python3 -c 'import os,sys; p=os.environ.get("PATH","").split(":"); sys.stdout.write(next((d for d in p if os.path.exists(d+"/execComp")), ""))' 2>/dev/null)"
+# rez scavenges the parent PATH (drops the image's openmoonray bin), so PATH is
+# the ONE var the packages must provide; arras4_core owns it. Assert execComp is
+# reachable inside the rez env.
 case ":${PATH_REZ}:" in
-    *":${IMG_BIN}:"*) ok "arras4_core: image execComp dir still on PATH (${IMG_BIN})" ;;
-    *) bad "arras4_core: image execComp dir missing from rez PATH" ;;
+    *":/opt/MoonRay/installs/openmoonray/bin:"*|*":/opt/openmoonray/bin:"*)
+        ok "arras4_core: openmoonray bin on rez PATH (package-owned, execComp reachable)"
+        ;;
+    *)
+        if rez env arras4_core -- bash -c 'command -v execComp >/dev/null' 2>/dev/null; then
+            ok "arras4_core: execComp reachable in rez env (PATH ok)"
+        else
+            bad "arras4_core: execComp NOT reachable in rez env (PATH missing)"
+        fi
+        ;;
 esac
 
 echo "  -- mcrt_computation (empty package; covered by image LD_LIBRARY_PATH + arras4_core PATH) --"
@@ -278,19 +284,30 @@ fi
 
 #------------------------------------------------------------------------------
 echo "== T3: right-place (ownership) assertions =="
-# usd owns the usdrecord alias; moonray/mcrt_computation are empty version
-# markers (their runtime vars come from the image base). Remaining
-# package-declared vars (audit pending for the same image-provided treatment):
-for expect_pkg_var in \
-    "arras4_core|ARRAS_SESSION_PATH" \
-    "hdMoonray|PXR_PLUGINPATH_NAME"; do
-    pkg="${expect_pkg_var%%|*}"
-    var="${expect_pkg_var##*|}"
-    val="$(rez env "${pkg}" -- printenv "${var}" 2>/dev/null || true)"
-    case "${val}" in
-        "${IMAGEROOT}"*|*"${IMAGEROOT}"*) ok "${var} owned by ${pkg} (${val})" ;;
-        *) bad "${var} not set by ${pkg} ('${val}')" ;;
-    esac
+# usd owns the usdrecord alias; arras4_core owns PATH (the one var rez does not
+# inherit from the image); all other runtime vars are image-inherited and need
+# no package (moonray, mcrt_computation, hdMoonray are empty markers).
+REZPATH="$(rez env hdMoonray -- printenv PATH 2>/dev/null || true)"
+case ":${REZPATH}:" in
+    *":/opt/MoonRay/installs/openmoonray/bin:"*|*":/opt/openmoonray/bin:"*)
+        ok "PATH provided by arras4_core (openmoonray bin present under rez env hdMoonray)"
+        ;;
+    *)  bad "PATH lacks openmoonray bin under rez env hdMoonray (arras4_core missing)" ;;
+esac
+for inherited_var in \
+    "LD_LIBRARY_PATH" \
+    "ARRAS_SESSION_PATH" \
+    "RDL2_DSO_PATH" \
+    "MOONRAY_CLASS_PATH" \
+    "PXR_PLUGINPATH_NAME" \
+    "PYTHONPATH"; do
+    v_rez="$(rez env hdMoonray -- printenv "${inherited_var}" 2>/dev/null || true)"
+    v_img="$(printenv "${inherited_var}" 2>/dev/null || true)"
+    if [ -n "${v_rez}" ] && [ "${v_rez}" = "${v_img}" ]; then
+        ok "${inherited_var} image-inherited unchanged (no package needed)"
+    else
+        bad "${inherited_var} differs under rez ('${v_rez}' vs image '${v_img}')"
+    fi
 done
 
 #------------------------------------------------------------------------------
