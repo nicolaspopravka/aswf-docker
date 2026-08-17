@@ -160,11 +160,14 @@ else
 fi
 PATH_REZ="$(rez env arras4_core -- printenv PATH 2>/dev/null || true)"
 PATH_IMG="$(printenv PATH 2>/dev/null || true)"
-if [ -n "${PATH_REZ}" ] && [ "${PATH_REZ}" = "${PATH_IMG}" ]; then
-    ok "arras4_core: PATH unchanged from image base (execComp via image)"
-else
-    bad "arras4_core: PATH differs from image base"
-fi
+# rez prepends its own bin to PATH for ANY resolved package, so exact equality
+# is never expected. Assert the image's execComp dir is still reachable, i.e.
+# the package did not remove the image base PATH.
+IMG_BIN="$(python3 -c 'import os,sys; p=os.environ.get("PATH","").split(":"); sys.stdout.write(next((d for d in p if os.path.exists(d+"/execComp")), ""))' 2>/dev/null)"
+case ":${PATH_REZ}:" in
+    *":${IMG_BIN}:"*) ok "arras4_core: image execComp dir still on PATH (${IMG_BIN})" ;;
+    *) bad "arras4_core: image execComp dir missing from rez PATH" ;;
+esac
 
 echo "  -- mcrt_computation (empty package; covered by image LD_LIBRARY_PATH + arras4_core PATH) --"
 COMPDSO=""
