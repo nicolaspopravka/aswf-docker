@@ -2,10 +2,7 @@ name = "moonray"
 
 version = "18.4"
 
-def commands():
-    path = "/opt/openmoonray"
-
-    env.RDL2_DSO_PATH.append(path + "/rdl2dso.proxy")
-    env.RDL2_DSO_PATH.append(path + "/rdl2dso")
-
-    env.MOONRAY_CLASS_PATH.append(path + "/shader_json")
+# Empty by design (GH #29 env audit, 2026-08): RDL2_DSO_PATH and
+# MOONRAY_CLASS_PATH are provided by the image base and are only
+# scene-dependent (MoonRay rdl2 shaders). Re-add here if/when the image ENV
+# is removed or a scene proves them required.

@@ -98,7 +98,7 @@ esac
 #------------------------------------------------------------------------------
 echo "== T1: sufficiency probes per package =="
 
-echo "  -- usd --"
+echo "  -- usd (alias only; PATH/PYTHONPATH from image) --"
 if rez env usd -- python3 -c "import pxr.Usd; print('usd', pxr.Usd.GetVersion())" >/dev/null 2>&1; then
     ok "usd: pxr.Usd imports"
 else
@@ -109,27 +109,38 @@ case "${USDREC}" in
     *usdrecord_egl.py*) ok "usd: usdrecord alias -> EGL wrapper" ;;
     *) bad "usd: usdrecord alias unexpected ('${USDREC}')" ;;
 esac
+PYREZ="$(rez env usd -- printenv PYTHONPATH 2>/dev/null || true)"
+PYIMG="$(printenv PYTHONPATH 2>/dev/null || true)"
+if [ -n "${PYREZ}" ] && [ "${PYREZ}" = "${PYIMG}" ]; then
+    ok "usd: PYTHONPATH unchanged from image (pxr runtime via image base)"
+else
+    bad "usd: PYTHONPATH differs from image base ('${PYREZ}' vs '${PYIMG}')"
+fi
 
-echo "  -- moonray (discovery vars; no PATH needed at runtime) --"
+echo "  -- moonray (empty package; RDL2_DSO_PATH / MOONRAY_CLASS_PATH from image) --"
 RDL2="$(rez env moonray -- printenv RDL2_DSO_PATH 2>/dev/null || true)"
-case ":${RDL2}:" in
-    *":${IMAGEROOT}/rdl2dso:"*) ok "moonray: RDL2_DSO_PATH points at rdl2dso" ;;
-    *) bad "moonray: RDL2_DSO_PATH missing/odd ('${RDL2}')" ;;
-esac
+RDL2_IMG="$(printenv RDL2_DSO_PATH 2>/dev/null || true)"
+if [ -n "${RDL2}" ] && [ "${RDL2}" = "${RDL2_IMG}" ]; then
+    ok "moonray: RDL2_DSO_PATH unchanged from image base (package declares nothing)"
+else
+    bad "moonray: RDL2_DSO_PATH differs from image ('${RDL2}' vs '${RDL2_IMG}')"
+fi
 if [ -d "${IMAGEROOT}/rdl2dso" ]; then
     n_dsos="$(find "${IMAGEROOT}/rdl2dso" -maxdepth 1 -name '*.so' | wc -l | tr -d ' ')"
-    ok "moonray: rdl2dso dir present (${n_dsos} dsos)"
+    ok "moonray: rdl2dso dir present in image (${n_dsos} dsos)"
 else
     bad "moonray: rdl2dso dir missing under ${IMAGEROOT}"
 fi
 MCP="$(rez env moonray -- printenv MOONRAY_CLASS_PATH 2>/dev/null || true)"
-case "${MCP}" in
-    "${IMAGEROOT}/shader_json") ok "moonray: MOONRAY_CLASS_PATH=shader_json" ;;
-    *) bad "moonray: MOONRAY_CLASS_PATH odd ('${MCP}')" ;;
-esac
+MCP_IMG="$(printenv MOONRAY_CLASS_PATH 2>/dev/null || true)"
+if [ -n "${MCP}" ] && [ "${MCP}" = "${MCP_IMG}" ]; then
+    ok "moonray: MOONRAY_CLASS_PATH unchanged from image base"
+else
+    bad "moonray: MOONRAY_CLASS_PATH differs from image ('${MCP}' vs '${MCP_IMG}')"
+fi
 if [ -d "${IMAGEROOT}/shader_json" ]; then
     n_json="$(find "${IMAGEROOT}/shader_json" -name '*.json' | wc -l | tr -d ' ')"
-    ok "moonray: shader_json present (${n_json} json)"
+    ok "moonray: shader_json present in image (${n_json} json)"
 else
     bad "moonray: shader_json missing under ${IMAGEROOT}"
 fi
@@ -260,11 +271,10 @@ fi
 
 #------------------------------------------------------------------------------
 echo "== T3: right-place (ownership) assertions =="
-# Each package must own its unique var(s); PATH is consolidated in arras4_core
-# and LD_LIBRARY_PATH/MOONRAY_ROOT come from the image (shared base).
+# usd owns the usdrecord alias; moonray/mcrt_computation are empty version
+# markers (their runtime vars come from the image base). Remaining
+# package-declared vars (audit pending for the same image-provided treatment):
 for expect_pkg_var in \
-    "moonray|RDL2_DSO_PATH" \
-    "moonray|MOONRAY_CLASS_PATH" \
     "arras4_core|ARRAS_SESSION_PATH" \
     "hdMoonray|PXR_PLUGINPATH_NAME"; do
     pkg="${expect_pkg_var%%|*}"
