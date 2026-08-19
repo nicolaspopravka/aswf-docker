@@ -1,10 +1,11 @@
-name: Build CY2026 Cycles empty-material fix
+name: Build CY2026 Cycles empty-material + warnings fix
 
 on:
   workflow_dispatch:
   push:
     branches:
       - codex/diagnostics/cycles-openchessset-empty-material
+      - opencode/cycles-pr76-warnings
 
 permissions:
   contents: read
@@ -17,7 +18,7 @@ concurrency:
 env:
   DEPENDENCY_IMAGE: ghcr.io/nicolaspopravka/ci-cycles@sha256:29eb03a0f21258adeb4031ba2720ca114638fb8f5015dba3cb7a9167823a5a0c
   IMAGE_NAME: ghcr.io/nicolaspopravka/usd-render-benchmark-cycles
-  IMAGE_TAG: cycles-5.2.0-openusd-26.03-cy2026-empty-material-fix
+  IMAGE_TAG: cycles-5.2.0-openusd-26.03-cy2026-empty-material-warnings-fix
   CYCLES_TAG: v5.2.0
   CYCLES_REVISION: 3b97e190c5ff1a2ed2160d879ad5bf95bea7b8ba
   CYCLES_LIB_REVISION: 30d9f881c4b62c52323fd11637eeea56d460e35c
@@ -55,6 +56,7 @@ jobs:
           test -f ci-cycles/Dockerfile
           test -f ci-cycles/build_cycles.sh
           test -f ci-cycles/cycles-empty-material-graph.patch
+          test -f ci-cycles/cycles-material-input-warnings.patch
           test -f ci-cycles/check_png_variation.py
           git diff --check
 
@@ -97,6 +99,10 @@ jobs:
             test -f /opt/cycles/hydra/hdCycles.so
             test -s /opt/cycles-build-evidence/cycles-source.patch
             grep -Fq "+      Initialize(renderParam);" \
+              /opt/cycles-build-evidence/cycles-source.patch
+            grep -Fq "maps to unavailable Cycles input" \
+              /opt/cycles-build-evidence/cycles-source.patch
+            grep -Fq "Unsupported USD input" \
               /opt/cycles-build-evidence/cycles-source.patch
             ldd -r /opt/cycles/hydra/hdCycles.so | tee /tmp/ldd.txt
             ! grep -Eq "not found|undefined symbol" /tmp/ldd.txt

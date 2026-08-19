@@ -28,6 +28,11 @@ if [[ "$CYCLES_TAG" == v5.2.0 ]]; then
   git -C "$BUILD_ROOT/cycles" apply \
     /usr/local/share/cycles-empty-material-graph.patch
   git -C "$BUILD_ROOT/cycles" diff --check
+  git -C "$BUILD_ROOT/cycles" apply --check \
+    /usr/local/share/cycles-material-input-warnings.patch
+  git -C "$BUILD_ROOT/cycles" apply \
+    /usr/local/share/cycles-material-input-warnings.patch
+  git -C "$BUILD_ROOT/cycles" diff --check
   git -C "$BUILD_ROOT/cycles" diff > "$EVIDENCE_ROOT/cycles-source.patch"
 else
   test -z "$(git -C "$BUILD_ROOT/cycles" status --short)"
