@@ -46,7 +46,7 @@ index f4e85f0..a6861d0 100644
        continue;
      }
  
-@@ -367,10 +367,14 @@ void HdCyclesMaterial::UpdateConnections(NodeDesc &nodeDesc,
+@@ -348,10 +348,18 @@ void HdCyclesMaterial::UpdateConnections(NodeDesc &nodeDesc,
      }
  
      if (!input) {
@@ -58,9 +58,13 @@ index f4e85f0..a6861d0 100644
 +        TF_WARN("USD input '%s' on node '%s' maps to unavailable Cycles input '%s'; connection ignored",
 +                dstSocketName.GetText(), nodePath.GetText(), inputName.c_str());
 +      }
-+      else {
++      else if (inputMapping) {
 +        TF_WARN("Unsupported USD input '%s' on node '%s'; connection ignored",
 +                dstSocketName.GetText(), nodePath.GetText());
++      }
++      else {
++        TF_WARN("Could not find input '%s' on node '%s'",
++                inputName.c_str(), nodePath.GetText());
 +      }
        continue;
      }
