@@ -1,0 +1,11 @@
+name: "cycles"
+title: "Cycles CI Docker Image"
+description: |
+  Contains: all upstream dependencies required to build Cycles.
+  This image does not contain Cycles itself as it is used to build Cycles!
+packages:
+  - cycles
+implicit_packages:
+  - vfxplatform
+docker_from: ${ASWF_ORG}/ci-baseqt:${ASWF_VFXPLATFORM_VERSION}
+docker_package_version: $ASWF_VFXPLATFORM_VERSION

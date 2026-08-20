@@ -299,6 +299,7 @@ Contains:
 * materialx-1.38.7
 * osl-1.12.14.0
 * rawtoaces-2.1.1
+* cycles-3.6.0
 * numpy-1.23.5
 * vfxplatform-2023
 
@@ -326,6 +327,7 @@ Contains:
 * materialx-1.38.7
 * osl-1.12.14.0
 * rawtoaces-2.1.1
+* cycles-3.6.0
 * numpy-1.23.5
 * vfxplatform-2023
 
@@ -353,6 +355,7 @@ Contains:
 * materialx-1.39.1
 * osl-1.13.11.0
 * rawtoaces-2.1.1
+* cycles-4.2.0
 * numpy-1.24.3
 * vfxplatform-2024
 
@@ -380,6 +383,7 @@ Contains:
 * materialx-1.39.1
 * osl-1.13.11.0
 * rawtoaces-2.1.1
+* cycles-4.2.0
 * numpy-1.24.3
 * vfxplatform-2024
 
@@ -407,6 +411,7 @@ Contains:
 * materialx-1.39.3
 * osl-1.14.11.0
 * rawtoaces-2.1.1
+* cycles-5.0.0
 * numpy-1.26.4
 * vfxplatform-2025
 
@@ -434,6 +439,7 @@ Contains:
 * materialx-1.39.3
 * osl-1.14.11.0
 * rawtoaces-2.1.1
+* cycles-5.0.0
 * numpy-1.26.4
 * vfxplatform-2025
 
@@ -461,6 +467,7 @@ Contains:
 * materialx-1.39.4
 * osl-1.15.5.0
 * rawtoaces-2.1.1
+* cycles-5.2.0
 * numpy-2.3.2
 * vfxplatform-2026
 
@@ -488,6 +495,7 @@ Contains:
 * materialx-1.39.4
 * osl-1.15.5.0
 * rawtoaces-2.1.1
+* cycles-5.2.0
 * numpy-2.3.2
 * vfxplatform-2026
 
@@ -515,6 +523,7 @@ Contains:
 * materialx-1.39.5
 * osl-1.15.5.0
 * rawtoaces-2.1.1
+* cycles-5.2.0
 * numpy-2.4.6
 * vfxplatform-2027
 
@@ -542,6 +551,7 @@ Contains:
 * materialx-1.39.5
 * osl-1.15.5.0
 * rawtoaces-2.1.1
+* cycles-5.2.0
 * numpy-2.4.6
 * vfxplatform-2027
 

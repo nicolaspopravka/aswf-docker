@@ -24,6 +24,7 @@ packages:
   - materialx
   - osl
   - rawtoaces
+  - cycles
 implicit_packages:
   - numpy
   - vfxplatform
