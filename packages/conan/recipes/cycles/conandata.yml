@@ -4,18 +4,13 @@
 sources:
   "5.2.0":
     url: "https://projects.blender.org/blender/cycles/archive/v5.2.0.tar.gz"
-    sha256: "TODO"
-    # Cycles git revision for this tag
-    git_revision: "3b97e190c5ff1a2ed2160d879ad5bf95bea7b8ba"
+    sha256: "601dcd4105365c7e194b2a575353f416f10e64f81038c9e760926f4bf73e185d"
   "5.0.0":
     url: "https://projects.blender.org/blender/cycles/archive/v5.0.0.tar.gz"
-    sha256: "TODO"
-    git_revision: "2eba4102417439e59e03003f1dff881192cbd75f"
+    sha256: "134b8f0369f632b6a54354050b10ca5c90d3527df6a1ff82f612c21b2a435db4"
   "4.2.0":
     url: "https://projects.blender.org/blender/cycles/archive/v4.2.0.tar.gz"
-    sha256: "TODO"
-    git_revision: "6170e50fbd5fb8e36d71676e78c2693e58bf6c3d"
+    sha256: "7b54ffe592fc1acf64d0499007e0ff7ce02452d1eaa07a191424bf112133d531"
   "3.6.0":
     url: "https://projects.blender.org/blender/cycles/archive/v3.6.0.tar.gz"
-    sha256: "TODO"
-    git_revision: "e9f92cd6528a6042de8e5316b9f03ec3724561b6"
+    sha256: "1dfaaf7adf11128a5a83868f8e5fd7b79a6e0f10dc2b81ffe0c1b598799a6617"
