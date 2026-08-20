@@ -55,6 +55,7 @@ fi
   test "$(git rev-parse HEAD)" = "$CYCLES_REVISION"
   cmake -B ./build \
     -DPXR_ROOT=/opt/usd \
+    -DOPTIX_ROOT_DIR=/usr/local/NVIDIA-OptiX-SDK-8.0.0 \
     -DCMAKE_PROJECT_INCLUDE=/usr/local/share/cycles/import_openusd_dependencies.cmake
   make
   test -x install/cycles

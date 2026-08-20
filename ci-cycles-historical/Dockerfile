@@ -14,6 +14,10 @@ COPY ci-cycles-historical/import_openusd_dependencies.cmake /usr/local/share/cyc
 COPY ci-cycles/cycles-empty-material-graph.patch /usr/local/share/cycles-empty-material-graph.patch
 COPY ci-cycles/cycles-material-input-warnings.patch /usr/local/share/cycles-material-input-warnings.patch
 
+COPY scripts/common/install_optix.sh /tmp/install_optix.sh
+COPY scripts/common/install_cudadevel.sh /tmp/install_cudadevel.sh
+RUN /tmp/install_optix.sh && /tmp/install_cudadevel.sh
+
 RUN chmod +x /usr/local/bin/build_cycles.sh && \
     /usr/local/bin/build_cycles.sh
 

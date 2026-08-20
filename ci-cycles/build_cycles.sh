@@ -73,7 +73,7 @@ git -C "$BUILD_ROOT/cycles" diff \
     > "$EVIDENCE_ROOT/cycles-zstd-members.txt"
   test -s "$EVIDENCE_ROOT/cycles-zstd-members.txt"
 
-  cmake -B ./build -DPXR_ROOT=/opt/usd
+  cmake -B ./build -DPXR_ROOT=/opt/usd -DOPTIX_ROOT_DIR=/usr/local/NVIDIA-OptiX-SDK-8.0.0
   make
 
   test -f install/hydra/hdCycles.so
