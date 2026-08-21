@@ -53,7 +53,7 @@ def Xform "World"
 
             def Shader "Checker"
             {
-                uniform token info:id = "cycles_checker"
+                uniform token info:id = "cycles_checker_texture"
                 float outputs:fac
 
                 # Case 3: native Cycles node (no USD mapping)
