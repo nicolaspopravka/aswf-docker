@@ -5,7 +5,9 @@ Base revision validated: `1319002982e09970cb50f727e3f299cea78de229`
 (current `main` tip = merge of PR #76; contains #75 + #76)
 
 Patch file: `ci-cycles/cycles-updateconnections.patch` (single hunk,
-`src/hydra/material.cpp`, +17/−4)
+`src/hydra/material.cpp`, +17/−4). Ready-to-file commit export:
+`ci-cycles/0001-Hydra-Fix-UpdateConnections-input-not-found-diagnost.patch`
+(git format-patch, authored like the merged #75/#76 commits).
 Validation: `.github/workflows/probe-cycles-updateconnections.yml` on this
 branch (free GHA; builds `main@1319002` + patch, renders OpenChessSet and a
 synthetic diagnostics scene, asserts the new warning strings).
@@ -103,13 +105,36 @@ responsibility for the contribution, per the AI Contributions Policy.
 
 ## Filing checklist (Nicolas)
 
+Verified Aug 21, 2026: this machine has **no blender.org SSH key** and
+**no fork** at `projects.blender.org/nicolaspopravka/cycles` — consistent
+with how #75/#76 were filed (both merged commits authored
+`Nicolas Popravka <nicolaspopravka@gmail.com>`, no fork to push to, i.e.
+Gitea's attach-patch flow). Two filing paths:
+
+**Path A — attach the patch (matches #75/#76 precedent):**
 1. Re-run the probe workflow once before filing if `main` moved past
    `1319002` (workflow asserts the pinned revision; update pin + rebase if
    needed).
-2. Push a branch containing the single commit (patch +
-   suggested commit message above) to your Blender fork.
-3. Open the PR against `blender/cycles` `main` with the title/description
-   above; adjust the AI-disclosure wording to match what you used for
-   #75/#76.
-4. Reference it from benchmark GH #21 (UpdateParameters/material-translation
-   context) after filing.
+2. On projects.blender.org: `blender/cycles` → Pull Requests → New Pull
+   Request → use "Attach patch files" with
+   `ci-cycles/0001-Hydra-Fix-UpdateConnections-input-not-found-diagnost.patch`
+   (git format-patch format; carries the commit message and authorship).
+3. Set title + description from this document; adjust the AI-disclosure
+   wording to match what you used for #75/#76.
+4. Reference it from benchmark GH #21 after filing.
+
+**Path B — fork push (only if you create a Blender-side fork):**
+1. Create the fork on projects.blender.org and register an SSH key there.
+2. In any clone of blender/cycles:
+   ```
+   git checkout 1319002982e09970cb50f727e3f299cea78de229
+   git checkout -b hydra-updateconnections-diagnostics
+   git am ci-cycles/0001-Hydra-Fix-UpdateConnections-input-not-found-diagnost.patch
+   git remote add fork git@projects.blender.org:<you>/cycles.git
+   git push -u fork hydra-updateconnections-diagnostics
+   ```
+3. Open the PR against `main` from that branch; title/description as above.
+
+The commit on local branch `hydra-updateconnections-diagnostics` (in the
+validation clone) is authored like your merged PRs; amend if you prefer a
+different identity/disclosure form before pushing or attaching.
