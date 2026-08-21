@@ -32,6 +32,12 @@ def Xform "World"
         uniform token[] xformOpOrder = ["xformOp:rotateXYZ"]
     }
 
+    def DomeLight "Sky"
+    {
+        color3f inputs:color = (0.5, 0.6, 0.7)
+        float inputs:intensity = 1
+    }
+
     def Scope "Looks"
     {
         def Material "Probe"

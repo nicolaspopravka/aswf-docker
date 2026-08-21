@@ -139,7 +139,7 @@ jobs:
               set -euxo pipefail
               export CYCLES_DEVICE=CPU
               usdrecord --disableGpu --renderer Cycles --camera main_cam \
-                --purposes render --imageWidth 128 \
+                --imageWidth 128 \
                 /probes/updateconnections-probe.usda /out/UpdateConnectionsProbe.png \
                 2>&1 | tee /out/UpdateConnectionsProbe.log
               grep -Fq "Unsupported USD input '"'"'occlusion'"'"'" /out/UpdateConnectionsProbe.log
