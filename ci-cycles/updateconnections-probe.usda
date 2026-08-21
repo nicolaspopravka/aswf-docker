@@ -23,18 +23,9 @@ def Xform "World"
         double radius = 1
     }
 
-    def DistantLight "KeyLight"
-    {
-        color3f inputs:color = (1, 0.95, 0.9)
-        float inputs:intensity = 1000
-        float inputs:angle = 0.5
-        float3 xformOp:rotateXYZ = (-25, 35, 0)
-        uniform token[] xformOpOrder = ["xformOp:rotateXYZ"]
-    }
-
     def DomeLight "Sky"
     {
-        color3f inputs:color = (0.5, 0.6, 0.7)
+        color3f inputs:color = (0.35, 0.4, 0.45)
         float inputs:intensity = 1
     }
 
