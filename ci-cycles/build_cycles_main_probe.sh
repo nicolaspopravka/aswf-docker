@@ -10,7 +10,6 @@ readonly EVIDENCE_ROOT="/opt/cycles-build-evidence"
 
 : "${CYCLES_REVISION:?CYCLES_REVISION is required}"
 : "${CYCLES_LIB_REVISION:?CYCLES_LIB_REVISION is required}"
-: "${TBB_ABI:?TBB_ABI is required}"
 
 source "/opt/rh/gcc-toolset-${ASWF_DTS_VERSION}/enable"
 mkdir -p "$BUILD_ROOT" "$EVIDENCE_ROOT"
