@@ -2,50 +2,71 @@
 (
     defaultPrim = "World"
     metersPerUnit = 1
-    upAxis = "Z"
+    upAxis = "Y"
 )
 
 def Xform "World"
 {
-    def Sphere "Ball"
-    {
-        double radius = 2
-        rel material:binding = </World/Mat>
-    }
-
-    def Material "Mat"
-    {
-        outputs:surface.connect = </World/Mat/PreviewSurface.outputs:out>
-
-        def Shader "PreviewSurface"
-        {
-            uniform token info:id = "UsdPreviewSurface"
-            color3f inputs:diffuseColor = (0.2, 0.5, 0.8)
-            float inputs:occlusion.connect = </World/Mat/Checker.outputs:fac>
-        }
-
-        def Shader "Checker"
-        {
-            uniform token info:id = "cycles_checker"
-            float inputs:bogusInput.connect = </World/Mat/Reader.outputs:result>
-        }
-
-        def Shader "Reader"
-        {
-            uniform token info:id = "UsdPrimvarReader_float"
-            token inputs:varname = "st"
-        }
-    }
-
-    def DomeLight "Sky"
-    {
-        float inputs:intensity = 1.5
-    }
-
     def Camera "main_cam"
     {
         float focalLength = 50
-        matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 0, 8, 1) )
-        uniform token[] xformOpOrder = ["xformOp:transform"]
+        float horizontalAperture = 20.955
+        double3 xformOp:translate = (0, 0, 5)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+    }
+
+    def Sphere "Ball" (
+        prepend apiSchemas = ["MaterialBindingAPI"]
+    )
+    {
+        rel material:binding = </World/Looks/Probe>
+        double radius = 1
+    }
+
+    def DistantLight "KeyLight"
+    {
+        color3f inputs:color = (1, 0.95, 0.9)
+        float inputs:intensity = 1000
+        float inputs:angle = 0.5
+        float3 xformOp:rotateXYZ = (-25, 35, 0)
+        uniform token[] xformOpOrder = ["xformOp:rotateXYZ"]
+    }
+
+    def Scope "Looks"
+    {
+        def Material "Probe"
+        {
+            token outputs:surface.connect = </World/Looks/Probe/PreviewSurface.outputs:surface>
+
+            def Shader "PreviewSurface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.03, 0.2, 0.8)
+                float inputs:metallic = 0
+                float inputs:roughness = 0.3
+                token outputs:surface
+
+                # Case 2: 'occlusion' has no entry in the UsdPreviewSurface
+                # parameter map -> "Unsupported USD input ... connection ignored"
+                float inputs:occlusion.connect = </World/Looks/Probe/Checker.outputs:fac>
+            }
+
+            def Shader "Checker"
+            {
+                uniform token info:id = "cycles_checker"
+                float outputs:fac
+
+                # Case 3: native Cycles node (no USD mapping)
+                # -> "Could not find input 'bogusInput'"
+                float inputs:bogusInput.connect = </World/Looks/Probe/Reader.outputs:result>
+            }
+
+            def Shader "Reader"
+            {
+                uniform token info:id = "UsdPrimvarReader_float"
+                token inputs:varname = "st"
+                float outputs:result
+            }
+        }
     }
 }
