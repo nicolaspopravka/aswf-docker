@@ -1,0 +1,180 @@
+name: Probe UpdateConnections diagnostics fix against blender/cycles main
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - opencode/cycles-updateconnections-pr
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: cycles-updateconnections-probe-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  DEPENDENCY_IMAGE: ghcr.io/nicolaspopravka/ci-cycles@sha256:fdd920a0a4e5d0fca76f0ce7ac64edff4012b5be4784ccb9ea683f4d4a5edb16
+  IMAGE_NAME: ghcr.io/nicolaspopravka/usd-render-benchmark-cycles
+  IMAGE_TAG: cycles-main-updateconnections-probe
+  CYCLES_REVISION: 1319002982e09970cb50f727e3f299cea78de229
+  CYCLES_LIB_REVISION: 30d9f881c4b62c52323fd11637eeea56d460e35c
+  OPENUSD_TAG: v26.05
+  OPENUSD_REVISION: 2095fafafd033fa23386d7ec6d58c7cc33974518
+  ASSETS_REVISION: 907d5f17bbe933fc14441a3f3ab69a5bd8abe32a
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 180
+
+    steps:
+      - name: Checkout probe source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Reclaim runner disk
+        run: |
+          set -eux
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /usr/local/share/powershell /usr/share/swift /usr/local/.ghcup \
+            /usr/local/aws-cli /usr/local/aws-sam-cli /usr/local/julia* \
+            /usr/lib/jvm
+          sudo apt-get clean
+          docker system prune -af
+
+      - name: Validate fixed inputs
+        run: |
+          set -euxo pipefail
+          [[ "$DEPENDENCY_IMAGE" == *@sha256:* ]]
+          [[ "$CYCLES_REVISION" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$CYCLES_LIB_REVISION" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$OPENUSD_REVISION" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$ASSETS_REVISION" =~ ^[0-9a-f]{40}$ ]]
+          test -f ci-cycles/Dockerfile.updateconnections-probe
+          test -f ci-cycles/build_cycles_main_probe.sh
+          test -f ci-cycles/cycles-updateconnections.patch
+          test -f ci-cycles/updateconnections-probe.usda
+          test -f ci-cycles/check_png_variation.py
+          test -f scripts/common/install_optix.sh
+          test -f scripts/common/install_cudadevel.sh
+          git diff --check
+
+      - name: Fetch exact OpenChessSet asset
+        run: |
+          set -euxo pipefail
+          git init "${{ runner.temp }}/assets"
+          git -C "${{ runner.temp }}/assets" remote add origin \
+            https://github.com/usd-wg/assets.git
+          git -C "${{ runner.temp }}/assets" fetch --depth=1 origin \
+            "$ASSETS_REVISION"
+          git -C "${{ runner.temp }}/assets" sparse-checkout set \
+            full_assets/OpenChessSet
+          git -C "${{ runner.temp }}/assets" checkout --detach FETCH_HEAD
+          test "$(git -C "${{ runner.temp }}/assets" rev-parse HEAD)" = \
+            "$ASSETS_REVISION"
+
+      - name: Build main + UpdateConnections patch delegate
+        run: |
+          set -euxo pipefail
+          docker build --progress=plain \
+            --file ci-cycles/Dockerfile.updateconnections-probe \
+            --tag "$IMAGE_NAME:$IMAGE_TAG-$GITHUB_SHA" \
+            --build-arg DEPENDENCY_IMAGE="$DEPENDENCY_IMAGE" \
+            --build-arg WORKFLOW_REVISION="$GITHUB_SHA" \
+            --build-arg CYCLES_REVISION="$CYCLES_REVISION" \
+            --build-arg CYCLES_LIB_REVISION="$CYCLES_LIB_REVISION" \
+            --build-arg OPENUSD_TAG="$OPENUSD_TAG" \
+            --build-arg OPENUSD_REVISION="$OPENUSD_REVISION" \
+            . 2>&1 | tee "${{ runner.temp }}/build.log"
+
+      - name: Validate delegate and applied source patch
+        run: |
+          set -euxo pipefail
+          docker run --rm "$IMAGE_NAME:$IMAGE_TAG-$GITHUB_SHA" bash -c '
+            set -euxo pipefail
+            test -f /opt/cycles/hydra/hdCycles.so
+            test -s /opt/cycles-build-evidence/cycles-source.patch
+            grep -Fq "maps to unavailable Cycles input" \
+              /opt/cycles-build-evidence/cycles-source.patch
+            grep -Fq "Unsupported USD input" \
+              /opt/cycles-build-evidence/cycles-source.patch
+            grep -Fq "Could not find input" \
+              /opt/cycles-build-evidence/cycles-source.patch
+            ! grep -Fq "Ignoring connection on" \
+              /opt/cycles-build-evidence/cycles-source.patch
+            ldd -r /opt/cycles/hydra/hdCycles.so | tee /tmp/ldd.txt
+            ! grep -Eq "not found|undefined symbol" /tmp/ldd.txt
+          '
+
+      - name: Render OpenChessSet smoke
+        run: |
+          set -euxo pipefail
+          mkdir -p "${{ runner.temp }}/results"
+          docker run --rm \
+            --volume "${{ runner.temp }}/assets/full_assets/OpenChessSet:/scene:ro" \
+            --volume "${{ runner.temp }}/results:/out" \
+            "$IMAGE_NAME:$IMAGE_TAG-$GITHUB_SHA" bash -c '
+              set -euxo pipefail
+              export CYCLES_DEVICE=CPU
+              usdrecord --disableGpu --renderer Cycles --camera main_cam \
+                --purposes render --imageWidth 128 \
+                /scene/chess_set.usda /out/OpenChessSet.png \
+                2>&1 | tee /out/OpenChessSet.log
+            '
+          python3 ci-cycles/check_png_variation.py \
+            "${{ runner.temp }}/results/OpenChessSet.png"
+          grep -Fq "Could not get a material network" \
+            "${{ runner.temp }}/results/OpenChessSet.log"
+          ! grep -Eq "Fatal|Segmentation fault|Recording aborted" \
+            "${{ runner.temp }}/results/OpenChessSet.log"
+
+      - name: Render UpdateConnections diagnostics scene
+        run: |
+          set -euxo pipefail
+          docker run --rm \
+            --volume "${{ github.workspace }}/ci-cycles:/probes:ro" \
+            --volume "${{ runner.temp }}/results:/out" \
+            "$IMAGE_NAME:$IMAGE_TAG-$GITHUB_SHA" bash -c '
+              set -euxo pipefail
+              export CYCLES_DEVICE=CPU
+              usdrecord --disableGpu --renderer Cycles --camera main_cam \
+                --purposes render --imageWidth 128 \
+                /probes/updateconnections-probe.usda /out/UpdateConnectionsProbe.png \
+                2>&1 | tee /out/UpdateConnectionsProbe.log
+              grep -Fq "Unsupported USD input '"'"'occlusion'"'"'" /out/UpdateConnectionsProbe.log
+              grep -Fq "Could not find input '"'"'bogusInput'"'"'" /out/UpdateConnectionsProbe.log
+              ! grep -Fq "Ignoring connection on" /out/UpdateConnectionsProbe.log
+            '
+          python3 ci-cycles/check_png_variation.py \
+            "${{ runner.temp }}/results/UpdateConnectionsProbe.png"
+          cp "${{ runner.temp }}/results/"*.log \
+            "${{ runner.temp }}/results/"*.png \
+            "${{ github.workspace }}/"
+          cp "${{ runner.temp }}/build.log" "${{ github.workspace }}/build.log"
+
+      - name: Upload probe evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: updateconnections-probe-evidence
+          path: |
+            build.log
+            OpenChessSet.log
+            OpenChessSet.png
+            UpdateConnectionsProbe.log
+            UpdateConnectionsProbe.png
+          if-no-files-found: error
+
+      - name: Publish probe image
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euxo pipefail
+          echo "$GHCR_TOKEN" | docker login ghcr.io \
+            -u "$GITHUB_ACTOR" --password-stdin
+          docker tag "$IMAGE_NAME:$IMAGE_TAG-$GITHUB_SHA" \
+            "$IMAGE_NAME:$IMAGE_TAG"
+          docker push "$IMAGE_NAME:$IMAGE_TAG-$GITHUB_SHA" \
+            2>&1 | tee "${{ runner.temp }}/push-immutable.log"
+          docker push "$IMAGE_NAME:$IMAGE_TAG" \
+            2>&1 | tee "${{ runner.temp }}/push-version.log"

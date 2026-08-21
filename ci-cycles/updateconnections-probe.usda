@@ -1,0 +1,51 @@
+#usda 1.0
+(
+    defaultPrim = "World"
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "World"
+{
+    def Sphere "Ball"
+    {
+        double radius = 2
+        rel material:binding = </World/Mat>
+    }
+
+    def Material "Mat"
+    {
+        outputs:surface.connect = </World/Mat/PreviewSurface.outputs:out>
+
+        def Shader "PreviewSurface"
+        {
+            uniform token info:id = "UsdPreviewSurface"
+            color3f inputs:diffuseColor = (0.2, 0.5, 0.8)
+            float inputs:occlusion.connect = </World/Mat/Checker.outputs:fac>
+        }
+
+        def Shader "Checker"
+        {
+            uniform token info:id = "cycles_checker"
+            float inputs:bogusInput.connect = </World/Mat/Reader.outputs:result>
+        }
+
+        def Shader "Reader"
+        {
+            uniform token info:id = "UsdPrimvarReader_float"
+            token inputs:varname = "st"
+        }
+    }
+
+    def DomeLight "Sky"
+    {
+        float inputs:intensity = 1.5
+    }
+
+    def Camera "main_cam"
+    {
+        float focalLength = 50
+        matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 0, 8, 1) )
+        uniform token[] xformOpOrder = ["xformOp:transform"]
+    }
+}
