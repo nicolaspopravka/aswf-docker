@@ -123,18 +123,28 @@ Gitea's attach-patch flow). Two filing paths:
    wording to match what you used for #75/#76.
 4. Reference it from benchmark GH #21 after filing.
 
-**Path B — fork push (only if you create a Blender-side fork):**
-1. Create the fork on projects.blender.org and register an SSH key there.
-2. In any clone of blender/cycles:
-   ```
-   git checkout 1319002982e09970cb50f727e3f299cea78de229
-   git checkout -b hydra-updateconnections-diagnostics
-   git am ci-cycles/0001-Hydra-Fix-UpdateConnections-input-not-found-diagnost.patch
-   git remote add fork git@projects.blender.org:<you>/cycles.git
-   git push -u fork hydra-updateconnections-diagnostics
-   ```
-3. Open the PR against `main` from that branch; title/description as above.
+**Path B — fork push (READY — one command left):**
+Local branch `fix/hydra-updateconnections-diagnostics` (commit `50bac77`,
+Nicolas-authored) exists in the validation clone with remote `blender-fork`
+already added (same setup Codex used for #76's
+`fix/hydra-material-input-warnings`). Port 22 to projects.blender.org was
+blocked from this network on Aug 21 (~14:30 CEST), so the push is:
 
-The commit on local branch `hydra-updateconnections-diagnostics` (in the
-validation clone) is authored like your merged PRs; amend if you prefer a
-different identity/disclosure form before pushing or attaching.
+```
+git -C /private/tmp/aswf-cycles-updateconnections-pr/../../var/folders/5_/nr7_8njj7173fhg5nnz5773r0000gn/T/opencode/cycles-pr/cycles \
+  push blender-fork fix/hydra-updateconnections-diagnostics
+```
+
+(absolute clone path:
+`/var/folders/5_/nr7_8njj7173fhg5nnz5773r0000gn/T/opencode/cycles-pr/cycles`)
+
+Verify: `git ls-remote https://projects.blender.org/Nicolas-Popravka/cycles.git refs/heads/fix/hydra-updateconnections-diagnostics`
+must print `50bac770a507a764538e54250088e560afe720b1`. Then open the PR at
+`https://projects.blender.org/blender/cycles/compare/main...Nicolas-Popravka:fix/hydra-updateconnections-diagnostics`
+with title/description from this document.
+
+If the temp clone was cleaned before pushing, recreate it from a fresh
+clone + `git am` of
+`ci-cycles/0001-Hydra-Fix-UpdateConnections-input-not-found-diagnost.patch`
+onto `1319002982e09970cb50f727e3f299cea78de229`, then add the
+`blender-fork` remote as above.
