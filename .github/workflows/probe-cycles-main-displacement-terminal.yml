@@ -107,7 +107,7 @@ jobs:
           test "$render_status" -eq 0
           grep -qx '0' "$evidence/status.txt"
           grep -q 'Renderer plugin: HdCyclesPlugin' "$evidence/Cycles-displacement.log"
-          test "$(grep -c "Unsupported displacement terminal on mapped USD node '/World/Material/PreviewSurface'; connection ignored" "$evidence/Cycles-displacement.log")" = 1
+          test "$(grep -c "Unsupported displacement terminal on mapped USD node '/PreviewSurface'; connection ignored" "$evidence/Cycles-displacement.log")" = 1
           ! grep -q "Could not find terminal output.*Displacement" "$evidence/Cycles-displacement.log"
           file "$evidence/Cycles-displacement.png"
           sha256sum "$evidence/Cycles-displacement.png" > "$evidence/image-sha256.txt"
