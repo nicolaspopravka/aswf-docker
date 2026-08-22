@@ -22,7 +22,7 @@ def main():
 
     for index in range(args.geometry_count):
         cube = UsdGeom.Cube.Define(stage, f"/World/Cube_{index:05d}")
-        cube.AddTranslateOp().Set(Gf.Vec3d(10000.0 + index * 3.0, 0.0, 0.0))
+        cube.AddTranslateOp().Set(Gf.Vec3d(0.0, 0.0, 0.0))
 
     stage.GetRootLayer().Save()
 
