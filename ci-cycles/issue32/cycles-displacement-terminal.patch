@@ -1,0 +1,28 @@
+diff --git a/src/cmake/Modules/FindUSDPixar.cmake b/src/cmake/Modules/FindUSDPixar.cmake
+index c3310e7..ebe8a6f 100644
+--- a/src/cmake/Modules/FindUSDPixar.cmake
++++ b/src/cmake/Modules/FindUSDPixar.cmake
+@@ -13,7 +13,7 @@ if(pxr_FOUND)
+ 
+   # USD
+   set(USD_INCLUDE_DIRS ${PXR_INCLUDE_DIRS})
+-  set(USD_LIBRARIES hd hgi hgiGL usd usdImaging usdGeom)
++  set(USD_LIBRARIES hd hdsi hgi hgiGL usd usdImaging usdGeom)
+ 
+   # OpenSubdiv
+   find_library(_opensubdiv_library_cpu_debug_pxr NAMES osdCPU_d osdCPU PATHS ${_pxr_library_dir} NO_DEFAULT_PATH)
+diff --git a/src/hydra/material.cpp b/src/hydra/material.cpp
+index ea14ff8..25bea1a 100644
+--- a/src/hydra/material.cpp
++++ b/src/hydra/material.cpp
+@@ -571,5 +571,10 @@ unique_ptr<ShaderGraph> HdCyclesMaterial::BuildShaderGraph(HdMaterialNetworkSche
+     else if (terminalName == HdMaterialTerminalTokens->displacement ||
+              terminalName == CyclesMaterialTokens->cyclesDisplacement)
+     {
++      if (nodeIt->second.mapping) {
++        TF_WARN("Unsupported displacement terminal on mapped USD node '%s'; connection ignored",
++                upstreamNodePath.GetText());
++        continue;
++      }
+       inputName = outputName = "Displacement";
+     }

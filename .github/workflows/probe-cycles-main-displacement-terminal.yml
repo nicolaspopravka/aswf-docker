@@ -1,0 +1,124 @@
+name: Probe Cycles main displacement terminal
+
+on:
+  push:
+    branches:
+      - codex/diagnostics/cycles-main-displacement-terminal
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cycles-main-displacement-terminal-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  BASE_IMAGE: ghcr.io/nicolaspopravka/usd-render-benchmark-cycles@sha256:5c1359c29c619c72afdcb39aab50b73c630f2dafa6e9a1fdc44d8b7bd9b30311
+  CYCLES_REVISION: 1319002982e09970cb50f727e3f299cea78de229
+  CYCLES_LIB_REVISION: 30d9f881c4b62c52323fd11637eeea56d460e35c
+  IMAGE_NAME: cycles-main-issue32
+
+jobs:
+  probe:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 180
+
+    steps:
+      - name: Checkout reviewed source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Validate fixed inputs
+        run: |
+          set -euxo pipefail
+          [[ "$BASE_IMAGE" == *@sha256:* ]]
+          [[ "$CYCLES_REVISION" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$CYCLES_LIB_REVISION" =~ ^[0-9a-f]{40}$ ]]
+          test -f ci-cycles/Dockerfile.issue32-main
+          test -f ci-cycles/build_cycles.sh
+          test -f ci-cycles/issue32/cycles-displacement-terminal.patch
+          test -f ci-cycles/issue32/cycles-issue32-displacement.usda
+          sha256sum ci-cycles/issue32/*
+
+      - name: Reclaim runner disk
+        run: |
+          set -eux
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /usr/local/share/powershell /usr/share/swift /usr/local/.ghcup \
+            /usr/local/aws-cli /usr/local/aws-sam-cli /usr/local/julia* \
+            /usr/lib/jvm
+          sudo apt-get clean
+          docker system prune -af
+          df -h /
+
+      - name: Build exact Cycles main delegate
+        run: |
+          set -euxo pipefail
+          docker build --progress=plain \
+            --file ci-cycles/Dockerfile.issue32-main \
+            --tag "$IMAGE_NAME:$GITHUB_SHA" \
+            --build-arg BASE_IMAGE="$BASE_IMAGE" \
+            --build-arg CYCLES_REVISION="$CYCLES_REVISION" \
+            --build-arg CYCLES_LIB_REVISION="$CYCLES_LIB_REVISION" \
+            . 2>&1 | tee "${{ runner.temp }}/cycles-main-build.log"
+
+      - name: Validate delegate and source identities
+        run: |
+          set -euxo pipefail
+          evidence="${{ runner.temp }}/evidence"
+          mkdir -p "$evidence"
+          docker image inspect "$IMAGE_NAME:$GITHUB_SHA" > "$evidence/image-inspect.json"
+          docker run --rm --volume "$evidence:/out" "$IMAGE_NAME:$GITHUB_SHA" bash -c '
+            set -euxo pipefail
+            grep -q "Cycles revision: '"$CYCLES_REVISION"'" /opt/cycles-build-evidence/source-revisions.txt
+            grep -q "Cycles Linux libraries revision: '"$CYCLES_LIB_REVISION"'" /opt/cycles-build-evidence/source-revisions.txt
+            python3 -c "from pxr import UsdImagingGL; names = [UsdImagingGL.Engine.GetRendererDisplayName(p) for p in UsdImagingGL.Engine.GetRendererPlugins()]; print(names); assert \"Cycles\" in names"
+            ldd -r /opt/cycles/hydra/hdCycles.so | tee /out/hdCycles-ldd.txt
+            ! grep -Eq "not found|undefined symbol" /out/hdCycles-ldd.txt
+            cp /opt/cycles-build-evidence/source-revisions.txt /out/
+            cp /opt/cycles-build-evidence/cycles-hdsi.patch /out/
+          '
+
+      - name: Run focused fixture
+        run: |
+          set -euxo pipefail
+          evidence="${{ runner.temp }}/evidence"
+          set +e
+          docker run --rm \
+            --volume "$GITHUB_WORKSPACE/ci-cycles/issue32:/test:ro" \
+            --volume "$evidence:/out" \
+            "$IMAGE_NAME:$GITHUB_SHA" bash -c '
+              set -u
+              export DISPLAY=:99
+              export LIBGL_ALWAYS_SOFTWARE=1
+              export GALLIUM_DRIVER=llvmpipe
+              export CYCLES_DEVICE=CPU
+              Xvfb :99 -screen 0 640x480x24 +extension GLX +render -noreset >/out/xvfb.log 2>&1 &
+              xvfb_pid=$!
+              trap "kill $xvfb_pid 2>/dev/null || true" EXIT
+              sleep 2
+              glxinfo -B > /out/glxinfo.txt
+              usdrecord --renderer Cycles --camera /World/Camera --imageWidth 256 \
+                /test/cycles-issue32-displacement.usda /out/Cycles-displacement.png \
+                > /out/Cycles-displacement.log 2>&1
+              printf "%s\n" "$?" > /out/status.txt
+            '
+          render_status=$?
+          set -e
+          test "$render_status" -eq 0
+          grep -qx '0' "$evidence/status.txt"
+          grep -q 'Renderer plugin: HdCyclesPlugin' "$evidence/Cycles-displacement.log"
+          test "$(grep -c "Unsupported displacement terminal on mapped USD node '/World/Material/PreviewSurface'; connection ignored" "$evidence/Cycles-displacement.log")" = 1
+          ! grep -q "Could not find terminal output.*Displacement" "$evidence/Cycles-displacement.log"
+          file "$evidence/Cycles-displacement.png"
+          sha256sum "$evidence/Cycles-displacement.png" > "$evidence/image-sha256.txt"
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: cycles-main-displacement-terminal-${{ github.run_attempt }}
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            ${{ runner.temp }}/cycles-main-build.log
+            ${{ runner.temp }}/evidence/

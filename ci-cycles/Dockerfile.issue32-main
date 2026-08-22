@@ -1,0 +1,28 @@
+# syntax=docker/dockerfile:1.10
+
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE} AS builder
+
+ARG CYCLES_REVISION
+ARG CYCLES_LIB_REVISION
+
+RUN rm -rf /opt/cycles /opt/cycles-build-evidence
+COPY ci-cycles/build_cycles.sh /usr/local/bin/build_cycles.sh
+COPY ci-cycles/issue32/cycles-displacement-terminal.patch /usr/local/share/cycles-hdsi.patch
+RUN chmod +x /usr/local/bin/build_cycles.sh && \
+    CYCLES_TAG=main \
+    CYCLES_REVISION="${CYCLES_REVISION}" \
+    CYCLES_LIB_REVISION="${CYCLES_LIB_REVISION}" \
+    USD_LINKAGE=split \
+    /usr/local/bin/build_cycles.sh
+
+FROM ${BASE_IMAGE} AS runtime
+
+RUN rm -rf /opt/cycles /opt/cycles-build-evidence
+COPY --from=builder /opt/cycles /opt/cycles
+COPY --from=builder /opt/cycles-build-evidence /opt/cycles-build-evidence
+
+ENV PATH=/opt/usd/bin:/opt/cycles:${PATH}
+ENV PYTHONPATH=/opt/usd/lib/python:${PYTHONPATH}
+ENV PXR_PLUGINPATH_NAME=/opt/cycles/hydra
+ENV LD_LIBRARY_PATH=/opt/cycles/lib:/opt/cycles-dependencies/lib:/opt/usd/lib:/opt/usd/lib64:${LD_LIBRARY_PATH}
