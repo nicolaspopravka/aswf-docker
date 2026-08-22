@@ -123,28 +123,20 @@ Gitea's attach-patch flow). Two filing paths:
    wording to match what you used for #75/#76.
 4. Reference it from benchmark GH #21 after filing.
 
-**Path B — fork push (READY — one command left):**
-Local branch `fix/hydra-updateconnections-diagnostics` (commit `50bac77`,
-Nicolas-authored) exists in the validation clone with remote `blender-fork`
-already added (same setup Codex used for #76's
-`fix/hydra-material-input-warnings`). Port 22 to projects.blender.org was
-blocked from this network on Aug 21 (~14:30 CEST), so the push is:
+**Path B — fork push (DONE Aug 21):** branch
+`fix/hydra-updateconnections-diagnostics` is on the fork at exact
+`50bac770a507a764538e54250088e560afe720b1` (verified via HTTPS ls-remote).
+Push went through `ssh://git@git.blender.org/Nicolas-Popravka/cycles.git`
+(`git.blender.org` is the reachable SSH hostname; projects.blender.org:22
+was blocked from this network — Codex added the `Host git.blender.org`
+block to `~/.ssh/config` using the same `id_ed25519_github` key). Only the
+web-UI step remains:
 
-```
-git -C /private/tmp/aswf-cycles-updateconnections-pr/../../var/folders/5_/nr7_8njj7173fhg5nnz5773r0000gn/T/opencode/cycles-pr/cycles \
-  push blender-fork fix/hydra-updateconnections-diagnostics
-```
-
-(absolute clone path:
-`/var/folders/5_/nr7_8njj7173fhg5nnz5773r0000gn/T/opencode/cycles-pr/cycles`)
-
-Verify: `git ls-remote https://projects.blender.org/Nicolas-Popravka/cycles.git refs/heads/fix/hydra-updateconnections-diagnostics`
-must print `50bac770a507a764538e54250088e560afe720b1`. Then open the PR at
-`https://projects.blender.org/blender/cycles/compare/main...Nicolas-Popravka:fix/hydra-updateconnections-diagnostics`
+Open <https://projects.blender.org/blender/cycles/compare/main...Nicolas-Popravka:fix/hydra-updateconnections-diagnostics>
 with title/description from this document.
 
 If the temp clone was cleaned before pushing, recreate it from a fresh
 clone + `git am` of
 `ci-cycles/0001-Hydra-Fix-UpdateConnections-input-not-found-diagnost.patch`
-onto `1319002982e09970cb50f727e3f299cea78de229`, then add the
-`blender-fork` remote as above.
+onto `1319002982e09970cb50f727e3f299cea78de229`, then add a remote
+`blender-fork ssh://git@git.blender.org/Nicolas-Popravka/cycles.git`.
