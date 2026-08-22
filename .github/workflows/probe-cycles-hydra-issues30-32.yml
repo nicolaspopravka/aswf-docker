@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  packages: write
 
 concurrency:
   group: cycles-hydra-issues30-32-${{ github.ref }}
@@ -16,6 +17,7 @@ concurrency:
 env:
   DEPENDENCY_IMAGE: ghcr.io/nicolaspopravka/ci-cycles@sha256:fdd920a0a4e5d0fca76f0ce7ac64edff4012b5be4784ccb9ea683f4d4a5edb16
   IMAGE_NAME: cycles-hydra-issues30-32
+  PUBLISHED_IMAGE: ghcr.io/nicolaspopravka/usd-render-benchmark-cycles
   CYCLES_REVISION: 1319002982e09970cb50f727e3f299cea78de229
   CYCLES_LIB_REVISION: 30d9f881c4b62c52323fd11637eeea56d460e35c
   OPENUSD_REVISION: 2095fafafd033fa23386d7ec6d58c7cc33974518
@@ -162,6 +164,35 @@ jobs:
             "$evidence/single.png" --expected-width 128
           file "$evidence/"*.png
           sha256sum "$evidence/"*.png > "$evidence/image-sha256.txt"
+
+      - name: Publish validated candidate image
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euxo pipefail
+          evidence="${{ runner.temp }}/evidence"
+          immutable_tag="hydra-issues30-32-$GITHUB_SHA"
+          image_ref="$PUBLISHED_IMAGE:$immutable_tag"
+
+          echo "$GHCR_TOKEN" | docker login ghcr.io \
+            -u "$GITHUB_ACTOR" --password-stdin
+          docker tag "$IMAGE_NAME:$GITHUB_SHA" "$image_ref"
+          docker push "$image_ref" \
+            2>&1 | tee "$evidence/candidate-image-push.log"
+
+          docker buildx imagetools inspect "$image_ref" \
+            | tee "$evidence/candidate-image-inspect.txt"
+          digest="$(sed -n 's/^Digest:[[:space:]]*//p' \
+            "$evidence/candidate-image-inspect.txt" | head -1)"
+          [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          printf '%s@%s\n' "$PUBLISHED_IMAGE" "$digest" \
+            | tee "$evidence/candidate-image-ref.txt"
+
+          docker logout ghcr.io
+          docker buildx imagetools inspect "$image_ref" \
+            | tee "$evidence/candidate-image-anonymous-inspect.txt"
+          grep -q "^Digest:[[:space:]]*$digest$" \
+            "$evidence/candidate-image-anonymous-inspect.txt"
 
       - name: Compare synthetic Hydra teardown
         run: |
