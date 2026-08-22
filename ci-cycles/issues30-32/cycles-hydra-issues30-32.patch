@@ -108,6 +108,20 @@ index ea14ff8f2..72e2aa4dc 100644
        inputName = outputName = "Displacement";
      }
      else if (terminalName == HdMaterialTerminalTokens->volume ||
+diff --git a/src/hydra/node_util.cpp b/src/hydra/node_util.cpp
+index e609d1025..9c8606142 100644
+--- a/src/hydra/node_util.cpp
++++ b/src/hydra/node_util.cpp
+@@ -74,7 +74,8 @@ template<> ustring convertToCycles<ustring>(const VtValue &value)
+   }
+   if (value.IsHolding<SdfAssetPath>()) {
+     const SdfAssetPath &path = value.UncheckedGet<SdfAssetPath>();
+-    return ustring(path.GetResolvedPath());
++    const std::string &resolvedPath = path.GetResolvedPath();
++    return ustring(resolvedPath.empty() ? path.GetAssetPath() : resolvedPath);
+   }
+ 
+   if (value.CanCast<TfToken>()) {
 diff --git a/src/hydra/render_delegate.cpp b/src/hydra/render_delegate.cpp
 index 3cda4a573..0d2a2a83d 100644
 --- a/src/hydra/render_delegate.cpp
