@@ -99,10 +99,11 @@ jobs:
               /opt/cycles-build-evidence/cycles-source.patch
             grep -Fq "Unsupported USD input" \
               /opt/cycles-build-evidence/cycles-source.patch
-            grep -Fq "Could not find input" \
+            ! grep -Fq "dstSocketName.GetText());" \
               /opt/cycles-build-evidence/cycles-source.patch
-            ! grep -Fq "Ignoring connection on" \
-              /opt/cycles-build-evidence/cycles-source.patch
+            grep -A4 'TF_WARN("Ignoring connection on' \
+              /opt/cycles-build-evidence/cycles-source.patch | \
+              grep -Fq "inputName.c_str());"
             ldd -r /opt/cycles/hydra/hdCycles.so | tee /tmp/ldd.txt
             ! grep -Eq "not found|undefined symbol" /tmp/ldd.txt
           '
@@ -143,8 +144,7 @@ jobs:
                 /probes/updateconnections-probe.usda /out/UpdateConnectionsProbe.png \
                 2>&1 | tee /out/UpdateConnectionsProbe.log
               grep -Fq "Unsupported USD input '"'"'occlusion'"'"'" /out/UpdateConnectionsProbe.log
-              grep -Fq "Could not find input '"'"'bogusInput'"'"'" /out/UpdateConnectionsProbe.log
-              ! grep -Fq "Ignoring connection on" /out/UpdateConnectionsProbe.log
+              grep -Fq "Ignoring connection on '"'"'/Checker.bogusInput'"'"', input '"'"'bogusInput'"'"' was not found" /out/UpdateConnectionsProbe.log
             '
           python3 ci-cycles/check_png_variation.py \
             "${{ runner.temp }}/results/UpdateConnectionsProbe.png" || \

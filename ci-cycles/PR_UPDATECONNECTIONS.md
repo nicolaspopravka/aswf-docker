@@ -5,9 +5,10 @@ Base revision validated: `1319002982e09970cb50f727e3f299cea78de229`
 (current `main` tip = merge of PR #76; contains #75 + #76)
 
 Patch file: `ci-cycles/cycles-updateconnections.patch` (single hunk,
-`src/hydra/material.cpp`, +17/−4). Ready-to-file commit export:
+`src/hydra/material.cpp`, +21/−4). Ready-to-file commit export:
 `ci-cycles/0001-Hydra-Fix-UpdateConnections-input-not-found-diagnost.patch`
-(git format-patch, authored like the merged #75/#76 commits).
+(git format-patch of commit `5690cdfda92382a689ee493f875b4c13fefd0c07`,
+authored like the merged #75/#76 commits).
 Validation: `.github/workflows/probe-cycles-updateconnections.yml` on this
 branch (free GHA; builds `main@1319002` + patch, renders OpenChessSet and a
 synthetic diagnostics scene, asserts the new warning strings).
@@ -34,17 +35,20 @@ v5.2.0, so its hunks 1+2 are already upstream and only the
    ```
 
    The third `%s` is labeled "input" but prints the USD socket name instead
-   of `inputName` — the mapped Cycles-side name that was actually searched
-   for and not found.
+   of `inputName` — the translated Cycles-side name that was actually
+   searched for and not found.
 
-2. **No distinction between failure causes.** `UpdateParameters` (since #76)
-   distinguishes three cases; `UpdateConnections` still printed one generic
-   message. This mirrors that structure:
+2. **No distinction between failure causes for mapped node types.**
+   `UpdateParameters` (since #76) splits the two failure causes with distinct
+   wording; `UpdateConnections` still printed one generic message. The change
+   mirrors #76's nested structure and wording exactly:
    - mapped USD node type + the USD input has a parameter mapping → "maps to
-     unavailable Cycles input";
-   - mapped USD node type without a mapping entry → "Unsupported USD input";
-   - native Cycles node (`inputMapping == nullptr`) → "Could not find input"
-     with the Cycles-side name.
+     unavailable Cycles input '…' on '…'" (same sentence as
+     `UpdateParameters`);
+   - mapped USD node type without a mapping entry → "Unsupported USD input …
+     ('…'); connection ignored" (same shape as `UpdateParameters`);
+   - native Cycles node (`inputMapping == nullptr`) keeps the existing
+     "Ignoring connection on …" sentence, now passing `inputName`.
 
 Diagnostics-only: no connection behavior changes.
 
@@ -53,14 +57,15 @@ Diagnostics-only: no connection behavior changes.
 ```
 Hydra: Fix UpdateConnections input-not-found diagnostics
 
-The "input was not found" warning passed dstSocketName twice, printing
-the USD socket name where the mapped Cycles input name belongs.
+The connection warning printed dstSocketName twice, reporting the USD
+socket name where the translated Cycles input name belongs.
 
 Align UpdateConnections with UpdateParameters' 3-case structure from
-#76 so the warning distinguishes:
-- USD inputs that map to an unavailable Cycles input,
+#76 so mapped USD node types now distinguish:
+- USD inputs mapping to an unavailable Cycles input,
 - unsupported USD inputs with no mapping entry,
-- missing inputs on native Cycles nodes.
+with the same wording as UpdateParameters, and report the Cycles-side
+name correctly. Native Cycles nodes keep their existing message.
 ```
 
 ## Suggested PR title
@@ -82,11 +87,18 @@ the third `%s` (labeled `input '%s'`) prints the USD socket name instead of
 on. For mapped node types (e.g. UsdPreviewSurface) this reports the wrong
 name whenever a mapped target does not exist on the Cycles node.
 
-**Fix**: mirror #76's cases when an input is not found:
+**Fix**: mirror #76's nested case structure when an input is not found:
 1. mapped node type, USD input has a parameter mapping → warn that it maps
-   to an unavailable Cycles input;
-2. mapped node type, no mapping entry → warn about an unsupported USD input;
-3. native Cycles node → report the missing Cycles input by its real name.
+   to an unavailable Cycles input (same wording as `UpdateParameters`,
+   including the Cycles node name);
+2. mapped node type, no mapping entry → warn about an unsupported USD input
+   (same shape as `UpdateParameters`);
+3. native Cycles node → keep the existing sentence, now reporting the
+   Cycles-side input name.
+
+For native Cycles nodes the reported name is unchanged in practice
+(`inputName == dstSocketName` there); the visible improvements are on mapped
+node types, which previously always printed the raw USD socket name twice.
 
 Diagnostics only; connection behavior is unchanged.
 
@@ -94,7 +106,7 @@ Testing:
 - Applies cleanly to `main` (`1319002`); built hdCycles against OpenUSD
   26.05 on the ASWF CY2027 stack and rendered OpenChessSet plus a synthetic
   scene exercising cases 2 and 3; asserted the new messages appear and the
-  old duplicated-name message is gone.
+  duplicated-name form of the warning is gone from the applied diff.
 - Case 1 additionally observed in production benchmark logs (ALab entry
   scene) with the equivalent v5.2.0-based patch.
 
@@ -123,9 +135,10 @@ Gitea's attach-patch flow). Two filing paths:
    wording to match what you used for #75/#76.
 4. Reference it from benchmark GH #21 after filing.
 
-**Path B — fork push (DONE Aug 21):** branch
+**Path B — fork push (DONE Aug 21, updated to `5690cdf`):** branch
 `fix/hydra-updateconnections-diagnostics` is on the fork at exact
-`50bac770a507a764538e54250088e560afe720b1` (verified via HTTPS ls-remote).
+`5690cdfda92382a689ee493f875b4c13fefd0c07` (verified via HTTPS ls-remote;
+amended from the earlier `50bac77` to adopt the #76-wording variant).
 Push went through `ssh://git@git.blender.org/Nicolas-Popravka/cycles.git`
 (`git.blender.org` is the reachable SSH hostname; projects.blender.org:22
 was blocked from this network — Codex added the `Host git.blender.org`

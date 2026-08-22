@@ -1,8 +1,8 @@
 diff --git a/src/hydra/material.cpp b/src/hydra/material.cpp
-index ea14ff8..e8f3635 100644
+index ea14ff8..be9acb5 100644
 --- a/src/hydra/material.cpp
 +++ b/src/hydra/material.cpp
-@@ -398,10 +398,23 @@ void HdCyclesMaterial::UpdateConnections(NodeDesc &nodeDesc,
+@@ -398,10 +398,27 @@ void HdCyclesMaterial::UpdateConnections(NodeDesc &nodeDesc,
      }
  
      if (!input) {
@@ -10,22 +10,26 @@ index ea14ff8..e8f3635 100644
 -              nodePath.GetText(),
 -              dstSocketName.GetText(),
 -              dstSocketName.GetText());
-+      if (inputMapping && inputMapping->hasParameterMapping(dstSocketName)) {
-+        TF_WARN("USD input '%s' on node '%s' maps to unavailable Cycles input '%s'; "
-+                "connection ignored",
-+                dstSocketName.GetText(),
-+                nodePath.GetText(),
-+                inputName.c_str());
-+      }
-+      else if (inputMapping) {
-+        TF_WARN("Unsupported USD input '%s' on node '%s'; connection ignored",
-+                dstSocketName.GetText(),
-+                nodePath.GetText());
++      if (inputMapping) {
++        if (inputMapping->hasParameterMapping(dstSocketName)) {
++          TF_WARN("USD input '%s' on node '%s' maps to unavailable Cycles input '%s' on '%s'",
++                  dstSocketName.GetText(),
++                  nodePath.GetText(),
++                  inputName.c_str(),
++                  nodeDesc.node->name.c_str());
++        }
++        else {
++          TF_WARN("Unsupported USD input '%s' on node '%s' ('%s'); connection ignored",
++                  dstSocketName.GetText(),
++                  nodePath.GetText(),
++                  nodeDesc.node->name.c_str());
++        }
 +      }
 +      else {
-+        TF_WARN("Could not find input '%s' on node '%s'",
-+                inputName.c_str(),
-+                nodePath.GetText());
++        TF_WARN("Ignoring connection on '%s.%s', input '%s' was not found",
++                nodePath.GetText(),
++                dstSocketName.GetText(),
++                inputName.c_str());
 +      }
        continue;
      }

@@ -1,25 +1,26 @@
-From 50bac770a507a764538e54250088e560afe720b1 Mon Sep 17 00:00:00 2001
+From 5690cdfda92382a689ee493f875b4c13fefd0c07 Mon Sep 17 00:00:00 2001
 From: Nicolas Popravka <nicolaspopravka@gmail.com>
 Date: Fri, 21 Aug 2026 23:06:17 +0200
 Subject: Hydra: Fix UpdateConnections input-not-found diagnostics
 
-The "input was not found" warning passed dstSocketName twice, printing
-the USD socket name where the mapped Cycles input name belongs.
+The connection warning printed dstSocketName twice, reporting the USD
+socket name where the translated Cycles input name belongs.
 
 Align UpdateConnections with UpdateParameters' 3-case structure from
-#76 so the warning distinguishes:
-- USD inputs that map to an unavailable Cycles input,
+#76 so mapped USD node types now distinguish:
+- USD inputs mapping to an unavailable Cycles input,
 - unsupported USD inputs with no mapping entry,
-- missing inputs on native Cycles nodes.
+with the same wording as UpdateParameters, and report the Cycles-side
+name correctly. Native Cycles nodes keep their existing message.
 ---
- src/hydra/material.cpp | 21 +++++++++++++++++----
- 1 file changed, 17 insertions(+), 4 deletions(-)
+ src/hydra/material.cpp | 25 +++++++++++++++++++++----
+ 1 file changed, 21 insertions(+), 4 deletions(-)
 
 diff --git a/src/hydra/material.cpp b/src/hydra/material.cpp
-index ea14ff8..e8f3635 100644
+index ea14ff8..be9acb5 100644
 --- a/src/hydra/material.cpp
 +++ b/src/hydra/material.cpp
-@@ -398,10 +398,23 @@ void HdCyclesMaterial::UpdateConnections(NodeDesc &nodeDesc,
+@@ -398,10 +398,27 @@ void HdCyclesMaterial::UpdateConnections(NodeDesc &nodeDesc,
      }
  
      if (!input) {
@@ -27,22 +28,26 @@ index ea14ff8..e8f3635 100644
 -              nodePath.GetText(),
 -              dstSocketName.GetText(),
 -              dstSocketName.GetText());
-+      if (inputMapping && inputMapping->hasParameterMapping(dstSocketName)) {
-+        TF_WARN("USD input '%s' on node '%s' maps to unavailable Cycles input '%s'; "
-+                "connection ignored",
-+                dstSocketName.GetText(),
-+                nodePath.GetText(),
-+                inputName.c_str());
-+      }
-+      else if (inputMapping) {
-+        TF_WARN("Unsupported USD input '%s' on node '%s'; connection ignored",
-+                dstSocketName.GetText(),
-+                nodePath.GetText());
++      if (inputMapping) {
++        if (inputMapping->hasParameterMapping(dstSocketName)) {
++          TF_WARN("USD input '%s' on node '%s' maps to unavailable Cycles input '%s' on '%s'",
++                  dstSocketName.GetText(),
++                  nodePath.GetText(),
++                  inputName.c_str(),
++                  nodeDesc.node->name.c_str());
++        }
++        else {
++          TF_WARN("Unsupported USD input '%s' on node '%s' ('%s'); connection ignored",
++                  dstSocketName.GetText(),
++                  nodePath.GetText(),
++                  nodeDesc.node->name.c_str());
++        }
 +      }
 +      else {
-+        TF_WARN("Could not find input '%s' on node '%s'",
-+                inputName.c_str(),
-+                nodePath.GetText());
++        TF_WARN("Ignoring connection on '%s.%s', input '%s' was not found",
++                nodePath.GetText(),
++                dstSocketName.GetText(),
++                inputName.c_str());
 +      }
        continue;
      }
