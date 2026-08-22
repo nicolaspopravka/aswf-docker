@@ -1,0 +1,62 @@
+#usda 1.0
+(
+    defaultPrim = "World"
+    metersPerUnit = 1
+    upAxis = "Y"
+)
+
+def Xform "World"
+{
+    def Camera "Camera"
+    {
+        float focalLength = 50
+        float horizontalAperture = 20.955
+        double3 xformOp:translate = (0, 0, 5)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+    }
+
+    def Sphere "Sphere" (
+        prepend apiSchemas = ["MaterialBindingAPI"]
+    )
+    {
+        double radius = 1
+        rel material:binding = </World/Material>
+    }
+
+    def DomeLight "Light"
+    {
+        color3f inputs:color = (0.35, 0.4, 0.45)
+        float inputs:intensity = 1
+    }
+
+    def Material "Material"
+    {
+        token outputs:surface.connect = </World/Material/PreviewSurface.outputs:surface>
+
+        def Shader "PreviewSurface"
+        {
+            uniform token info:id = "UsdPreviewSurface"
+            color3f inputs:diffuseColor = (0.03, 0.2, 0.8)
+            float inputs:metallic = 0
+            float inputs:roughness = 0.3
+            color3f inputs:specularColor.connect = </World/Material/Checker.outputs:color>
+            float inputs:occlusion.connect = </World/Material/Checker.outputs:fac>
+            token outputs:surface
+        }
+
+        def Shader "Checker"
+        {
+            uniform token info:id = "cycles_checker_texture"
+            float outputs:fac
+            color3f outputs:color
+            float inputs:bogusInput.connect = </World/Material/Reader.outputs:result>
+        }
+
+        def Shader "Reader"
+        {
+            uniform token info:id = "UsdPrimvarReader_float"
+            token inputs:varname = "st"
+            float outputs:result
+        }
+    }
+}

@@ -1,0 +1,125 @@
+diff --git a/src/hydra/material.cpp b/src/hydra/material.cpp
+index ea14ff8f2..72e2aa4dc 100644
+--- a/src/hydra/material.cpp
++++ b/src/hydra/material.cpp
+@@ -12,6 +12,8 @@
+ #include "scene/shader_graph.h"
+ #include "scene/shader_nodes.h"
+ 
++#include <pxr/usd/ar/resolver.h>
++#include <pxr/usd/ar/resolverScopedCache.h>
+ #include <pxr/imaging/hd/material.h>
+ #include <pxr/imaging/hd/materialConnectionSchema.h>
+ #include <pxr/imaging/hd/materialNetworkSchema.h>
+@@ -57,12 +59,35 @@ TF_DEFINE_PRIVATE_TOKENS(CyclesMaterialTokens,
+     (b)
+     (result)
+     (st)
++    (file)
+     (wrapS)
+     (wrapT)
+     (periodic)
+ );
+ // clang-format on
+ 
++static array<int> FindUdimTiles(const SdfAssetPath &assetPath)
++{
++  const std::string &resolvedPath = assetPath.GetResolvedPath();
++  const std::string filename = resolvedPath.empty() ? assetPath.GetAssetPath() : resolvedPath;
++  const std::string::size_type udimPos = filename.find("<UDIM>");
++  if (udimPos == std::string::npos) {
++    return {};
++  }
++
++  ArResolverScopedCache resolverCache;
++  ArResolver &resolver = ArGetResolver();
++  array<int> tiles;
++  for (int tile = 1001; tile <= 1100; ++tile) {
++    std::string tileFilename = filename;
++    tileFilename.replace(udimPos, 6, std::to_string(tile));
++    if (!resolver.Resolve(tileFilename).empty()) {
++      tiles.push_back_slow(tile);
++    }
++  }
++  return tiles;
++}
++
+ /* Simple class to handle remapping of USDPreviewSurface nodes and parameters to Cycles
+  * equivalents. */
+ class UsdToCyclesMapping {
+@@ -351,6 +376,16 @@ void HdCyclesMaterial::UpdateParameters(NodeDesc &nodeDesc,
+     }
+ 
+     SetNodeValue(nodeDesc.node, *input, value);
++
++    if (inputMapping && paramName == CyclesMaterialTokens->file &&
++        nodeDesc.node->is_a(ImageTextureNode::get_node_type()))
++    {
++      array<int> tiles;
++      if (value.IsHolding<SdfAssetPath>()) {
++        tiles = FindUdimTiles(value.UncheckedGet<SdfAssetPath>());
++      }
++      static_cast<ImageTextureNode *>(nodeDesc.node)->set_tiles(tiles);
++    }
+   }
+ }
+ 
+@@ -398,10 +433,27 @@ void HdCyclesMaterial::UpdateConnections(NodeDesc &nodeDesc,
+     }
+ 
+     if (!input) {
+-      TF_WARN("Ignoring connection on '%s.%s', input '%s' was not found",
+-              nodePath.GetText(),
+-              dstSocketName.GetText(),
+-              dstSocketName.GetText());
++      if (inputMapping) {
++        if (inputMapping->hasParameterMapping(dstSocketName)) {
++          TF_WARN("USD input '%s' on node '%s' maps to unavailable Cycles input '%s' on '%s'",
++                  dstSocketName.GetText(),
++                  nodePath.GetText(),
++                  inputName.c_str(),
++                  nodeDesc.node->name.c_str());
++        }
++        else {
++          TF_WARN("Unsupported USD input '%s' on node '%s' ('%s'); connection ignored",
++                  dstSocketName.GetText(),
++                  nodePath.GetText(),
++                  nodeDesc.node->name.c_str());
++        }
++      }
++      else {
++        TF_WARN("Ignoring connection on '%s.%s', input '%s' was not found",
++                nodePath.GetText(),
++                dstSocketName.GetText(),
++                inputName.c_str());
++      }
+       continue;
+     }
+ 
+@@ -571,6 +623,11 @@ unique_ptr<ShaderGraph> HdCyclesMaterial::BuildShaderGraph(HdMaterialNetworkSche
+     else if (terminalName == HdMaterialTerminalTokens->displacement ||
+              terminalName == CyclesMaterialTokens->cyclesDisplacement)
+     {
++      if (nodeIt->second.mapping) {
++        /* Unsupported mapped USD inputs and connections are reported while
++         * processing the node. */
++        continue;
++      }
+       inputName = outputName = "Displacement";
+     }
+     else if (terminalName == HdMaterialTerminalTokens->volume ||
+diff --git a/src/hydra/render_delegate.cpp b/src/hydra/render_delegate.cpp
+index 3cda4a573..0d2a2a83d 100644
+--- a/src/hydra/render_delegate.cpp
++++ b/src/hydra/render_delegate.cpp
+@@ -364,9 +364,7 @@ HdAovDescriptor HdCyclesDelegate::GetDefaultAovDescriptor(const TfToken &name) c
+   if (name == HdAovTokens->normal) {
+     return HdAovDescriptor(HdFormatFloat32Vec3, false, VtValue(GfVec3f(0.0f)));
+   }
+-  if (name == HdAovTokens->primId || name == HdAovTokens->instanceId ||
+-      name == HdAovTokens->elementId)
+-  {
++  if (name == HdAovTokens->primId || name == HdAovTokens->instanceId) {
+     return HdAovDescriptor(HdFormatInt32, false, VtValue(-1));
+   }
+ 
