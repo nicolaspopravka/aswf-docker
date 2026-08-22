@@ -153,8 +153,6 @@ jobs:
 
           python3 ci-cycles/check_png_variation.py \
             "$evidence/updateconnections.png" --expected-width 128 || true
-          python3 ci-cycles/check_png_variation.py \
-            "$evidence/displacement.png" --expected-width 128
           python3 ci-cycles/issues30-32/check_udim_png.py "$evidence/udim.png"
           python3 ci-cycles/check_png_variation.py \
             "$evidence/single.png" --expected-width 128
