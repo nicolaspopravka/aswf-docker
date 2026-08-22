@@ -18,6 +18,9 @@ def main():
     stage = Usd.Stage.Open(args.scene)
     camera = UsdGeom.Camera(stage.GetPrimAtPath("/World/Camera"))
     recorder = UsdAppUtils.FrameRecorder("HdCyclesPlugin", False)
+    renderer_id = str(recorder.GetCurrentRendererId())
+    if renderer_id != "HdCyclesPlugin":
+        raise RuntimeError(f"expected HdCyclesPlugin, got {renderer_id!r}")
     recorder.SetImageWidth(1)
     recorder.SetPrimaryCameraPrimPath(camera.GetPath())
 

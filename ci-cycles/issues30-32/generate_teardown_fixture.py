@@ -21,8 +21,12 @@ def main():
     camera.AddTranslateOp().Set(Gf.Vec3d(0.0, 0.0, 5.0))
 
     for index in range(args.geometry_count):
-        cube = UsdGeom.Cube.Define(stage, f"/World/Cube_{index:05d}")
-        cube.AddTranslateOp().Set(Gf.Vec3d(0.0, 0.0, 0.0))
+        mesh = UsdGeom.Mesh.Define(stage, f"/World/Mesh_{index:05d}")
+        mesh.CreatePointsAttr(
+            [(-0.5, -0.5, 0.0), (0.5, -0.5, 0.0), (0.0, 0.5, 0.0)]
+        )
+        mesh.CreateFaceVertexCountsAttr([3])
+        mesh.CreateFaceVertexIndicesAttr([0, 1, 2])
 
     stage.GetRootLayer().Save()
 
