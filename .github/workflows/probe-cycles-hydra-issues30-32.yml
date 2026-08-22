@@ -91,6 +91,7 @@ jobs:
               ! grep -Eq "not found|undefined symbol" /out/hdCycles-ldd.txt
               cp -a /opt/cycles-build-evidence/. /out/
             '
+          sudo chown -R "$USER:$USER" "$evidence"
 
       - name: Run material and AOV fixtures
         run: |
@@ -130,6 +131,7 @@ jobs:
                 > /out/missing-udim.log 2>&1
               printf "%s\n" "$?" > /out/missing-udim.status
             '
+          sudo chown -R "$USER:$USER" "$evidence"
 
           grep -Fq "maps to unavailable Cycles input 'specular'" \
             "$evidence/updateconnections.log"
