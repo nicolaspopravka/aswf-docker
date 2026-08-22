@@ -101,7 +101,7 @@ jobs:
               /opt/cycles-build-evidence/cycles-source.patch
             ! grep -Fq "dstSocketName.GetText());" \
               /opt/cycles-build-evidence/cycles-source.patch
-            grep -A4 'TF_WARN("Ignoring connection on' \
+            grep -A4 "TF_WARN(\"Ignoring connection on\"" \
               /opt/cycles-build-evidence/cycles-source.patch | \
               grep -Fq "inputName.c_str());"
             ldd -r /opt/cycles/hydra/hdCycles.so | tee /tmp/ldd.txt
