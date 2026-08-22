@@ -1,0 +1,65 @@
+diff --git a/src/hydra/geometry.inl b/src/hydra/geometry.inl
+index 9c1f3e454..dd14072f1 100644
+--- a/src/hydra/geometry.inl
++++ b/src/hydra/geometry.inl
+@@ -198 +198 @@ void HdCyclesGeometry<Base, CyclesBase>::Finalize(HdRenderParam *renderParam)
+-    lock.scene->delete_nodes(set<Object *>(_instances.begin(), _instances.end()));
++    static_cast<HdCyclesSession *>(renderParam)->DeferGeometryDeletion(_instances, _geom);
+@@ -203,3 +202,0 @@ void HdCyclesGeometry<Base, CyclesBase>::Finalize(HdRenderParam *renderParam)
+-  if (!keep_nodes) {
+-    lock.scene->delete_node(_geom);
+-  }
+diff --git a/src/hydra/session.cpp b/src/hydra/session.cpp
+index ae1ede13b..a327c40c4 100644
+--- a/src/hydra/session.cpp
++++ b/src/hydra/session.cpp
+@@ -91,0 +92 @@ HdCyclesSession::~HdCyclesSession()
++    /* Scene destruction releases all remaining nodes in dependency order. */
+@@ -93,0 +95,26 @@ HdCyclesSession::~HdCyclesSession()
++  else {
++    const SceneLock lock(this);
++    FlushDeferredDeletions();
++  }
++}
++
++void HdCyclesSession::DeferGeometryDeletion(const std::vector<Object *> &objects,
++                                            Geometry *geometry)
++{
++  _objectsToDelete.insert(objects.begin(), objects.end());
++  _geometryToDelete.insert(geometry);
++}
++
++void HdCyclesSession::FlushDeferredDeletions()
++{
++  Scene *const scene = session->scene.get();
++
++  /* Delete objects before the geometry they reference. */
++  if (!_objectsToDelete.empty()) {
++    scene->delete_nodes(_objectsToDelete);
++    _objectsToDelete.clear();
++  }
++  if (!_geometryToDelete.empty()) {
++    scene->delete_nodes(_geometryToDelete);
++    _geometryToDelete.clear();
++  }
+@@ -97,0 +125,2 @@ void HdCyclesSession::UpdateScene()
++  FlushDeferredDeletions();
++
+diff --git a/src/hydra/session.h b/src/hydra/session.h
+index 4c4e8ff66..f1ddabb88 100644
+--- a/src/hydra/session.h
++++ b/src/hydra/session.h
+@@ -8,0 +9 @@
++#include "util/set.h"
+@@ -12,0 +14,2 @@
++#include <vector>
++
+@@ -32,0 +36,3 @@ class HdCyclesSession final : public PXR_NS::HdRenderParam {
++  void DeferGeometryDeletion(const std::vector<CCL_NS::Object *> &objects,
++                             CCL_NS::Geometry *geometry);
++
+@@ -69,0 +76,4 @@ class HdCyclesSession final : public PXR_NS::HdRenderParam {
++  CCL_NS::set<CCL_NS::Object *> _objectsToDelete;
++  CCL_NS::set<CCL_NS::Geometry *> _geometryToDelete;
++
++  void FlushDeferredDeletions();

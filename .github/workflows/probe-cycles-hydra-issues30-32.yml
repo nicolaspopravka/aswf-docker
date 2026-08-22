@@ -39,6 +39,9 @@ jobs:
           test -f ci-cycles/Dockerfile.issues30-32
           test -f ci-cycles/build_cycles_issues30_32.sh
           test -f ci-cycles/issues30-32/cycles-hydra-issues30-32.patch
+          test -f ci-cycles/issues30-32/cycles-hydra-batched-teardown.patch
+          test -f ci-cycles/issues30-32/generate_teardown_fixture.py
+          test -f ci-cycles/issues30-32/measure_teardown.py
           test -f ci-cycles/issues30-32/updateconnections.usda
           test -f ci-cycles/issues30-32/udim.usda
           test -f ci-cycles/issue32/cycles-issue32-displacement.usda
@@ -81,6 +84,7 @@ jobs:
             "$IMAGE_NAME:$GITHUB_SHA" bash -c '
               set -euxo pipefail
               test -f /opt/cycles/hydra/hdCycles.so
+              test -f /opt/cycles-baseline/hydra/hdCycles.so
               sed "/^index /d" /expected/cycles-hydra-issues30-32.patch \
                 > /tmp/expected-source.patch
               sed "/^index /d" /opt/cycles-build-evidence/cycles-source.patch \
@@ -158,6 +162,75 @@ jobs:
             "$evidence/single.png" --expected-width 128
           file "$evidence/"*.png
           sha256sum "$evidence/"*.png > "$evidence/image-sha256.txt"
+
+      - name: Compare synthetic Hydra teardown
+        run: |
+          set -euxo pipefail
+          evidence="${{ runner.temp }}/evidence"
+          fixture="$GITHUB_WORKSPACE/ci-cycles/issues30-32"
+
+          docker run --rm \
+            --volume "$fixture:/fixtures:ro" \
+            --volume "$evidence:/out" \
+            "$IMAGE_NAME:$GITHUB_SHA" \
+            python3 /fixtures/generate_teardown_fixture.py \
+              /out/teardown.usda --geometry-count 12000
+
+          set +e
+          docker run --rm \
+            --volume "$fixture:/fixtures:ro" \
+            --volume "$evidence:/out" \
+            --env PXR_PLUGINPATH_NAME=/opt/cycles-baseline/hydra \
+            --env LD_LIBRARY_PATH=/opt/cycles-baseline/lib:/opt/cycles-dependencies/lib:/opt/cycles-dependencies/tbb/lib:/opt/usd/lib:/opt/usd/lib64 \
+            "$IMAGE_NAME:$GITHUB_SHA" \
+            timeout --signal=INT --kill-after=15s 3m \
+              python3 /fixtures/measure_teardown.py \
+                /out/teardown.usda /out/teardown-baseline.png \
+                /out/teardown-baseline.json \
+            > "$evidence/teardown-baseline.log" 2>&1
+          baseline_status=$?
+          set -e
+          printf '%s\n' "$baseline_status" > "$evidence/teardown-baseline.status"
+
+          docker run --rm \
+            --volume "$fixture:/fixtures:ro" \
+            --volume "$evidence:/out" \
+            "$IMAGE_NAME:$GITHUB_SHA" \
+            timeout --signal=INT --kill-after=15s 3m \
+              python3 /fixtures/measure_teardown.py \
+                /out/teardown.usda /out/teardown-patched.png \
+                /out/teardown-patched.json \
+            > "$evidence/teardown-patched.log" 2>&1
+
+          grep -Fq '"event": "record_complete"' "$evidence/teardown-baseline.log"
+          grep -Fq '"event": "record_complete"' "$evidence/teardown-patched.log"
+          test -s "$evidence/teardown-patched.json"
+
+          EVIDENCE="$evidence" BASELINE_STATUS="$baseline_status" python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          evidence = Path(os.environ["EVIDENCE"])
+          status = int(os.environ["BASELINE_STATUS"])
+          patched = json.loads((evidence / "teardown-patched.json").read_text())
+          patched_seconds = patched["teardown_seconds"]
+          if patched_seconds >= 30:
+              raise SystemExit(f"patched teardown took {patched_seconds:.3f}s")
+
+          if status == 0:
+              baseline = json.loads((evidence / "teardown-baseline.json").read_text())
+              baseline_seconds = baseline["teardown_seconds"]
+              if baseline_seconds < max(2.0, patched_seconds * 5.0):
+                  raise SystemExit(
+                      f"teardown speedup is not decisive: "
+                      f"baseline={baseline_seconds:.3f}s patched={patched_seconds:.3f}s"
+                  )
+          elif status != 124:
+              raise SystemExit(f"unexpected baseline status {status}")
+          PY
+
+          sudo chown -R "$USER:$USER" "$evidence"
 
       - name: Upload evidence
         if: always()

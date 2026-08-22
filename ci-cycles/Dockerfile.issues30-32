@@ -9,6 +9,7 @@ ARG CYCLES_LIB_REVISION
 COPY ci-cycles/build_cycles_issues30_32.sh /usr/local/bin/build_cycles_issues30_32.sh
 COPY ci-cycles-historical/import_openusd_dependencies.cmake /usr/local/share/cycles/import_openusd_dependencies.cmake
 COPY ci-cycles/issues30-32/cycles-hydra-issues30-32.patch /usr/local/share/cycles-hydra-issues30-32.patch
+COPY ci-cycles/issues30-32/cycles-hydra-batched-teardown.patch /usr/local/share/cycles-hydra-batched-teardown.patch
 COPY scripts/common/install_optix.sh /tmp/install_optix.sh
 COPY scripts/common/install_cudadevel.sh /tmp/install_cudadevel.sh
 
@@ -24,6 +25,7 @@ ARG WORKFLOW_REVISION
 
 COPY --from=builder /opt/usd /opt/usd
 COPY --from=builder /opt/cycles /opt/cycles
+COPY --from=builder /opt/cycles-baseline /opt/cycles-baseline
 COPY --from=builder /opt/cycles-build-evidence /opt/cycles-build-evidence
 
 ENV PATH=/opt/usd/bin:/opt/cycles:${PATH}

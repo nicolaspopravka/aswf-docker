@@ -39,8 +39,18 @@ git -C "$BUILD_ROOT/cycles" diff > "$EVIDENCE_ROOT/cycles-source.patch"
   test -x install/cycles
   test -f install/hydra/hdCycles.so
   test -f install/hydra/plugInfo.json
+  cp -a install /opt/cycles-baseline
+
+  git apply --unidiff-zero --check /usr/local/share/cycles-hydra-batched-teardown.patch
+  git apply --unidiff-zero /usr/local/share/cycles-hydra-batched-teardown.patch
+  git diff --check
+  make
+  test -x install/cycles
+  test -f install/hydra/hdCycles.so
+  test -f install/hydra/plugInfo.json
   cp build/CMakeCache.txt "$EVIDENCE_ROOT/Cycles-CMakeCache.txt"
   cp -a install /opt/cycles
+  git diff > "$EVIDENCE_ROOT/cycles-source-with-teardown.patch"
 )
 
 LD_LIBRARY_PATH="/opt/cycles/lib:/opt/cycles-dependencies/tbb/lib:/opt/usd/lib:/opt/usd/lib64:${LD_LIBRARY_PATH:-}" \
