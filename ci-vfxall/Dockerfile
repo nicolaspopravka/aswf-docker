@@ -38,6 +38,7 @@ ARG ASWF_OSL_VERSION
 ARG ASWF_RAWTOACES_VERSION
 ARG ASWF_NUMPY_VERSION
 ARG ASWF_VFXPLATFORM_VERSION
+ARG ASWF_REZ_VERSION
 
 
 
@@ -78,6 +79,7 @@ ARG ASWF_OSL_VERSION
 ARG ASWF_RAWTOACES_VERSION
 ARG ASWF_NUMPY_VERSION
 ARG ASWF_VFXPLATFORM_VERSION
+ARG ASWF_REZ_VERSION
 
 
 LABEL org.opencontainers.image.name="$ASWF_ORG/ci-vfxall"
@@ -116,6 +118,7 @@ LABEL io.aswf.docker.versions.osl="$ASWF_OSL_VERSION"
 LABEL io.aswf.docker.versions.rawtoaces="$ASWF_RAWTOACES_VERSION"
 LABEL io.aswf.docker.versions.numpy="$ASWF_NUMPY_VERSION"
 LABEL io.aswf.docker.versions.vfxplatform="$ASWF_VFXPLATFORM_VERSION"
+LABEL io.aswf.docker.versions.rez="$ASWF_REZ_VERSION"
 
 
 ENV ASWF_ORG=${ASWF_ORG}
@@ -151,6 +154,7 @@ ENV ASWF_OSL_VERSION=$ASWF_OSL_VERSION
 ENV ASWF_RAWTOACES_VERSION=$ASWF_RAWTOACES_VERSION
 ENV ASWF_NUMPY_VERSION=$ASWF_NUMPY_VERSION
 ENV ASWF_VFXPLATFORM_VERSION=$ASWF_VFXPLATFORM_VERSION
+ENV ASWF_REZ_VERSION=$ASWF_REZ_VERSION
 
 
 COPY ci-vfxall/README.md ci-vfxall/image.yaml /usr/local/aswf/
@@ -199,3 +203,15 @@ RUN --mount=type=cache,id=aswf-conan-cache,sharing=locked,target=/opt/conan_home
         --conf user.aswf:exclude_package="vfxall" \
     && rm -rf /tmp/downloads/*
 
+# Rez is installed from the official source release after the Conan packages
+# are deployed, so that install.py runs with the image Python interpreter.
+# It installs into its own /usr/local/rez prefix: installed Rez trees carry
+# absolute paths and must never be moved after installation. See
+# https://rez.readthedocs.io/en/stable/installation.html
+COPY scripts/vfx/install_rez.sh /tmp/
+
+RUN --mount=type=cache,id=aswf-downloads,sharing=private,target=/tmp/downloads \
+    export DOWNLOADS_DIR=/tmp/downloads && \
+    /tmp/install_rez.sh
+
+ENV PATH="/usr/local/rez/bin/rez:${PATH}"

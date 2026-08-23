@@ -301,6 +301,7 @@ Contains:
 * rawtoaces-2.1.1
 * numpy-1.23.5
 * vfxplatform-2023
+* rez-3.4.0
 
 ## [aswf/ci-vfxall:2023-clang15.4](https://hub.docker.com/r/aswf/ci-vfxall/tags?page=1&name=2023-clang15.4)
 
@@ -328,6 +329,7 @@ Contains:
 * rawtoaces-2.1.1
 * numpy-1.23.5
 * vfxplatform-2023
+* rez-3.4.0
 
 ## [aswf/ci-vfxall:2024-clang16.8](https://hub.docker.com/r/aswf/ci-vfxall/tags?page=1&name=2024-clang16.8)
 
@@ -355,6 +357,7 @@ Contains:
 * rawtoaces-2.1.1
 * numpy-1.24.3
 * vfxplatform-2024
+* rez-3.4.0
 
 ## [aswf/ci-vfxall:2024-clang17.8](https://hub.docker.com/r/aswf/ci-vfxall/tags?page=1&name=2024-clang17.8)
 
@@ -382,6 +385,7 @@ Contains:
 * rawtoaces-2.1.1
 * numpy-1.24.3
 * vfxplatform-2024
+* rez-3.4.0
 
 ## [aswf/ci-vfxall:2025-clang18.7](https://hub.docker.com/r/aswf/ci-vfxall/tags?page=1&name=2025-clang18.7)
 
@@ -409,6 +413,7 @@ Contains:
 * rawtoaces-2.1.1
 * numpy-1.26.4
 * vfxplatform-2025
+* rez-3.4.0
 
 ## [aswf/ci-vfxall:2025-clang19.7](https://hub.docker.com/r/aswf/ci-vfxall/tags?page=1&name=2025-clang19.7)
 
@@ -436,6 +441,7 @@ Contains:
 * rawtoaces-2.1.1
 * numpy-1.26.4
 * vfxplatform-2025
+* rez-3.4.0
 
 ## [aswf/ci-vfxall:2026-clang19.5](https://hub.docker.com/r/aswf/ci-vfxall/tags?page=1&name=2026-clang19.5)
 
@@ -463,6 +469,7 @@ Contains:
 * rawtoaces-2.1.1
 * numpy-2.3.2
 * vfxplatform-2026
+* rez-3.4.0
 
 ## [aswf/ci-vfxall:2026-clang20.5](https://hub.docker.com/r/aswf/ci-vfxall/tags?page=1&name=2026-clang20.5)
 
@@ -490,6 +497,7 @@ Contains:
 * rawtoaces-2.1.1
 * numpy-2.3.2
 * vfxplatform-2026
+* rez-3.4.0
 
 ## [aswf/ci-vfxall:2027-clang21.0](https://hub.docker.com/r/aswf/ci-vfxall/tags?page=1&name=2027-clang21.0)
 
@@ -517,6 +525,7 @@ Contains:
 * rawtoaces-2.1.1
 * numpy-2.4.6
 * vfxplatform-2027
+* rez-3.4.0
 
 ## [aswf/ci-vfxall:2027-clang22.0](https://hub.docker.com/r/aswf/ci-vfxall/tags?page=1&name=2027-clang22.0)
 
@@ -544,4 +553,5 @@ Contains:
 * rawtoaces-2.1.1
 * numpy-2.4.6
 * vfxplatform-2027
+* rez-3.4.0
 
