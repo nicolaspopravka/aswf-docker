@@ -1,4 +1,4 @@
-name: Build CY2023 and CY2027 Cycles Hydra Delegates
+name: Build CY2027 Cycles Hydra Delegate
 
 on:
   push:
@@ -51,26 +51,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        exclude:
-          - stack_year: ${{ (github.event_name == 'push' || inputs.stack_year == '2027') && '2023' || '_none_' }}
-          - stack_year: ${{ inputs.stack_year == '2023' && '2027' || '_none_' }}
         include:
-          - stack_year: "2023"
-            base_image: aswf/ci-baseqt:2023@sha256:30c27f5a2cf2e35c51d1feb5796a7e06a4e5d180b53fde58ec51854d111443ae
-            cycles_version: "3.6.0"
-            cycles_tag: v3.6.0
-            cycles_revision: e9f92cd6528a6042de8e5316b9f03ec3724561b6
-            cycles_lib_revision: 95c42a9da39e693b037823ee309713f567df465b
-            cycles_materialx_version: "1.38.6"
-            openusd_version: "23.08"
-            openusd_tag: v23.08
-            openusd_revision: 10b62439e9242a55101cf8b200f2c7e02420e1b0
-            openusd_materialx_version: "1.38.7"
-            materialx_runtime: openusd
-            tbb_abi: classic
-            enable_openvdb: false
-            reuse_dependency_image: false
-            dependency_image: ""
           - stack_year: "2027"
             base_image: aswf/ci-baseqt:2027@sha256:9df58e9cc6831773bad261596a317ea6019006423ad73ed91652e1762a5a68f7
             cycles_version: "5.2.0"
