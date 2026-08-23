@@ -169,7 +169,7 @@ jobs:
                 "$CYCLES_LIB_REVISION"
               test ! -e /opt/cycles
               if [[ "$ENABLE_OPENVDB" == true ]]; then
-                test -f /opt/usd/plugin/usd/hioOpenVDB/resources/plugInfo.json
+                test -f /opt/usd/lib/usd/hioOpenVDB/resources/plugInfo.json
                 grep -Fq "PXR_ENABLE_OPENVDB_SUPPORT:BOOL=ON" \
                   /opt/cycles-dependency-evidence/OpenUSD-CMakeCache.txt
                 PXR_PLUGINPATH_NAME=/opt/cycles/hydra python3 -c \

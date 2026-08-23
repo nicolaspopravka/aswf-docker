@@ -123,7 +123,7 @@ grep -Fq "MaterialX/archive/v${OPENUSD_MATERIALX_VERSION}.zip" \
 test -x /opt/usd/bin/usdrecord
 test -d /opt/usd/lib/python/pxr
 if [[ "$ENABLE_OPENVDB" == true ]]; then
-  test -f /opt/usd/plugin/usd/hioOpenVDB/resources/plugInfo.json
+  test -f /opt/usd/lib/usd/hioOpenVDB/resources/plugInfo.json
   grep -Fq 'PXR_ENABLE_OPENVDB_SUPPORT:BOOL=ON' \
     "$BUILD_ROOT/OpenUSD/build/OpenUSD/CMakeCache.txt"
   PXR_PLUGINPATH_NAME=/opt/cycles/hydra python3 - <<'PY'
