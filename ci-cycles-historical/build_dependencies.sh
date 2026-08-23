@@ -13,7 +13,13 @@ readonly EVIDENCE_ROOT="/opt/cycles-dependency-evidence"
 : "${MATERIALX_VERSION:?MATERIALX_VERSION is required}"
 CYCLES_MATERIALX_VERSION="${CYCLES_MATERIALX_VERSION:-$MATERIALX_VERSION}"
 OPENUSD_MATERIALX_VERSION="${OPENUSD_MATERIALX_VERSION:-$MATERIALX_VERSION}"
+: "${ENABLE_OPENVDB:=false}"
 : "${TBB_ABI:?TBB_ABI is required}"
+
+case "$ENABLE_OPENVDB" in
+  true|false) ;;
+  *) echo "Unsupported ENABLE_OPENVDB value: $ENABLE_OPENVDB" >&2; exit 1 ;;
+esac
 
 case "$TBB_ABI" in
   classic|onetbb) ;;
@@ -88,6 +94,9 @@ elif [[ "$OPENUSD_TAG" == v24.05 ]]; then
 fi
 
 usd_build_args=(/opt/usd --no-usdview)
+if [[ "$ENABLE_OPENVDB" == true ]]; then
+  usd_build_args+=(--openvdb)
+fi
 if [[ "$TBB_ABI" == classic ]]; then
   test -e /opt/usd/lib/libtbb.so.2
   test ! -e /opt/usd/lib/libtbb.so.12
@@ -110,6 +119,17 @@ grep -Fq "MaterialX/archive/v${OPENUSD_MATERIALX_VERSION}.zip" \
 
 test -x /opt/usd/bin/usdrecord
 test -d /opt/usd/lib/python/pxr
+if [[ "$ENABLE_OPENVDB" == true ]]; then
+  test -f /opt/usd/plugin/usd/hioOpenVDB/resources/plugInfo.json
+  grep -Fq 'PXR_ENABLE_OPENVDB_SUPPORT:BOOL=ON' \
+    "$BUILD_ROOT/OpenUSD/build/OpenUSD/CMakeCache.txt"
+  PXR_PLUGINPATH_NAME=/opt/cycles/hydra python3 - <<'PY'
+from pxr import Plug
+
+names = {plugin.name for plugin in Plug.Registry().GetAllPlugins()}
+assert "hioOpenVDB" in names, sorted(name for name in names if "VDB" in name)
+PY
+fi
 if [[ "$TBB_ABI" == classic ]]; then
   test -e /opt/usd/lib/libtbb.so.2
   test ! -e /opt/usd/lib/libtbb.so.12
@@ -128,6 +148,7 @@ cp "$usd_cache" "$EVIDENCE_ROOT/OpenUSD-CMakeCache.txt"
   printf 'Cycles Linux libraries revision: %s\n' "$CYCLES_LIB_REVISION"
   printf 'Cycles MaterialX version: %s\n' "$CYCLES_MATERIALX_VERSION"
   printf 'OpenUSD MaterialX version: %s\n' "$OPENUSD_MATERIALX_VERSION"
+  printf 'OpenUSD OpenVDB support: %s\n' "$ENABLE_OPENVDB"
   printf 'TBB ABI: %s\n' "$TBB_ABI"
   gcc --version | head -1
   cmake --version | head -1

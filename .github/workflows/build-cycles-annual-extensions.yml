@@ -2,7 +2,31 @@ name: Build CY2023 and CY2027 Cycles Hydra Delegates
 
 on:
   workflow_dispatch:
+    inputs:
+      stack_year:
+        description: Annual stack to build
+        required: true
+        default: "all"
+        type: choice
+        options:
+          - all
+          - "2023"
+          - "2027"
+      dependency_only:
+        description: Build and publish only the dependency image
+        required: true
+        default: false
+        type: boolean
   workflow_call:
+    inputs:
+      stack_year:
+        required: false
+        default: "all"
+        type: string
+      dependency_only:
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -24,6 +48,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        exclude:
+          - stack_year: ${{ inputs.stack_year == '2027' && '2023' || '_none_' }}
+          - stack_year: ${{ inputs.stack_year == '2023' && '2027' || '_none_' }}
         include:
           - stack_year: "2023"
             base_image: aswf/ci-baseqt:2023@sha256:30c27f5a2cf2e35c51d1feb5796a7e06a4e5d180b53fde58ec51854d111443ae
@@ -38,6 +65,7 @@ jobs:
             openusd_materialx_version: "1.38.7"
             materialx_runtime: openusd
             tbb_abi: classic
+            enable_openvdb: false
             reuse_dependency_image: false
             dependency_image: ""
           - stack_year: "2027"
@@ -53,6 +81,7 @@ jobs:
             openusd_materialx_version: "1.39.4"
             materialx_runtime: cycles
             tbb_abi: onetbb
+            enable_openvdb: true
             reuse_dependency_image: false
             dependency_image: ""
 
@@ -111,6 +140,7 @@ jobs:
           OPENUSD_TAG: ${{ matrix.openusd_tag }}
           CYCLES_MATERIALX_VERSION: ${{ matrix.cycles_materialx_version }}
           OPENUSD_MATERIALX_VERSION: ${{ matrix.openusd_materialx_version }}
+          ENABLE_OPENVDB: ${{ matrix.enable_openvdb }}
           TBB_ABI: ${{ matrix.tbb_abi }}
         run: |
           set -euxo pipefail
@@ -125,12 +155,14 @@ jobs:
             --build-arg CYCLES_MATERIALX_VERSION="$CYCLES_MATERIALX_VERSION" \
             --build-arg MATERIALX_VERSION="$OPENUSD_MATERIALX_VERSION" \
             --build-arg OPENUSD_MATERIALX_VERSION="$OPENUSD_MATERIALX_VERSION" \
+            --build-arg ENABLE_OPENVDB="$ENABLE_OPENVDB" \
             --build-arg TBB_ABI="$TBB_ABI" \
             . 2>&1 | tee "${{ runner.temp }}/ci-cycles-docker-build.log"
 
       - name: Validate dependency boundary
         env:
           CYCLES_LIB_REVISION: ${{ matrix.cycles_lib_revision }}
+          ENABLE_OPENVDB: ${{ matrix.enable_openvdb }}
           TBB_ABI: ${{ matrix.tbb_abi }}
         run: |
           set -euxo pipefail
@@ -143,6 +175,7 @@ jobs:
           fi
           docker run --rm \
             --env CYCLES_LIB_REVISION \
+            --env ENABLE_OPENVDB \
             --env TBB_ABI \
             "$dependency_image" bash -c '
               set -euxo pipefail
@@ -151,6 +184,13 @@ jobs:
               test "$(git -C /opt/cycles-dependencies rev-parse HEAD)" = \
                 "$CYCLES_LIB_REVISION"
               test ! -e /opt/cycles
+              if [[ "$ENABLE_OPENVDB" == true ]]; then
+                test -f /opt/usd/plugin/usd/hioOpenVDB/resources/plugInfo.json
+                grep -Fq "PXR_ENABLE_OPENVDB_SUPPORT:BOOL=ON" \
+                  /opt/cycles-dependency-evidence/OpenUSD-CMakeCache.txt
+                PXR_PLUGINPATH_NAME=/opt/cycles/hydra python3 -c \
+                  '\''from pxr import Plug; names = {p.name for p in Plug.Registry().GetAllPlugins()}; assert "hioOpenVDB" in names, sorted(n for n in names if "VDB" in n)'\''
+              fi
               if [[ "$TBB_ABI" == classic ]]; then
                 test -e /opt/usd/lib/libtbb.so.2
                 test ! -e /opt/usd/lib/libtbb.so.12
@@ -174,6 +214,7 @@ jobs:
             2>&1 | tee "${{ runner.temp }}/ci-cycles-push-version.log"
 
       - name: Build delegate image
+        if: ${{ !inputs.dependency_only }}
         env:
           CYCLES_LIB_REVISION: ${{ matrix.cycles_lib_revision }}
           CYCLES_REVISION: ${{ matrix.cycles_revision }}
@@ -205,6 +246,7 @@ jobs:
             . 2>&1 | tee "${{ runner.temp }}/cycles-docker-build.log"
 
       - name: Validate delegate closure
+        if: ${{ !inputs.dependency_only }}
         env:
           TBB_ABI: ${{ matrix.tbb_abi }}
           MATERIALX_RUNTIME: ${{ matrix.materialx_runtime }}
@@ -236,6 +278,7 @@ jobs:
             ' | tee "${{ runner.temp }}/cycles-image-validation.log"
 
       - name: Publish loader-validated candidate
+        if: ${{ !inputs.dependency_only }}
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -250,6 +293,7 @@ jobs:
             2>&1 | tee "${{ runner.temp }}/cycles-candidate-push-version.log"
 
       - name: Fetch pinned USD WG teapot
+        if: ${{ !inputs.dependency_only }}
         run: |
           set -euxo pipefail
           mkdir -p "${{ runner.temp }}/cycles-smoke"
@@ -261,6 +305,7 @@ jobs:
             "${{ runner.temp }}/cycles-smoke/teapot.usda" | sha256sum --check
 
       - name: Run stock usdrecord teapot diagnostic
+        if: ${{ !inputs.dependency_only }}
         id: teapot
         continue-on-error: true
         run: |
@@ -288,7 +333,7 @@ jobs:
           fi
 
       - name: Record non-blocking teapot outcome
-        if: always()
+        if: ${{ always() && !inputs.dependency_only }}
         env:
           TEAPOT_OUTCOME: ${{ steps.teapot.outcome }}
         run: |
@@ -296,7 +341,7 @@ jobs:
           printf 'Plugin loading and link validation, not runner pixels, gate publication.\n'
 
       - name: Upload annual render diagnostic
-        if: always()
+        if: ${{ always() && !inputs.dependency_only }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: cycles-${{ matrix.stack_year }}-teapot-${{ github.sha }}
@@ -306,6 +351,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Publish loader-validated deliverable
+        if: ${{ !inputs.dependency_only }}
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |

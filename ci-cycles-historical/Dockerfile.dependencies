@@ -9,6 +9,7 @@ ARG CYCLES_MATERIALX_VERSION=${MATERIALX_VERSION}
 ARG OPENUSD_MATERIALX_VERSION=${MATERIALX_VERSION}
 ARG OPENUSD_REVISION
 ARG OPENUSD_TAG
+ARG ENABLE_OPENVDB=false
 ARG TBB_ABI
 ARG WORKFLOW_REVISION
 
@@ -29,6 +30,7 @@ LABEL org.opencontainers.image.revision="${WORKFLOW_REVISION}"
 LABEL io.usd-render-benchmark.cycles-library-revision="${CYCLES_LIB_REVISION}"
 LABEL io.usd-render-benchmark.openusd-revision="${OPENUSD_REVISION}"
 LABEL io.usd-render-benchmark.openusd-tag="${OPENUSD_TAG}"
+LABEL io.usd-render-benchmark.openusd-openvdb="${ENABLE_OPENVDB}"
 LABEL io.usd-render-benchmark.materialx-version="${MATERIALX_VERSION}"
 LABEL io.usd-render-benchmark.cycles-materialx-version="${CYCLES_MATERIALX_VERSION}"
 LABEL io.usd-render-benchmark.openusd-materialx-version="${OPENUSD_MATERIALX_VERSION}"
