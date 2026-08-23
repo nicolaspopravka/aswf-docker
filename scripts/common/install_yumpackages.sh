@@ -208,6 +208,7 @@ yum install --setopt=tsflags=nodocs -y \
     systemd-devel \
     tcsh \
     texinfo \
+    time \
     tk-devel \
     unzip \
     wget \
