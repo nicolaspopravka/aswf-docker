@@ -94,20 +94,22 @@ elif [[ "$OPENUSD_TAG" == v24.05 ]]; then
 fi
 
 usd_build_args=(/opt/usd --no-usdview)
+usd_dependency_build_args=()
 if [[ "$ENABLE_OPENVDB" == true ]]; then
   usd_build_args+=(--openvdb)
-  usd_build_args+=(--build-args "Blosc,-DCMAKE_POLICY_VERSION_MINIMUM=3.5")
+  usd_dependency_build_args+=("Blosc,-DCMAKE_POLICY_VERSION_MINIMUM=3.5")
 fi
 if [[ "$TBB_ABI" == classic ]]; then
   test -e /opt/usd/lib/libtbb.so.2
   test ! -e /opt/usd/lib/libtbb.so.12
-  usd_build_args+=(--build-args "USD,-DTBB_ROOT_DIR=/opt/usd")
+  usd_dependency_build_args+=("USD,-DTBB_ROOT_DIR=/opt/usd")
 else
   test -e /opt/usd/lib/libtbb.so.12
   test -f /opt/usd/lib/cmake/TBB/TBBConfig.cmake
   usd_build_args+=(--onetbb)
-  usd_build_args+=(--build-args "USD,-DTBB_DIR=/opt/usd/lib/cmake/TBB")
+  usd_dependency_build_args+=("USD,-DTBB_DIR=/opt/usd/lib/cmake/TBB")
 fi
+usd_build_args+=(--build-args "${usd_dependency_build_args[@]}")
 
 git clone --branch "$OPENUSD_TAG" --depth 1 "$OPENUSD_URL" "$BUILD_ROOT/OpenUSD"
 test "$(git -C "$BUILD_ROOT/OpenUSD" rev-parse HEAD)" = "$OPENUSD_REVISION"
