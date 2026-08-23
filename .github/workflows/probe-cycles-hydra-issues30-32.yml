@@ -87,6 +87,8 @@ jobs:
               set -euxo pipefail
               test -f /opt/cycles/hydra/hdCycles.so
               test -f /opt/cycles-baseline/hydra/hdCycles.so
+              test -x /usr/local/cuda/bin/nvcc
+              test -f "$OPTIX_ROOT_DIR/include/optix.h"
               sed "/^index /d" /expected/cycles-hydra-issues30-32.patch \
                 > /tmp/expected-source.patch
               sed "/^index /d" /opt/cycles-build-evidence/cycles-source.patch \
