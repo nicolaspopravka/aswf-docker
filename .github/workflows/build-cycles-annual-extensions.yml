@@ -1,6 +1,9 @@
 name: Build CY2023 and CY2027 Cycles Hydra Delegates
 
 on:
+  push:
+    branches:
+      - codex/diagnostics/cycles-openvdb-candidate
   workflow_dispatch:
     inputs:
       stack_year:
@@ -49,7 +52,7 @@ jobs:
       fail-fast: false
       matrix:
         exclude:
-          - stack_year: ${{ inputs.stack_year == '2027' && '2023' || '_none_' }}
+          - stack_year: ${{ (github.event_name == 'push' || inputs.stack_year == '2027') && '2023' || '_none_' }}
           - stack_year: ${{ inputs.stack_year == '2023' && '2027' || '_none_' }}
         include:
           - stack_year: "2023"
@@ -214,7 +217,7 @@ jobs:
             2>&1 | tee "${{ runner.temp }}/ci-cycles-push-version.log"
 
       - name: Build delegate image
-        if: ${{ !inputs.dependency_only }}
+        if: ${{ github.event_name != 'push' && !inputs.dependency_only }}
         env:
           CYCLES_LIB_REVISION: ${{ matrix.cycles_lib_revision }}
           CYCLES_REVISION: ${{ matrix.cycles_revision }}
@@ -246,7 +249,7 @@ jobs:
             . 2>&1 | tee "${{ runner.temp }}/cycles-docker-build.log"
 
       - name: Validate delegate closure
-        if: ${{ !inputs.dependency_only }}
+        if: ${{ github.event_name != 'push' && !inputs.dependency_only }}
         env:
           TBB_ABI: ${{ matrix.tbb_abi }}
           MATERIALX_RUNTIME: ${{ matrix.materialx_runtime }}
@@ -278,7 +281,7 @@ jobs:
             ' | tee "${{ runner.temp }}/cycles-image-validation.log"
 
       - name: Publish loader-validated candidate
-        if: ${{ !inputs.dependency_only }}
+        if: ${{ github.event_name != 'push' && !inputs.dependency_only }}
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -293,7 +296,7 @@ jobs:
             2>&1 | tee "${{ runner.temp }}/cycles-candidate-push-version.log"
 
       - name: Fetch pinned USD WG teapot
-        if: ${{ !inputs.dependency_only }}
+        if: ${{ github.event_name != 'push' && !inputs.dependency_only }}
         run: |
           set -euxo pipefail
           mkdir -p "${{ runner.temp }}/cycles-smoke"
@@ -305,7 +308,7 @@ jobs:
             "${{ runner.temp }}/cycles-smoke/teapot.usda" | sha256sum --check
 
       - name: Run stock usdrecord teapot diagnostic
-        if: ${{ !inputs.dependency_only }}
+        if: ${{ github.event_name != 'push' && !inputs.dependency_only }}
         id: teapot
         continue-on-error: true
         run: |
@@ -333,7 +336,7 @@ jobs:
           fi
 
       - name: Record non-blocking teapot outcome
-        if: ${{ always() && !inputs.dependency_only }}
+        if: ${{ always() && github.event_name != 'push' && !inputs.dependency_only }}
         env:
           TEAPOT_OUTCOME: ${{ steps.teapot.outcome }}
         run: |
@@ -341,7 +344,7 @@ jobs:
           printf 'Plugin loading and link validation, not runner pixels, gate publication.\n'
 
       - name: Upload annual render diagnostic
-        if: ${{ always() && !inputs.dependency_only }}
+        if: ${{ always() && github.event_name != 'push' && !inputs.dependency_only }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: cycles-${{ matrix.stack_year }}-teapot-${{ github.sha }}
@@ -351,7 +354,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Publish loader-validated deliverable
-        if: ${{ !inputs.dependency_only }}
+        if: ${{ github.event_name != 'push' && !inputs.dependency_only }}
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
