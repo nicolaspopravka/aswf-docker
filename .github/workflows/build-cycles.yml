@@ -32,6 +32,20 @@ on:
         required: false
         type: boolean
         default: false
+      annual_stack_year:
+        description: Annual Cycles stack to build
+        required: false
+        type: choice
+        default: all
+        options:
+          - all
+          - "2023"
+          - "2027"
+      annual_dependency_only:
+        description: Build and publish only the annual dependency image
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -580,4 +594,7 @@ jobs:
   annual_extensions:
     if: ${{ inputs.build_annual_extensions }}
     uses: ./.github/workflows/build-cycles-annual-extensions.yml
+    with:
+      stack_year: ${{ inputs.annual_stack_year }}
+      dependency_only: ${{ inputs.annual_dependency_only }}
     secrets: inherit
