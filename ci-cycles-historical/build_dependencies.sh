@@ -96,6 +96,7 @@ fi
 usd_build_args=(/opt/usd --no-usdview)
 if [[ "$ENABLE_OPENVDB" == true ]]; then
   usd_build_args+=(--openvdb)
+  usd_build_args+=(--build-args "Blosc,-DCMAKE_POLICY_VERSION_MINIMUM=3.5")
 fi
 if [[ "$TBB_ABI" == classic ]]; then
   test -e /opt/usd/lib/libtbb.so.2
