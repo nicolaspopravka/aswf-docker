@@ -63,6 +63,7 @@ jobs:
             materialx_runtime: cycles
             tbb_abi: onetbb
             enable_openvdb: true
+            enable_openimageio: true
             reuse_dependency_image: false
             dependency_image: ""
 
@@ -122,6 +123,7 @@ jobs:
           CYCLES_MATERIALX_VERSION: ${{ matrix.cycles_materialx_version }}
           OPENUSD_MATERIALX_VERSION: ${{ matrix.openusd_materialx_version }}
           ENABLE_OPENVDB: ${{ matrix.enable_openvdb }}
+          ENABLE_OPENIMAGEIO: ${{ matrix.enable_openimageio }}
           TBB_ABI: ${{ matrix.tbb_abi }}
         run: |
           set -euxo pipefail
@@ -137,6 +139,7 @@ jobs:
             --build-arg MATERIALX_VERSION="$OPENUSD_MATERIALX_VERSION" \
             --build-arg OPENUSD_MATERIALX_VERSION="$OPENUSD_MATERIALX_VERSION" \
             --build-arg ENABLE_OPENVDB="$ENABLE_OPENVDB" \
+            --build-arg ENABLE_OPENIMAGEIO="$ENABLE_OPENIMAGEIO" \
             --build-arg TBB_ABI="$TBB_ABI" \
             . 2>&1 | tee "${{ runner.temp }}/ci-cycles-docker-build.log"
 
@@ -144,6 +147,7 @@ jobs:
         env:
           CYCLES_LIB_REVISION: ${{ matrix.cycles_lib_revision }}
           ENABLE_OPENVDB: ${{ matrix.enable_openvdb }}
+          ENABLE_OPENIMAGEIO: ${{ matrix.enable_openimageio }}
           TBB_ABI: ${{ matrix.tbb_abi }}
         run: |
           set -euxo pipefail
@@ -157,6 +161,7 @@ jobs:
           docker run --rm \
             --env CYCLES_LIB_REVISION \
             --env ENABLE_OPENVDB \
+            --env ENABLE_OPENIMAGEIO \
             --env TBB_ABI \
             "$dependency_image" bash -c '
               set -euxo pipefail
@@ -171,6 +176,14 @@ jobs:
                   /opt/cycles-dependency-evidence/OpenUSD-CMakeCache.txt
                 PXR_PLUGINPATH_NAME=/opt/cycles/hydra python3 -c \
                   '\''from pxr import Plug; names = {p.name for p in Plug.Registry().GetAllPlugins()}; assert "hioOpenVDB" in names, sorted(n for n in names if "VDB" in n)'\''
+              fi
+              if [[ "$ENABLE_OPENIMAGEIO" == true ]]; then
+                test -e /opt/usd/lib/libOpenImageIO.so
+                test -e /opt/usd/lib/libOpenImageIO_Util.so
+                grep -Fq "PXR_BUILD_OPENIMAGEIO_PLUGIN:BOOL=ON" \
+                  /opt/cycles-dependency-evidence/OpenUSD-CMakeCache.txt
+                grep -Fq "PXR_BUILD_OPENCOLORIO_PLUGIN:BOOL=OFF" \
+                  /opt/cycles-dependency-evidence/OpenUSD-CMakeCache.txt
               fi
               if [[ "$TBB_ABI" == classic ]]; then
                 test -e /opt/usd/lib/libtbb.so.2

@@ -14,11 +14,17 @@ readonly EVIDENCE_ROOT="/opt/cycles-dependency-evidence"
 CYCLES_MATERIALX_VERSION="${CYCLES_MATERIALX_VERSION:-$MATERIALX_VERSION}"
 OPENUSD_MATERIALX_VERSION="${OPENUSD_MATERIALX_VERSION:-$MATERIALX_VERSION}"
 : "${ENABLE_OPENVDB:=false}"
+: "${ENABLE_OPENIMAGEIO:=false}"
 : "${TBB_ABI:?TBB_ABI is required}"
 
 case "$ENABLE_OPENVDB" in
   true|false) ;;
   *) echo "Unsupported ENABLE_OPENVDB value: $ENABLE_OPENVDB" >&2; exit 1 ;;
+esac
+
+case "$ENABLE_OPENIMAGEIO" in
+  true|false) ;;
+  *) echo "Unsupported ENABLE_OPENIMAGEIO value: $ENABLE_OPENIMAGEIO" >&2; exit 1 ;;
 esac
 
 case "$TBB_ABI" in
@@ -99,6 +105,9 @@ if [[ "$ENABLE_OPENVDB" == true ]]; then
   usd_build_args+=(--openvdb)
   usd_dependency_build_args+=("Blosc,-DCMAKE_POLICY_VERSION_MINIMUM=3.5")
 fi
+if [[ "$ENABLE_OPENIMAGEIO" == true ]]; then
+  usd_build_args+=(--openimageio)
+fi
 if [[ "$TBB_ABI" == classic ]]; then
   test -e /opt/usd/lib/libtbb.so.2
   test ! -e /opt/usd/lib/libtbb.so.12
@@ -137,6 +146,12 @@ names = {plugin.name for plugin in Plug.Registry().GetAllPlugins()}
 assert "hioOpenVDB" in names, sorted(name for name in names if "VDB" in name)
 PY
 fi
+if [[ "$ENABLE_OPENIMAGEIO" == true ]]; then
+  test -e /opt/usd/lib/libOpenImageIO.so
+  test -e /opt/usd/lib/libOpenImageIO_Util.so
+  grep -Fq 'PXR_BUILD_OPENIMAGEIO_PLUGIN:BOOL=ON' "$usd_cache"
+  grep -Fq 'PXR_BUILD_OPENCOLORIO_PLUGIN:BOOL=OFF' "$usd_cache"
+fi
 if [[ "$TBB_ABI" == classic ]]; then
   test -e /opt/usd/lib/libtbb.so.2
   test ! -e /opt/usd/lib/libtbb.so.12
@@ -154,6 +169,7 @@ cp "$usd_cache" "$EVIDENCE_ROOT/OpenUSD-CMakeCache.txt"
   printf 'Cycles MaterialX version: %s\n' "$CYCLES_MATERIALX_VERSION"
   printf 'OpenUSD MaterialX version: %s\n' "$OPENUSD_MATERIALX_VERSION"
   printf 'OpenUSD OpenVDB support: %s\n' "$ENABLE_OPENVDB"
+  printf 'OpenUSD OpenImageIO support: %s\n' "$ENABLE_OPENIMAGEIO"
   printf 'TBB ABI: %s\n' "$TBB_ABI"
   gcc --version | head -1
   cmake --version | head -1
