@@ -1,9 +1,6 @@
 name: Build CY2027 Cycles Hydra Delegate
 
 on:
-  push:
-    branches:
-      - codex/diagnostics/cycles-openvdb-candidate
   workflow_dispatch:
     inputs:
       stack_year:
