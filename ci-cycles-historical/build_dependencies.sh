@@ -122,10 +122,11 @@ grep -Fq "MaterialX/archive/v${OPENUSD_MATERIALX_VERSION}.zip" \
 
 test -x /opt/usd/bin/usdrecord
 test -d /opt/usd/lib/python/pxr
+usd_cache="$(find /opt/usd -path '*/OpenUSD/CMakeCache.txt' -print -quit)"
+test -n "$usd_cache"
 if [[ "$ENABLE_OPENVDB" == true ]]; then
   test -f /opt/usd/lib/usd/hioOpenVDB/resources/plugInfo.json
-  grep -Fq 'PXR_ENABLE_OPENVDB_SUPPORT:BOOL=ON' \
-    "$BUILD_ROOT/OpenUSD/build/OpenUSD/CMakeCache.txt"
+  grep -Fq 'PXR_ENABLE_OPENVDB_SUPPORT:BOOL=ON' "$usd_cache"
   PXR_PLUGINPATH_NAME=/opt/cycles/hydra python3 - <<'PY'
 from pxr import Plug
 
@@ -141,8 +142,6 @@ else
   ! find /opt/usd -maxdepth 2 -name 'libtbb.so.2*' -print -quit | grep -q .
 fi
 
-usd_cache="$(find /opt/usd -path '*/OpenUSD/CMakeCache.txt' -print -quit)"
-test -n "$usd_cache"
 cp "$usd_cache" "$EVIDENCE_ROOT/OpenUSD-CMakeCache.txt"
 
 {
