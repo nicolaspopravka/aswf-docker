@@ -184,6 +184,8 @@ jobs:
                   /opt/cycles-dependency-evidence/OpenUSD-CMakeCache.txt
                 grep -Fq "PXR_BUILD_OPENCOLORIO_PLUGIN:BOOL=OFF" \
                   /opt/cycles-dependency-evidence/OpenUSD-CMakeCache.txt
+                grep -Eq "^CMAKE_CXX_STANDARD(:[^=]+)?=17$" \
+                  /opt/cycles-dependency-evidence/OpenImageIO-CMakeCache.txt
               fi
               if [[ "$TBB_ABI" == classic ]]; then
                 test -e /opt/usd/lib/libtbb.so.2

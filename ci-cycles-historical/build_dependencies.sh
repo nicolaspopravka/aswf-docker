@@ -107,6 +107,7 @@ if [[ "$ENABLE_OPENVDB" == true ]]; then
 fi
 if [[ "$ENABLE_OPENIMAGEIO" == true ]]; then
   usd_build_args+=(--openimageio)
+  usd_dependency_build_args+=("OpenImageIO,-DCMAKE_CXX_STANDARD=17")
 fi
 if [[ "$TBB_ABI" == classic ]]; then
   test -e /opt/usd/lib/libtbb.so.2
@@ -151,6 +152,10 @@ if [[ "$ENABLE_OPENIMAGEIO" == true ]]; then
   test -e /opt/usd/lib/libOpenImageIO_Util.so
   grep -Fq 'PXR_BUILD_OPENIMAGEIO_PLUGIN:BOOL=ON' "$usd_cache"
   grep -Fq 'PXR_BUILD_OPENCOLORIO_PLUGIN:BOOL=OFF' "$usd_cache"
+  oiio_cache="$(find /opt/usd -path '*/OpenImageIO-*/CMakeCache.txt' -print -quit)"
+  test -n "$oiio_cache"
+  grep -Eq '^CMAKE_CXX_STANDARD(:[^=]+)?=17$' "$oiio_cache"
+  cp "$oiio_cache" "$EVIDENCE_ROOT/OpenImageIO-CMakeCache.txt"
 fi
 if [[ "$TBB_ABI" == classic ]]; then
   test -e /opt/usd/lib/libtbb.so.2
