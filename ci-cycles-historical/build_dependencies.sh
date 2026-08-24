@@ -127,7 +127,10 @@ test -n "$usd_cache"
 if [[ "$ENABLE_OPENVDB" == true ]]; then
   test -f /opt/usd/lib/usd/hioOpenVDB/resources/plugInfo.json
   grep -Fq 'PXR_ENABLE_OPENVDB_SUPPORT:BOOL=ON' "$usd_cache"
-  PXR_PLUGINPATH_NAME=/opt/cycles/hydra python3 - <<'PY'
+  PYTHONPATH=/opt/usd/lib/python \
+  LD_LIBRARY_PATH="/opt/cycles-dependencies/lib:/opt/cycles-dependencies/tbb/lib:/opt/usd/lib:/opt/usd/lib64:${LD_LIBRARY_PATH:-}" \
+  PXR_PLUGINPATH_NAME=/opt/cycles/hydra \
+    python3 - <<'PY'
 from pxr import Plug
 
 names = {plugin.name for plugin in Plug.Registry().GetAllPlugins()}
