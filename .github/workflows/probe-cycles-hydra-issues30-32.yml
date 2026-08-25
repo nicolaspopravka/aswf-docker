@@ -15,7 +15,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  DEPENDENCY_IMAGE: ghcr.io/nicolaspopravka/ci-cycles@sha256:4e78a942c0d1d9025ff5ac59b820002d7bcb80da2df46a2a50d2346b786c3f6b
+  DEPENDENCY_IMAGE: ghcr.io/nicolaspopravka/ci-cycles@sha256:90b74ac9ec19059fa79ce5766f95bcc3142ebb359c4f72bb28fef2fb1901c936
   IMAGE_NAME: cycles-hydra-issues30-32
   PUBLISHED_IMAGE: ghcr.io/nicolaspopravka/usd-render-benchmark-cycles
   CYCLES_REVISION: 1319002982e09970cb50f727e3f299cea78de229
