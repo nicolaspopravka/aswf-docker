@@ -39,6 +39,9 @@ git -C "$BUILD_ROOT/cycles" diff > "$EVIDENCE_ROOT/cycles-source.patch"
   test -x install/cycles
   test -f install/hydra/hdCycles.so
   test -f install/hydra/plugInfo.json
+  test -e /opt/cycles-dependencies/imath/lib/libImath.so.30
+  cp -a /opt/cycles-dependencies/imath/lib/libImath.so* install/lib/
+  test -e install/lib/libImath.so.30
   cp -a install /opt/cycles-baseline
 
   git apply --unidiff-zero --check /usr/local/share/cycles-hydra-batched-teardown.patch
@@ -48,6 +51,7 @@ git -C "$BUILD_ROOT/cycles" diff > "$EVIDENCE_ROOT/cycles-source.patch"
   test -x install/cycles
   test -f install/hydra/hdCycles.so
   test -f install/hydra/plugInfo.json
+  test -e install/lib/libImath.so.30
   cp build/CMakeCache.txt "$EVIDENCE_ROOT/Cycles-CMakeCache.txt"
   cp -a install /opt/cycles
   git diff > "$EVIDENCE_ROOT/cycles-source-with-teardown.patch"
@@ -55,9 +59,15 @@ git -C "$BUILD_ROOT/cycles" diff > "$EVIDENCE_ROOT/cycles-source.patch"
 
 LD_LIBRARY_PATH="/opt/cycles/lib:/opt/cycles-dependencies/tbb/lib:/opt/usd/lib:/opt/usd/lib64:${LD_LIBRARY_PATH:-}" \
   ldd -r /opt/cycles/hydra/hdCycles.so | tee "$EVIDENCE_ROOT/hdCycles-ldd.txt"
-! grep -Eq 'not found|undefined symbol' "$EVIDENCE_ROOT/hdCycles-ldd.txt"
+if grep -Eq 'not found|undefined symbol' "$EVIDENCE_ROOT/hdCycles-ldd.txt"; then
+  echo "Unresolved hdCycles runtime dependency" >&2
+  exit 1
+fi
 grep -q 'libtbb.so.12' "$EVIDENCE_ROOT/hdCycles-ldd.txt"
-! grep -q 'libtbb.so.2 ' "$EVIDENCE_ROOT/hdCycles-ldd.txt"
+if grep -q 'libtbb.so.2 ' "$EVIDENCE_ROOT/hdCycles-ldd.txt"; then
+  echo "Unexpected classic TBB dependency" >&2
+  exit 1
+fi
 
 readelf -d /opt/cycles/hydra/hdCycles.so > "$EVIDENCE_ROOT/hdCycles-dynamic.txt"
 find /opt/cycles -type f -print | sort > "$EVIDENCE_ROOT/cycles-install-manifest.txt"

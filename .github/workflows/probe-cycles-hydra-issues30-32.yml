@@ -96,7 +96,10 @@ jobs:
               cmp /tmp/expected-source.patch /tmp/applied-source.patch
               python3 -c "from pxr import UsdImagingGL; names = [UsdImagingGL.Engine.GetRendererDisplayName(p) for p in UsdImagingGL.Engine.GetRendererPlugins()]; print(names); assert \"Cycles\" in names"
               ldd -r /opt/cycles/hydra/hdCycles.so | tee /out/hdCycles-ldd.txt
-              ! grep -Eq "not found|undefined symbol" /out/hdCycles-ldd.txt
+              if grep -Eq "not found|undefined symbol" /out/hdCycles-ldd.txt; then
+                echo "Unresolved hdCycles runtime dependency" >&2
+                exit 1
+              fi
               cp -a /opt/cycles-build-evidence/. /out/
             '
           sudo chown -R "$USER:$USER" "$evidence"
@@ -149,12 +152,20 @@ jobs:
             "$evidence/updateconnections.log"
           test "$(grep -c "Unsupported USD input 'displacement'.*value ignored" \
             "$evidence/displacement.log")" = 1
-          ! grep -q "Could not find terminal output.*Displacement" \
-            "$evidence/displacement.log"
-          ! grep -Fq '<UDIM>' "$evidence/udim.log"
-          ! grep -Eq 'does not exist|Failed to load|Recording aborted' \
-            "$evidence/udim.log" "$evidence/single.log"
-          ! grep -Fq 'Unknown pass elementId' "$evidence/"*.log
+          if grep -q "Could not find terminal output.*Displacement" \
+            "$evidence/displacement.log"; then
+            exit 1
+          fi
+          if grep -Fq '<UDIM>' "$evidence/udim.log"; then
+            exit 1
+          fi
+          if grep -Eq 'does not exist|Failed to load|Recording aborted' \
+            "$evidence/udim.log" "$evidence/single.log"; then
+            exit 1
+          fi
+          if grep -Fq 'Unknown pass elementId' "$evidence/"*.log; then
+            exit 1
+          fi
           grep -Fq 'Renderer plugin: HdCyclesPlugin' "$evidence/udim.log"
           test "$(cat "$evidence/missing-udim.status")" != 139
           grep -Fq 'missing.<UDIM>.ppm' "$evidence/missing-udim.log"
