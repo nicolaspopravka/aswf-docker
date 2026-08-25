@@ -107,7 +107,9 @@ if [[ "$ENABLE_OPENVDB" == true ]]; then
 fi
 if [[ "$ENABLE_OPENIMAGEIO" == true ]]; then
   usd_build_args+=(--openimageio)
-  usd_dependency_build_args+=("OpenImageIO,-DCMAKE_CXX_STANDARD=17")
+  usd_dependency_build_args+=(
+    "OpenImageIO,-DCMAKE_CXX_STANDARD=17 -DCMAKE_INSTALL_LIBDIR=lib"
+  )
 fi
 if [[ "$TBB_ABI" == classic ]]; then
   test -e /opt/usd/lib/libtbb.so.2
@@ -155,6 +157,7 @@ if [[ "$ENABLE_OPENIMAGEIO" == true ]]; then
   oiio_cache="$(find /opt/usd -path '*/OpenImageIO-*/CMakeCache.txt' -print -quit)"
   test -n "$oiio_cache"
   grep -Eq '^CMAKE_CXX_STANDARD(:[^=]+)?=17$' "$oiio_cache"
+  grep -Eq '^CMAKE_INSTALL_LIBDIR(:[^=]+)?=lib$' "$oiio_cache"
   cp "$oiio_cache" "$EVIDENCE_ROOT/OpenImageIO-CMakeCache.txt"
 fi
 if [[ "$TBB_ABI" == classic ]]; then
