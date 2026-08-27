@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+delegate="${1:-}"
+case "$delegate" in
+  usd|storm)
+    printf 'export PYTHONPATH="/usr/local/lib/python${PYTHONPATH:+:$PYTHONPATH}"\n'
+    printf 'export PATH="/usr/local/bin${PATH:+:$PATH}"\n'
+    ;;
+  cycles)
+    printf 'export PYTHONPATH="/usr/local/lib/python${PYTHONPATH:+:$PYTHONPATH}"\n'
+    printf 'export PATH="/usr/local/bin:/opt/cycles${PATH:+:$PATH}"\n'
+    printf 'export PXR_PLUGINPATH_NAME="/opt/cycles/hydra${PXR_PLUGINPATH_NAME:+:$PXR_PLUGINPATH_NAME}"\n'
+    printf 'export LD_LIBRARY_PATH="/opt/cycles/lib:/opt/cycles-dependencies/tbb/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"\n'
+    printf 'export CYCLES_DEVICE="${CYCLES_DEVICE:-CPU}"\n'
+    ;;
+  moonray|moonray-debug)
+    printf 'export PYTHONPATH="/usr/local/lib/python${PYTHONPATH:+:$PYTHONPATH}"\n'
+    printf 'export PATH="/opt/MoonRay/installs/openmoonray/bin:/usr/local/bin${PATH:+:$PATH}"\n'
+    printf 'export PXR_PLUGINPATH_NAME="/opt/MoonRay/installs/openmoonray/plugin/pxr${PXR_PLUGINPATH_NAME:+:$PXR_PLUGINPATH_NAME}"\n'
+    printf 'export RDL2_DSO_PATH="/opt/MoonRay/installs/openmoonray/rdl2dso.proxy:/opt/MoonRay/installs/openmoonray/rdl2dso${RDL2_DSO_PATH:+:$RDL2_DSO_PATH}"\n'
+    printf 'export MOONRAY_CLASS_PATH="/opt/MoonRay/installs/openmoonray/shader_json${MOONRAY_CLASS_PATH:+:$MOONRAY_CLASS_PATH}"\n'
+    printf 'export ARRAS_SESSION_PATH="/opt/MoonRay/installs/openmoonray/sessions${ARRAS_SESSION_PATH:+:$ARRAS_SESSION_PATH}"\n'
+    ;;
+  *)
+    echo "usage: eval \"\$(common-hydra-env {usd|storm|cycles|moonray})\"" >&2
+    exit 2
+    ;;
+esac

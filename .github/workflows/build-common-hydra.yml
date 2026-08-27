@@ -1,0 +1,330 @@
+name: Build Common Hydra Stack
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_smoke:
+        description: Run per-delegate smoke renders after build
+        required: false
+        default: true
+        type: boolean
+  push:
+    branches:
+      - opencode/common-hydra-image
+    paths:
+      - ci-common-hydra/**
+      - ci-cycles/cycles-hdsi.patch
+      - .github/workflows/build-common-hydra.yml
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: common-hydra-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  BASE_IMAGE: ghcr.io/nicolaspopravka/openmoonray-hydra@sha256:75945fa61e05ee39c46d9f82c6e2add7759ac242568f5a51127d76170e1661fc
+  IMAGE_NAME: ghcr.io/nicolaspopravka/usd-common-hydra
+  CYCLES_TAG: v5.2.0
+  CYCLES_REVISION: 3b97e190c5ff1a2ed2160d879ad5bf95bea7b8ba
+  CYCLES_LIB_REVISION: 30d9f881c4b62c52323fd11637eeea56d460e35c
+  OPENUSD_VERSION_PREFIX: "25.05"
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 330
+
+    steps:
+      - name: Checkout reviewed source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Resolve pinned tags
+        run: |
+          set -euxo pipefail
+          {
+            printf 'IMMUTABLE_TAG=usd%s-cycles%s-%s\n' \
+              "$OPENUSD_VERSION_PREFIX" "${CYCLES_TAG#v}" "$GITHUB_SHA"
+            printf 'VARIANT_TAG=usd%s-cycles%s\n' \
+              "$OPENUSD_VERSION_PREFIX" "${CYCLES_TAG#v}"
+          } >> "$GITHUB_ENV"
+
+      - name: Reclaim runner disk
+        run: |
+          set -eux
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /usr/local/share/powershell /usr/share/swift /usr/local/.ghcup \
+            /usr/local/aws-cli /usr/local/aws-sam-cli /usr/local/julia* \
+            /usr/lib/jvm
+          sudo apt-get clean
+          docker system prune -af
+          df -h /
+
+      - name: Validate immutable inputs
+        run: |
+          set -eux
+          [[ "$BASE_IMAGE" == *@sha256:* ]]
+          [[ "$CYCLES_REVISION" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$CYCLES_LIB_REVISION" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$IMAGE_NAME" == "${IMAGE_NAME,,}" ]]
+          test -f ci-common-hydra/Dockerfile
+          test -f ci-common-hydra/build_cycles_dependencies.sh
+          test -f ci-common-hydra/build_cycles_common.sh
+          test -f ci-common-hydra/common-hydra-env
+          test -f ci-cycles/cycles-hdsi.patch
+          test -f ci-cycles/check_png_variation.py
+
+      - name: Authenticate to GHCR
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+
+      - name: Build common-stack image
+        run: |
+          set -euxo pipefail
+          docker build --progress=plain \
+            --file ci-common-hydra/Dockerfile \
+            --target runtime \
+            --tag "$IMAGE_NAME:$IMMUTABLE_TAG" \
+            --build-arg BASE_IMAGE="$BASE_IMAGE" \
+            --build-arg ASWF_SOURCE_REVISION="$GITHUB_SHA" \
+            --build-arg WORKFLOW_REVISION="$GITHUB_SHA" \
+            --build-arg CYCLES_TAG="$CYCLES_TAG" \
+            --build-arg CYCLES_REVISION="$CYCLES_REVISION" \
+            --build-arg CYCLES_LIB_REVISION="$CYCLES_LIB_REVISION" \
+            . 2>&1 | tee "${{ runner.temp }}/common-hydra-docker-build.log"
+
+      - name: Validate image closure
+        run: |
+          set -euxo pipefail
+          docker run --rm \
+            --env OPENUSD_VERSION_PREFIX \
+            "$IMAGE_NAME:$IMMUTABLE_TAG" bash -c '
+              set -euxo pipefail
+              test -x /usr/local/bin/usdrecord
+              test -x /opt/cycles/cycles
+              test -f /opt/cycles/hydra/hdCycles.so
+              test -f /opt/cycles/hydra/plugInfo.json
+              test -d /opt/MoonRay/installs/openmoonray/plugin/pxr
+              test -f /usr/local/bin/common-hydra-env
+              PYTHONPATH=/usr/local/lib/python python3 -c "from pxr import Usd; version = Usd.GetVersion(); print(\"OpenUSD version:\", version); assert version.startswith(\"$OPENUSD_VERSION_PREFIX\")"
+              LD_LIBRARY_PATH="/opt/cycles/lib:/opt/cycles-dependencies/tbb/lib:/usr/local/lib:/usr/local/lib64" \
+                ldd -r /opt/cycles/hydra/hdCycles.so | tee /tmp/hdCycles-ldd.txt
+              ! grep -Eq "not found|undefined symbol" /tmp/hdCycles-ldd.txt
+              grep -q "libtbb.so.12" /tmp/hdCycles-ldd.txt
+              ! grep -q "libtbb.so.2 " /tmp/hdCycles-ldd.txt
+            ' | tee "${{ runner.temp }}/common-hydra-image-validation.log"
+
+      - name: Validate neutral default enumerates Storm only
+        run: |
+          set -euxo pipefail
+          docker run --rm \
+            "$IMAGE_NAME:$IMMUTABLE_TAG" bash -c '
+              set -euxo pipefail
+              eval "$(common-hydra-env usd)"
+              python3 -c "from pxr import Usd, UsdImagingGL; plugins = UsdImagingGL.Engine.GetRendererPlugins(); names = [UsdImagingGL.Engine.GetRendererDisplayName(p) for p in plugins]; print(list(zip(plugins, names))); assert \"Storm\" in names; assert \"Cycles\" not in names; assert not any(n.startswith(\"Moonray\") for n in names)"
+            ' | tee "${{ runner.temp }}/common-hydra-enum-neutral.log"
+
+      - name: Validate Cycles environment enumerates Cycles
+        run: |
+          set -euxo pipefail
+          docker run --rm \
+            "$IMAGE_NAME:$IMMUTABLE_TAG" bash -c '
+              set -euxo pipefail
+              eval "$(common-hydra-env cycles)"
+              python3 -c "from pxr import Usd, UsdImagingGL; plugins = UsdImagingGL.Engine.GetRendererPlugins(); names = [UsdImagingGL.Engine.GetRendererDisplayName(p) for p in plugins]; print(list(zip(plugins, names))); assert \"Cycles\" in names"
+            ' | tee "${{ runner.temp }}/common-hydra-enum-cycles.log"
+
+      - name: Validate MoonRay environment enumerates MoonRay
+        run: |
+          set -euxo pipefail
+          docker run --rm \
+            "$IMAGE_NAME:$IMMUTABLE_TAG" bash -c '
+              set -euxo pipefail
+              eval "$(common-hydra-env moonray)"
+              python3 -c "from pxr import Usd, UsdImagingGL; plugins = UsdImagingGL.Engine.GetRendererPlugins(); names = [UsdImagingGL.Engine.GetRendererDisplayName(p) for p in plugins]; print(list(zip(plugins, names))); assert \"Moonray\" in names; assert \"Moonray (debug)\" in names"
+            ' | tee "${{ runner.temp }}/common-hydra-enum-moonray.log"
+
+      - name: Fetch pinned USD WG teapot
+        if: ${{ github.event_name == 'push' || inputs.run_smoke }}
+        run: |
+          set -euxo pipefail
+          mkdir -p "${{ runner.temp }}/common-smoke"
+          curl --fail --location --retry 4 \
+            --output "${{ runner.temp }}/common-smoke/teapot.usda" \
+            https://raw.githubusercontent.com/usd-wg/assets/907d5f17bbe933fc14441a3f3ab69a5bd8abe32a/test_assets/_common/teapot.usda
+          printf '%s  %s\n' \
+            92915fe259cb7f895a74dae0bbb6375e8a5843c3f9e24fa4b38607f2aa39431c \
+            "${{ runner.temp }}/common-smoke/teapot.usda" | sha256sum --check
+
+      - name: Smoke Storm via software GL
+        if: ${{ github.event_name == 'push' || inputs.run_smoke }}
+        id: smoke_storm
+        run: |
+          set -euxo pipefail
+          docker run --rm \
+            --volume "${{ runner.temp }}/common-smoke:/smoke" \
+            "$IMAGE_NAME:$IMMUTABLE_TAG" bash -c '
+              set -euxo pipefail
+              eval "$(common-hydra-env usd)"
+              export DISPLAY=:99
+              export LIBGL_ALWAYS_SOFTWARE=1
+              export GALLIUM_DRIVER=llvmpipe
+              Xvfb :99 -screen 0 1280x960x24 +extension GLX +render -noreset \
+                >/smoke/xvfb-storm.log 2>&1 &
+              xvfb_pid=$!
+              trap "kill $xvfb_pid 2>/dev/null || true" EXIT
+              sleep 2
+              glxinfo -B | tee /smoke/glxinfo.log
+              grep -Eqi "OpenGL renderer string:.*llvmpipe|Device: llvmpipe" /smoke/glxinfo.log
+              usdrecord \
+                --renderer Storm \
+                --camera /Camera \
+                --imageWidth 128 \
+                /smoke/teapot.usda \
+                /smoke/storm-teapot.png
+            ' 2>&1 | tee "${{ runner.temp }}/common-smoke-storm.log"
+          python3 ci-cycles/check_png_variation.py \
+            "${{ runner.temp }}/common-smoke/storm-teapot.png"
+          sha256sum "${{ runner.temp }}/common-smoke/storm-teapot.png" \
+            | tee "${{ runner.temp }}/common-smoke-storm.sha256"
+
+      - name: Smoke Cycles on CPU
+        if: ${{ github.event_name == 'push' || inputs.run_smoke }}
+        id: smoke_cycles
+        run: |
+          set -euxo pipefail
+          docker run --rm \
+            --volume "${{ runner.temp }}/common-smoke:/smoke" \
+            "$IMAGE_NAME:$IMMUTABLE_TAG" bash -c '
+              set -euxo pipefail
+              eval "$(common-hydra-env cycles)"
+              export CYCLES_DEVICE=CPU
+              usdrecord \
+                --renderer Cycles \
+                --camera /Camera \
+                --imageWidth 128 \
+                /smoke/teapot.usda \
+                /smoke/cycles-teapot.png
+            ' 2>&1 | tee "${{ runner.temp }}/common-smoke-cycles.log"
+          python3 ci-cycles/check_png_variation.py \
+            "${{ runner.temp }}/common-smoke/cycles-teapot.png"
+          sha256sum "${{ runner.temp }}/common-smoke/cycles-teapot.png" \
+            | tee "${{ runner.temp }}/common-smoke-cycles.sha256"
+
+      - name: Smoke MoonRay in-process
+        if: ${{ github.event_name == 'push' || inputs.run_smoke }}
+        id: smoke_moonray
+        run: |
+          set +e
+          docker run --rm \
+            --volume "${{ runner.temp }}/common-smoke:/smoke" \
+            "$IMAGE_NAME:$IMMUTABLE_TAG" bash -c '
+              set -euxo pipefail
+              eval "$(common-hydra-env moonray)"
+              usdrecord \
+                --renderer "Moonray (debug)" \
+                --camera /Camera \
+                --imageWidth 128 \
+                /smoke/teapot.usda \
+                /smoke/moonray-teapot.png
+            ' 2>&1 | tee "${{ runner.temp }}/common-smoke-moonray.log"
+          render_status="${PIPESTATUS[0]}"
+          set -e
+          printf 'MoonRay usdrecord exit status: %s\n' "$render_status" \
+            | tee "${{ runner.temp }}/common-smoke-moonray.status"
+          test -f "${{ runner.temp }}/common-smoke/moonray-teapot.png"
+          python3 ci-cycles/check_png_variation.py \
+            "${{ runner.temp }}/common-smoke/moonray-teapot.png"
+          sha256sum "${{ runner.temp }}/common-smoke/moonray-teapot.png" \
+            | tee "${{ runner.temp }}/common-smoke-moonray.sha256"
+
+      - name: Record smoke outcomes
+        if: ${{ always() && (github.event_name == 'push' || inputs.run_smoke) }}
+        env:
+          STORM_OUTCOME: ${{ steps.smoke_storm.outcome }}
+          CYCLES_OUTCOME: ${{ steps.smoke_cycles.outcome }}
+          MOONRAY_OUTCOME: ${{ steps.smoke_moonray.outcome }}
+        run: |
+          set -eux
+          printf 'Storm smoke outcome: %s\n' "$STORM_OUTCOME"
+          printf 'Cycles smoke outcome: %s\n' "$CYCLES_OUTCOME"
+          printf 'MoonRay smoke outcome: %s\n' "$MOONRAY_OUTCOME"
+          test "$STORM_OUTCOME" = success
+          test "$CYCLES_OUTCOME" = success
+          test "$MOONRAY_OUTCOME" = success
+
+      - name: Export stack evidence
+        run: |
+          set -euxo pipefail
+          evidence_root="${{ runner.temp }}/common-stack-evidence"
+          mkdir -p "$evidence_root"
+          container_id="$(docker create "$IMAGE_NAME:$IMMUTABLE_TAG")"
+          trap 'docker rm -f "$container_id" >/dev/null 2>&1 || true' EXIT
+          docker cp "$container_id:/opt/cycles-build-evidence" \
+            "$evidence_root/cycles-build-evidence"
+          docker cp "$container_id:/opt/cycles-dependency-evidence" \
+            "$evidence_root/cycles-dependency-evidence"
+          docker image inspect "$IMAGE_NAME:$IMMUTABLE_TAG" \
+            > "$evidence_root/image-inspect.json"
+          {
+            printf 'Base image: %s\n' "$BASE_IMAGE"
+            printf 'Cycles tag: %s\n' "$CYCLES_TAG"
+            printf 'Cycles revision: %s\n' "$CYCLES_REVISION"
+            printf 'Cycles Linux libraries revision: %s\n' "$CYCLES_LIB_REVISION"
+            printf 'OpenUSD version prefix: %s\n' "$OPENUSD_VERSION_PREFIX"
+          } > "$evidence_root/stack-source-revisions.txt"
+
+      - name: Publish validated image
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        run: |
+          set -euxo pipefail
+          docker push "$IMAGE_NAME:$IMMUTABLE_TAG" \
+            2>&1 | tee "${{ runner.temp }}/common-push-immutable.log"
+          docker tag "$IMAGE_NAME:$IMMUTABLE_TAG" "$IMAGE_NAME:$VARIANT_TAG"
+          docker push "$IMAGE_NAME:$VARIANT_TAG" \
+            2>&1 | tee "${{ runner.temp }}/common-push-version.log"
+
+          docker buildx imagetools inspect "$IMAGE_NAME:$IMMUTABLE_TAG" \
+            | tee "${{ runner.temp }}/common-remote-immutable.txt"
+          docker buildx imagetools inspect "$IMAGE_NAME:$VARIANT_TAG" \
+            | tee "${{ runner.temp }}/common-remote-version.txt"
+
+          immutable_digest="$(sed -n 's/^Digest:[[:space:]]*//p' \
+            "${{ runner.temp }}/common-remote-immutable.txt" | head -1)"
+          version_digest="$(sed -n 's/^Digest:[[:space:]]*//p' \
+            "${{ runner.temp }}/common-remote-version.txt" | head -1)"
+          [[ "$immutable_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          test "$immutable_digest" = "$version_digest"
+          printf '%s@%s\n' "$IMAGE_NAME" "$immutable_digest" \
+            | tee "${{ runner.temp }}/common-image-ref.txt"
+
+      - name: Verify anonymous public access
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        run: |
+          set -euxo pipefail
+          docker logout ghcr.io
+          docker buildx imagetools inspect "$IMAGE_NAME:$IMMUTABLE_TAG" \
+            | tee "${{ runner.temp }}/common-anonymous-inspect.txt"
+          grep -q '^Digest:[[:space:]]*sha256:' \
+            "${{ runner.temp }}/common-anonymous-inspect.txt"
+
+      - name: Upload build and smoke evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: common-hydra-build-${{ github.run_attempt }}
+          if-no-files-found: warn
+          retention-days: 30
+          path: |
+            ${{ runner.temp }}/common-hydra-docker-build.log
+            ${{ runner.temp }}/common-hydra-image-validation.log
+            ${{ runner.temp }}/common-hydra-enum-*.log
+            ${{ runner.temp }}/common-smoke*
+            ${{ runner.temp }}/common-stack-evidence/
+            ${{ runner.temp }}/common-push-*.log
+            ${{ runner.temp }}/common-remote-*.txt
+            ${{ runner.temp }}/common-image-ref.txt
+            ${{ runner.temp }}/common-anonymous-inspect.txt
