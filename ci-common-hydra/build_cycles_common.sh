@@ -59,6 +59,9 @@ test ! -s "$EVIDENCE_ROOT/cycles-applied.patch"
   rm -rf lib/linux_x64
   mkdir -p lib
   cp -a /opt/cycles-dependencies lib/linux_x64
+  if [[ -e lib/linux_x64/openvdb/lib/libopenvdb.so.12.0.0 && ! -e lib/linux_x64/openvdb/lib/libopenvdb.so ]]; then
+    ln -s libopenvdb.so.12.0.0 lib/linux_x64/openvdb/lib/libopenvdb.so
+  fi
   make update
 
   test "$(git -C lib/linux_x64 rev-parse HEAD)" = "$CYCLES_LIB_REVISION"
@@ -73,6 +76,14 @@ test ! -s "$EVIDENCE_ROOT/cycles-applied.patch"
   cmake -B ./build \
     -DPXR_ROOT="$USD_PREFIX" \
     -DCMAKE_PROJECT_INCLUDE=/usr/local/share/cycles/import_openusd_dependencies.cmake
+
+  grep -E '^(OPENVDB|WITH_OPENVDB|WITH_CYCLES_OPENVDB|USD_OVERRIDE_OPENVDB|BLOSC|NANOVDB)' \
+    build/CMakeCache.txt | tee "$EVIDENCE_ROOT/openvdb-cmake-cache.txt" || true
+  find "$USD_PREFIX/lib" "$USD_PREFIX/lib64" -maxdepth 1 -name 'libopenvdb*' 2>/dev/null \
+    | tee "$EVIDENCE_ROOT/openvdb-libs-in-usd-prefix.txt"
+  find lib/linux_x64/openvdb/lib -maxdepth 1 -name 'libopenvdb*' \
+    | tee "$EVIDENCE_ROOT/openvdb-libs-in-bundle.txt"
+
   make -j"$(nproc)"
 
   test -f install/hydra/hdCycles.so
