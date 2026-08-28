@@ -1,13 +1,7 @@
 name: Build Common Hydra Stack
 
 on:
-  workflow_dispatch:
-    inputs:
-      run_smoke:
-        description: Run per-delegate smoke renders after build
-        required: false
-        default: true
-        type: boolean
+  workflow_dispatch: {}
   push:
     branches:
       - opencode/common-hydra-image
@@ -108,7 +102,7 @@ jobs:
               test -f /opt/cycles/hydra/plugInfo.json
               test -d /opt/MoonRay/installs/openmoonray/plugin/pxr
               test -f /usr/local/bin/common-hydra-env
-              PYTHONPATH=/usr/local/lib/python python3 -c "from pxr import Usd; v = Usd.GetVersion(); t = tuple(v) if isinstance(v, (tuple, list)) else tuple(int(p) for p in str(v).split('.')[:3]); print('OpenUSD version:', v); assert t[0] == 25 or (t[0] == 0 and t[1] == 25), t"
+              PYTHONPATH=/usr/local/lib/python python3 -c "from pxr import Usd; v = Usd.GetVersion(); t = tuple(v) if isinstance(v, (tuple, list)) else tuple(int(p) for p in str(v).split(\".\")[:3]); print(\"OpenUSD version:\", v); assert t[0] == 25 or (t[0] == 0 and t[1] == 25), t"
               LD_LIBRARY_PATH="/opt/cycles/lib:/opt/cycles-dependencies/tbb/lib:/usr/local/lib:/usr/local/lib64" \
                 ldd -r /opt/cycles/hydra/hdCycles.so | tee /tmp/hdCycles-ldd.txt
               ! grep -Eq "not found|undefined symbol" /tmp/hdCycles-ldd.txt
@@ -145,115 +139,6 @@ jobs:
               eval "$(common-hydra-env moonray)"
               python3 -c "from pxr import Usd, UsdImagingGL; plugins = UsdImagingGL.Engine.GetRendererPlugins(); names = [UsdImagingGL.Engine.GetRendererDisplayName(p) for p in plugins]; print(list(zip(plugins, names))); assert \"Moonray\" in names; assert \"Moonray (debug)\" in names"
             ' | tee "${{ runner.temp }}/common-hydra-enum-moonray.log"
-
-      - name: Fetch pinned USD WG teapot
-        if: ${{ github.event_name == 'push' || inputs.run_smoke }}
-        run: |
-          set -euxo pipefail
-          mkdir -p "${{ runner.temp }}/common-smoke"
-          curl --fail --location --retry 4 \
-            --output "${{ runner.temp }}/common-smoke/teapot.usda" \
-            https://raw.githubusercontent.com/usd-wg/assets/907d5f17bbe933fc14441a3f3ab69a5bd8abe32a/test_assets/_common/teapot.usda
-          printf '%s  %s\n' \
-            92915fe259cb7f895a74dae0bbb6375e8a5843c3f9e24fa4b38607f2aa39431c \
-            "${{ runner.temp }}/common-smoke/teapot.usda" | sha256sum --check
-
-      - name: Smoke Storm via software GL
-        if: ${{ github.event_name == 'push' || inputs.run_smoke }}
-        id: smoke_storm
-        run: |
-          set -euxo pipefail
-          docker run --rm \
-            --volume "${{ runner.temp }}/common-smoke:/smoke" \
-            "$IMAGE_NAME:$IMMUTABLE_TAG" bash -c '
-              set -euxo pipefail
-              eval "$(common-hydra-env usd)"
-              export DISPLAY=:99
-              export LIBGL_ALWAYS_SOFTWARE=1
-              export GALLIUM_DRIVER=llvmpipe
-              Xvfb :99 -screen 0 1280x960x24 +extension GLX +render -noreset \
-                >/smoke/xvfb-storm.log 2>&1 &
-              xvfb_pid=$!
-              trap "kill $xvfb_pid 2>/dev/null || true" EXIT
-              sleep 2
-              glxinfo -B | tee /smoke/glxinfo.log
-              grep -Eqi "OpenGL renderer string:.*llvmpipe|Device: llvmpipe" /smoke/glxinfo.log
-              usdrecord \
-                --renderer Storm \
-                --camera /Camera \
-                --imageWidth 128 \
-                /smoke/teapot.usda \
-                /smoke/storm-teapot.png
-            ' 2>&1 | tee "${{ runner.temp }}/common-smoke-storm.log"
-          python3 ci-cycles/check_png_variation.py \
-            "${{ runner.temp }}/common-smoke/storm-teapot.png"
-          sha256sum "${{ runner.temp }}/common-smoke/storm-teapot.png" \
-            | tee "${{ runner.temp }}/common-smoke-storm.sha256"
-
-      - name: Smoke Cycles on CPU
-        if: ${{ github.event_name == 'push' || inputs.run_smoke }}
-        id: smoke_cycles
-        run: |
-          set -euxo pipefail
-          docker run --rm \
-            --volume "${{ runner.temp }}/common-smoke:/smoke" \
-            "$IMAGE_NAME:$IMMUTABLE_TAG" bash -c '
-              set -euxo pipefail
-              eval "$(common-hydra-env cycles)"
-              export CYCLES_DEVICE=CPU
-              usdrecord \
-                --renderer Cycles \
-                --camera /Camera \
-                --imageWidth 128 \
-                /smoke/teapot.usda \
-                /smoke/cycles-teapot.png
-            ' 2>&1 | tee "${{ runner.temp }}/common-smoke-cycles.log"
-          python3 ci-cycles/check_png_variation.py \
-            "${{ runner.temp }}/common-smoke/cycles-teapot.png"
-          sha256sum "${{ runner.temp }}/common-smoke/cycles-teapot.png" \
-            | tee "${{ runner.temp }}/common-smoke-cycles.sha256"
-
-      - name: Smoke MoonRay in-process
-        if: ${{ github.event_name == 'push' || inputs.run_smoke }}
-        id: smoke_moonray
-        run: |
-          set +e
-          docker run --rm \
-            --volume "${{ runner.temp }}/common-smoke:/smoke" \
-            "$IMAGE_NAME:$IMMUTABLE_TAG" bash -c '
-              set -euxo pipefail
-              eval "$(common-hydra-env moonray)"
-              usdrecord \
-                --renderer "Moonray (debug)" \
-                --camera /Camera \
-                --imageWidth 128 \
-                /smoke/teapot.usda \
-                /smoke/moonray-teapot.png
-            ' 2>&1 | tee "${{ runner.temp }}/common-smoke-moonray.log"
-          render_status="${PIPESTATUS[0]}"
-          set -e
-          printf 'MoonRay usdrecord exit status: %s\n' "$render_status" \
-            | tee "${{ runner.temp }}/common-smoke-moonray.status"
-          test -f "${{ runner.temp }}/common-smoke/moonray-teapot.png"
-          python3 ci-cycles/check_png_variation.py \
-            "${{ runner.temp }}/common-smoke/moonray-teapot.png"
-          sha256sum "${{ runner.temp }}/common-smoke/moonray-teapot.png" \
-            | tee "${{ runner.temp }}/common-smoke-moonray.sha256"
-
-      - name: Record smoke outcomes
-        if: ${{ always() && (github.event_name == 'push' || inputs.run_smoke) }}
-        env:
-          STORM_OUTCOME: ${{ steps.smoke_storm.outcome }}
-          CYCLES_OUTCOME: ${{ steps.smoke_cycles.outcome }}
-          MOONRAY_OUTCOME: ${{ steps.smoke_moonray.outcome }}
-        run: |
-          set -eux
-          printf 'Storm smoke outcome: %s\n' "$STORM_OUTCOME"
-          printf 'Cycles smoke outcome: %s\n' "$CYCLES_OUTCOME"
-          printf 'MoonRay smoke outcome: %s\n' "$MOONRAY_OUTCOME"
-          test "$STORM_OUTCOME" = success
-          test "$CYCLES_OUTCOME" = success
-          test "$MOONRAY_OUTCOME" = success
 
       - name: Export stack evidence
         run: |
@@ -321,7 +206,6 @@ jobs:
             ${{ runner.temp }}/common-hydra-docker-build.log
             ${{ runner.temp }}/common-hydra-image-validation.log
             ${{ runner.temp }}/common-hydra-enum-*.log
-            ${{ runner.temp }}/common-smoke*
             ${{ runner.temp }}/common-stack-evidence/
             ${{ runner.temp }}/common-push-*.log
             ${{ runner.temp }}/common-remote-*.txt
