@@ -90,10 +90,10 @@ RUN test -x /usr/local/bin/python3.11 && \
     test -f /usr/local/lib/libpython3.11.so && \
     test -f /usr/local/include/python3.11/Python.h && \
     test -x /usr/local/cuda/bin/nvcc && \
-    test -f "/usr/local/NVIDIA-OptiX-SDK-${ASWF_OPTIX_VERSION}/include/optix.h" && \
+    test -f /usr/local/NVIDIA-OptiX-SDK-7.6.0/include/optix.h && \
     test "${ASWF_CUDA_VERSION}" = "12.6.3" && \
     test "${ASWF_OPTIX_VERSION}" = "8.0.0" && \
-    export OPTIX_ROOT="/usr/local/NVIDIA-OptiX-SDK-${ASWF_OPTIX_VERSION}" && \
+    export OPTIX_ROOT=/usr/local/NVIDIA-OptiX-SDK-7.6.0 && \
     export PATH=/usr/local/cuda/bin:${PATH} && \
     export LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH} && \
     export PYTHONPATH=/opt/MoonRay/build/moonray/scene_rdl2/mod/python/py_scene_rdl2:${PYTHONPATH} && \
@@ -121,7 +121,7 @@ RUN test -x /usr/local/bin/python3.11 && \
         'MOONRAY_USE_OPTIX:BOOL=ON' \
         /opt/MoonRay/build/CMakeCache.txt && \
     grep -F \
-        '/usr/local/NVIDIA-OptiX-SDK-8.0.0/include' \
+        '/usr/local/NVIDIA-OptiX-SDK-7.6.0/include' \
         /opt/MoonRay/build/CMakeCache.txt && \
     grep -Fx \
         'Log4cplus_LIBRARIES:FILEPATH=/opt/MoonRay/dependencies/log4cplus/lib/liblog4cplus.so' \
@@ -151,7 +151,7 @@ RUN test -x /usr/local/bin/python3.11 && \
         "build_materialx_shaders=ON" \
         "build_moonray_optix=ON" \
         "cuda_version=${ASWF_CUDA_VERSION}" \
-        "optix_version=${ASWF_OPTIX_VERSION}" \
+        "optix_version=7.6.0" \
         "lua_tool_version=5.4.4" \
         "log4cplus_version=2.1.2" \
         "log4cplus_unicode=OFF" \

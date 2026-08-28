@@ -127,6 +127,8 @@ jobs:
               test -f /opt/cycles/lib/kernel_optix.ptx.zst
               grep -F "build_moonray_optix=ON" \
                 /opt/MoonRay/installs/openmoonray/share/openmoonray/provenance.txt
+              grep -F "optix_version=7.6.0" \
+                /opt/MoonRay/installs/openmoonray/share/openmoonray/provenance.txt
               grep -Fx "WITH_CYCLES_DEVICE_CUDA:BOOL=ON" \
                 /opt/cycles-build-evidence/Cycles-CMakeCache.txt
               grep -Fx "WITH_CYCLES_DEVICE_OPTIX:BOOL=ON" \
@@ -172,6 +174,10 @@ jobs:
           set -euxo pipefail
           evidence_root="${RUNNER_TEMP}/common-build-evidence"
           mkdir -p "$evidence_root"
+          if ! docker image inspect "${IMAGE_REPOSITORY}:${CANDIDATE_TAG}" >/dev/null 2>&1; then
+            echo "Common image was not created; build logs remain the available evidence."
+            exit 0
+          fi
           container_id="$(docker create "${IMAGE_REPOSITORY}:${CANDIDATE_TAG}")"
           trap 'docker rm -f "$container_id" >/dev/null 2>&1 || true' EXIT
           docker cp "$container_id:/opt/cycles-build-evidence" "$evidence_root/"
