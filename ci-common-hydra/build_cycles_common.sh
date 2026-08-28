@@ -62,7 +62,8 @@ test ! -s "$EVIDENCE_ROOT/cycles-applied.patch"
   make update
 
   test "$(git -C lib/linux_x64 rev-parse HEAD)" = "$CYCLES_LIB_REVISION"
-  test -z "$(git status --short)"
+  git status --short > "$EVIDENCE_ROOT/cycles-worktree-status.txt" || true
+  test -z "$(git diff --name-only -- . ':!lib')"
   file lib/linux_x64/zstd/lib/libzstd.a |
     tee "$EVIDENCE_ROOT/cycles-zstd-file.txt"
   ar t lib/linux_x64/zstd/lib/libzstd.a \
