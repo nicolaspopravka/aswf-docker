@@ -108,7 +108,7 @@ jobs:
               test -f /opt/cycles/hydra/plugInfo.json
               test -d /opt/MoonRay/installs/openmoonray/plugin/pxr
               test -f /usr/local/bin/common-hydra-env
-              PYTHONPATH=/usr/local/lib/python python3 -c "from pxr import Usd; version = Usd.GetVersion(); print(\"OpenUSD version:\", version); assert version.startswith(\"$OPENUSD_VERSION_PREFIX\")"
+              PYTHONPATH=/usr/local/lib/python python3 -c "from pxr import Usd; v = Usd.GetVersion(); t = tuple(v) if isinstance(v, (tuple, list)) else tuple(int(p) for p in str(v).split('.')[:3]); print('OpenUSD version:', v); assert t[0] == 25 or (t[0] == 0 and t[1] == 25), t"
               LD_LIBRARY_PATH="/opt/cycles/lib:/opt/cycles-dependencies/tbb/lib:/usr/local/lib:/usr/local/lib64" \
                 ldd -r /opt/cycles/hydra/hdCycles.so | tee /tmp/hdCycles-ldd.txt
               ! grep -Eq "not found|undefined symbol" /tmp/hdCycles-ldd.txt
