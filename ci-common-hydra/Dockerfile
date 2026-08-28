@@ -24,6 +24,7 @@ ARG CYCLES_TAG
 ARG CYCLES_REVISION
 ARG CYCLES_LIB_REVISION
 ARG WORKFLOW_REVISION
+COPY --from=cycles-dependencies /opt/cycles-dependency-evidence /opt/cycles-dependency-evidence
 COPY --from=builder /opt/cycles /opt/cycles
 COPY --from=builder /opt/cycles-build-evidence /opt/cycles-build-evidence
 COPY ci-common-hydra/common-hydra-env /usr/local/bin/common-hydra-env
