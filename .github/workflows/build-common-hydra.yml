@@ -13,7 +13,6 @@ on:
       - opencode/common-hydra-image
     paths:
       - ci-common-hydra/**
-      - ci-cycles/cycles-hdsi.patch
       - .github/workflows/build-common-hydra.yml
 
 permissions:
@@ -27,9 +26,9 @@ concurrency:
 env:
   BASE_IMAGE: ghcr.io/nicolaspopravka/openmoonray-hydra@sha256:75945fa61e05ee39c46d9f82c6e2add7759ac242568f5a51127d76170e1661fc
   IMAGE_NAME: ghcr.io/nicolaspopravka/usd-common-hydra
-  CYCLES_TAG: v5.2.0
-  CYCLES_REVISION: 3b97e190c5ff1a2ed2160d879ad5bf95bea7b8ba
-  CYCLES_LIB_REVISION: 30d9f881c4b62c52323fd11637eeea56d460e35c
+  CYCLES_TAG: v5.0.0
+  CYCLES_REVISION: 2eba4102417439e59e03003f1dff881192cbd75f
+  CYCLES_LIB_REVISION: 3abcca1aa43fe29f21cdf442d0cf412357cf4d25
   OPENUSD_VERSION_PREFIX: "25.05"
 
 jobs:
@@ -73,7 +72,6 @@ jobs:
           test -f ci-common-hydra/build_cycles_dependencies.sh
           test -f ci-common-hydra/build_cycles_common.sh
           test -f ci-common-hydra/common-hydra-env
-          test -f ci-cycles/cycles-hdsi.patch
           test -f ci-cycles/check_png_variation.py
 
       - name: Authenticate to GHCR

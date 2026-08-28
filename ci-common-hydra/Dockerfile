@@ -13,7 +13,6 @@ ARG CYCLES_TAG
 ARG CYCLES_REVISION
 ARG CYCLES_LIB_REVISION
 COPY --from=cycles-dependencies /opt/cycles-dependencies /opt/cycles-dependencies
-COPY ci-cycles/cycles-hdsi.patch /usr/local/share/cycles-hdsi.patch
 COPY ci-common-hydra/build_cycles_common.sh /usr/local/bin/build_cycles_common.sh
 RUN chmod +x /usr/local/bin/build_cycles_common.sh && \
     /usr/local/bin/build_cycles_common.sh

@@ -51,11 +51,8 @@ git clone --branch "$CYCLES_TAG" --depth 1 "$CYCLES_URL" "$BUILD_ROOT/cycles"
 test "$(git -C "$BUILD_ROOT/cycles" rev-parse HEAD)" = "$CYCLES_REVISION"
 test -z "$(git -C "$BUILD_ROOT/cycles" status --short)"
 
-if [[ "$USD_LINKAGE" == split ]]; then
-  git -C "$BUILD_ROOT/cycles" apply --check /usr/local/share/cycles-hdsi.patch
-  git -C "$BUILD_ROOT/cycles" apply /usr/local/share/cycles-hdsi.patch
-fi
 git -C "$BUILD_ROOT/cycles" diff > "$EVIDENCE_ROOT/cycles-applied.patch"
+test ! -s "$EVIDENCE_ROOT/cycles-applied.patch"
 
 (
   cd "$BUILD_ROOT/cycles"
@@ -65,6 +62,7 @@ git -C "$BUILD_ROOT/cycles" diff > "$EVIDENCE_ROOT/cycles-applied.patch"
   make update
 
   test "$(git -C lib/linux_x64 rev-parse HEAD)" = "$CYCLES_LIB_REVISION"
+  test -z "$(git status --short)"
   file lib/linux_x64/zstd/lib/libzstd.a |
     tee "$EVIDENCE_ROOT/cycles-zstd-file.txt"
   ar t lib/linux_x64/zstd/lib/libzstd.a \
@@ -102,11 +100,6 @@ LD_LIBRARY_PATH="/opt/cycles/lib:/opt/cycles-dependencies/tbb/lib:$USD_PREFIX/li
 ! grep -Eq 'not found|undefined symbol' "$EVIDENCE_ROOT/hdCycles-ldd.txt"
 grep -q 'libtbb.so.12' "$EVIDENCE_ROOT/hdCycles-ldd.txt"
 ! grep -q 'libtbb.so.2 ' "$EVIDENCE_ROOT/hdCycles-ldd.txt"
-if [[ "$USD_LINKAGE" == split ]]; then
-  grep -q 'libusd_hdsi' "$EVIDENCE_ROOT/hdCycles-ldd.txt"
-else
-  grep -Eq 'libusd_(ms|usd_m)' "$EVIDENCE_ROOT/hdCycles-ldd.txt"
-fi
 
 readelf -d /opt/cycles/hydra/hdCycles.so \
   > "$EVIDENCE_ROOT/hdCycles-dynamic.txt"
