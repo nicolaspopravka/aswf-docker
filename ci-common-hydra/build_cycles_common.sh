@@ -70,7 +70,9 @@ test ! -s "$EVIDENCE_ROOT/cycles-applied.patch"
     > "$EVIDENCE_ROOT/cycles-zstd-members.txt"
   test -s "$EVIDENCE_ROOT/cycles-zstd-members.txt"
 
-  cmake -B ./build -DPXR_ROOT="$USD_PREFIX"
+  cmake -B ./build \
+    -DPXR_ROOT="$USD_PREFIX" \
+    -DCMAKE_PROJECT_INCLUDE=/usr/local/share/cycles/import_openusd_dependencies.cmake
   make -j"$(nproc)"
 
   test -f install/hydra/hdCycles.so

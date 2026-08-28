@@ -72,6 +72,7 @@ jobs:
           test -f ci-common-hydra/build_cycles_dependencies.sh
           test -f ci-common-hydra/build_cycles_common.sh
           test -f ci-common-hydra/common-hydra-env
+          test -f ci-cycles-historical/import_openusd_dependencies.cmake
           test -f ci-cycles/check_png_variation.py
 
       - name: Authenticate to GHCR

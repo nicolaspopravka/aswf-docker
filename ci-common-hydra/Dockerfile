@@ -13,6 +13,7 @@ ARG CYCLES_TAG
 ARG CYCLES_REVISION
 ARG CYCLES_LIB_REVISION
 COPY --from=cycles-dependencies /opt/cycles-dependencies /opt/cycles-dependencies
+COPY ci-cycles-historical/import_openusd_dependencies.cmake /usr/local/share/cycles/import_openusd_dependencies.cmake
 COPY ci-common-hydra/build_cycles_common.sh /usr/local/bin/build_cycles_common.sh
 RUN chmod +x /usr/local/bin/build_cycles_common.sh && \
     /usr/local/bin/build_cycles_common.sh
