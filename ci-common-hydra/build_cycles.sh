@@ -35,9 +35,8 @@ test "${ASWF_CUDA_VERSION}" = "12.6.3"
 test "${ASWF_OPTIX_VERSION}" = "8.0.0"
 
 PYTHONPATH="$USD_PREFIX/lib/python${PYTHONPATH:+:$PYTHONPATH}" \
-  python3 -c 'from pxr import Usd; print(Usd.GetVersion())' \
+  python3 -c 'from pxr import Usd; v = Usd.GetVersion(); print(v); assert v == (0, 25, 5)' \
   | tee "$EVIDENCE_ROOT/openusd-version.txt"
-grep -Fq '25.05' "$EVIDENCE_ROOT/openusd-version.txt"
 
 git clone --branch "$CYCLES_TAG" --depth 1 "$CYCLES_URL" "$BUILD_ROOT/cycles"
 test "$(git -C "$BUILD_ROOT/cycles" rev-parse HEAD)" = "$CYCLES_REVISION"
