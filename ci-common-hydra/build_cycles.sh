@@ -53,6 +53,7 @@ test -z "$(git -C "$BUILD_ROOT/cycles" status --short)"
   test -z "$(git status --short)"
 
   cmake -B ./build \
+    -DCMAKE_PROJECT_INCLUDE=/usr/local/share/cycles_project_include.cmake \
     -DPXR_ROOT="$USD_PREFIX" \
     -DOPTIX_ROOT_DIR="$OPTIX_ROOT" \
     -DCUDAToolkit_ROOT=/usr/local/cuda \
