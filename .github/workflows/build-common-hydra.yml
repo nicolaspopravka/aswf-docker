@@ -1,0 +1,220 @@
+name: Build Common CY2025 Hydra Image
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish_candidate:
+        description: Push the build-only candidate to GHCR
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: common-hydra-cy2025-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  BASE_IMAGE: aswf/ci-moonray:2025.7@sha256:0a6fd225c6a58b673d980c5d8503bb8a35a122006b9274428911374a3bc5dead
+  IMAGE_REPOSITORY: ghcr.io/nicolaspopravka/usd-render-benchmark-open-delegates
+  MOONRAY_TAG: v2026.29.1
+  MOONRAY_COMMIT: d96c6e30a8c280d4b5eb3bafa5e54efc445d7ea8
+  CYCLES_TAG: v5.0.0
+  CYCLES_REVISION: 2eba4102417439e59e03003f1dff881192cbd75f
+  CYCLES_LIB_REVISION: 3abcca1aa43fe29f21cdf442d0cf412357cf4d25
+  REZ_VERSION: 3.4.0
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+
+    steps:
+      - name: Check out reviewed source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Reclaim runner disk
+        run: |
+          set -euxo pipefail
+          sudo rm -rf \
+            /usr/share/dotnet \
+            /usr/local/lib/android \
+            /opt/ghc \
+            /usr/local/share/powershell \
+            /usr/share/swift \
+            /usr/local/.ghcup \
+            /usr/local/aws-cli \
+            /usr/local/aws-sam-cli \
+            /usr/local/julia* \
+            /usr/lib/jvm
+          sudo apt-get clean
+          docker system prune -af
+          df -h /
+
+      - name: Select candidate tag
+        run: |
+          set -euo pipefail
+          printf 'CANDIDATE_TAG=candidate-openusd-25.05.01-moonray-2026.29.1-cycles-5.0.0-%s\n' \
+            "$GITHUB_SHA" >> "$GITHUB_ENV"
+
+      - name: Validate fixed inputs and build-only contract
+        run: |
+          set -euxo pipefail
+          [[ "$BASE_IMAGE" == *@sha256:* ]]
+          [[ "$MOONRAY_COMMIT" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$CYCLES_REVISION" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$CYCLES_LIB_REVISION" =~ ^[0-9a-f]{40}$ ]]
+          test -f ci-moonray-hydra/Dockerfile
+          test -f ci-common-hydra/Dockerfile
+          test -f ci-common-hydra/build_cycles.sh
+          test -f ci-common-hydra/build_cycles_dependencies.sh
+          ! grep -Eq 'usdrecord[[:space:]]+--renderer|xvfb-run[[:space:]]+usdrecord|moonray[[:space:]]+-in' \
+            ci-moonray-hydra/Dockerfile ci-common-hydra/*
+
+      - name: Build GPU-capable MoonRay base locally
+        env:
+          BUILDKIT_STEP_LOG_MAX_SIZE: 52428800
+        run: |
+          set -euxo pipefail
+          DOCKER_BUILDKIT=1 docker build \
+            --file ci-moonray-hydra/Dockerfile \
+            --build-arg "BASE_IMAGE=${BASE_IMAGE}" \
+            --build-arg "MOONRAY_TAG=${MOONRAY_TAG}" \
+            --build-arg "MOONRAY_COMMIT=${MOONRAY_COMMIT}" \
+            --build-arg "BUILD_REVISION=${GITHUB_SHA}" \
+            --build-arg BUILD_JOBS=4 \
+            --tag common-hydra-moonray:${GITHUB_SHA} \
+            . 2>&1 | tee "${RUNNER_TEMP}/common-moonray-build.log"
+
+      - name: Build common image locally
+        env:
+          BUILDKIT_STEP_LOG_MAX_SIZE: 52428800
+        run: |
+          set -euxo pipefail
+          DOCKER_BUILDKIT=1 docker build \
+            --file ci-common-hydra/Dockerfile \
+            --build-arg "MOONRAY_IMAGE=common-hydra-moonray:${GITHUB_SHA}" \
+            --build-arg "MOONRAY_COMMIT=${MOONRAY_COMMIT}" \
+            --build-arg "CYCLES_TAG=${CYCLES_TAG}" \
+            --build-arg "CYCLES_REVISION=${CYCLES_REVISION}" \
+            --build-arg "CYCLES_LIB_REVISION=${CYCLES_LIB_REVISION}" \
+            --build-arg "REZ_VERSION=${REZ_VERSION}" \
+            --build-arg "WORKFLOW_REVISION=${GITHUB_SHA}" \
+            --tag "${IMAGE_REPOSITORY}:${CANDIDATE_TAG}" \
+            . 2>&1 | tee "${RUNNER_TEMP}/common-image-build.log"
+
+      - name: Validate installed stack without rendering
+        run: |
+          set -euxo pipefail
+          evidence_root="${RUNNER_TEMP}/common-image-evidence"
+          mkdir -p "$evidence_root"
+          docker run --rm \
+            --volume "$evidence_root:/evidence" \
+            "${IMAGE_REPOSITORY}:${CANDIDATE_TAG}" bash -c '
+              set -euxo pipefail
+              test -x /usr/local/bin/usdrecord
+              test ! -e /opt/usd
+              test -x /usr/bin/time
+              rez --version | tee /evidence/rez-version.txt
+              grep -F "3.4.0" /evidence/rez-version.txt
+              test -f /opt/MoonRay/installs/openmoonray/shaders/OptixGPUPrograms.ptx
+              test -f /opt/cycles/hydra/hdCycles.so
+              test -f /opt/cycles/lib/kernel_sm_89.cubin.zst
+              test -f /opt/cycles/lib/kernel_compute_75.ptx.zst
+              test -f /opt/cycles/lib/kernel_optix.ptx.zst
+              grep -F "build_moonray_optix=ON" \
+                /opt/MoonRay/installs/openmoonray/share/openmoonray/provenance.txt
+              grep -Fx "WITH_CYCLES_DEVICE_CUDA:BOOL=ON" \
+                /opt/cycles-build-evidence/Cycles-CMakeCache.txt
+              grep -Fx "WITH_CYCLES_DEVICE_OPTIX:BOOL=ON" \
+                /opt/cycles-build-evidence/Cycles-CMakeCache.txt
+              grep -Fx "WITH_CYCLES_CUDA_BINARIES:BOOL=ON" \
+                /opt/cycles-build-evidence/Cycles-CMakeCache.txt
+              test -z "${PXR_PLUGINPATH_NAME:-}"
+              test -z "${LD_LIBRARY_PATH:-}"
+              PYTHONPATH=/usr/local/lib/python python3 -c \
+                "from pxr import Usd; print(Usd.GetVersion())"
+              ldd -r /opt/cycles/hydra/hdCycles.so | tee /evidence/hdCycles-ldd.txt
+              ! grep -Eq "not found|undefined symbol" /evidence/hdCycles-ldd.txt
+            '
+
+      - name: Validate isolated plugin discovery without rendering
+        run: |
+          set -euxo pipefail
+          image="${IMAGE_REPOSITORY}:${CANDIDATE_TAG}"
+          docker run --rm "$image" bash -c '
+            set -euxo pipefail
+            PYTHONPATH=/usr/local/lib/python python3 -c \
+              "from pxr import UsdImagingGL; e=UsdImagingGL.Engine; n=[e.GetRendererDisplayName(p) for p in e.GetRendererPlugins()]; print(n); assert \"Storm\" in n; assert \"Cycles\" not in n; assert not any(x.startswith(\"Moonray\") for x in n)"
+          '
+          docker run --rm \
+            --env PXR_PLUGINPATH_NAME=/opt/cycles/hydra \
+            "$image" bash -c '
+              set -euxo pipefail
+              PYTHONPATH=/usr/local/lib/python python3 -c \
+                "from pxr import UsdImagingGL; e=UsdImagingGL.Engine; n=[e.GetRendererDisplayName(p) for p in e.GetRendererPlugins()]; print(n); assert \"Cycles\" in n; assert not any(x.startswith(\"Moonray\") for x in n)"
+            '
+          docker run --rm \
+            --env PXR_PLUGINPATH_NAME=/opt/MoonRay/installs/openmoonray/plugin/pxr \
+            "$image" bash -c '
+              set -euxo pipefail
+              PYTHONPATH=/opt/MoonRay/installs/openmoonray/python/lib/python3.11:/usr/local/lib/python \
+                python3 -c \
+                "from pxr import UsdImagingGL; e=UsdImagingGL.Engine; n=[e.GetRendererDisplayName(p) for p in e.GetRendererPlugins()]; print(n); assert \"Moonray\" in n; assert \"Cycles\" not in n"
+            '
+
+      - name: Export build evidence
+        if: always()
+        run: |
+          set -euxo pipefail
+          evidence_root="${RUNNER_TEMP}/common-build-evidence"
+          mkdir -p "$evidence_root"
+          container_id="$(docker create "${IMAGE_REPOSITORY}:${CANDIDATE_TAG}")"
+          trap 'docker rm -f "$container_id" >/dev/null 2>&1 || true' EXIT
+          docker cp "$container_id:/opt/cycles-build-evidence" "$evidence_root/"
+          docker cp "$container_id:/opt/cycles-dependency-evidence" "$evidence_root/"
+          docker cp "$container_id:/opt/MoonRay/installs/openmoonray/share/openmoonray/provenance.txt" \
+            "$evidence_root/moonray-provenance.txt"
+          docker image inspect "${IMAGE_REPOSITORY}:${CANDIDATE_TAG}" \
+            > "$evidence_root/image-inspect.json"
+
+      - name: Publish build-only candidate
+        if: ${{ inputs.publish_candidate }}
+        run: |
+          set -euxo pipefail
+          echo "${{ secrets.GITHUB_TOKEN }}" \
+            | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          docker push "${IMAGE_REPOSITORY}:${CANDIDATE_TAG}" \
+            2>&1 | tee "${RUNNER_TEMP}/common-candidate-push.log"
+          docker buildx imagetools inspect "${IMAGE_REPOSITORY}:${CANDIDATE_TAG}" \
+            | tee "${RUNNER_TEMP}/common-candidate-remote.txt"
+
+      - name: Verify anonymous candidate access
+        if: ${{ inputs.publish_candidate }}
+        run: |
+          set -euxo pipefail
+          docker logout ghcr.io
+          empty_config="${RUNNER_TEMP}/empty-docker-config"
+          mkdir -p "$empty_config"
+          printf '{"auths":{}}\n' > "$empty_config/config.json"
+          DOCKER_CONFIG="$empty_config" docker buildx imagetools inspect \
+            "${IMAGE_REPOSITORY}:${CANDIDATE_TAG}" \
+            | tee "${RUNNER_TEMP}/common-candidate-anonymous.txt"
+
+      - name: Upload build evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: common-hydra-cy2025-build-${{ github.run_attempt }}
+          if-no-files-found: warn
+          retention-days: 30
+          path: |
+            ${{ runner.temp }}/common-moonray-build.log
+            ${{ runner.temp }}/common-image-build.log
+            ${{ runner.temp }}/common-image-evidence/
+            ${{ runner.temp }}/common-build-evidence/
+            ${{ runner.temp }}/common-candidate-*.log
+            ${{ runner.temp }}/common-candidate-*.txt
