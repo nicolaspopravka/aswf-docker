@@ -72,9 +72,9 @@ test -z "$(git -C "$BUILD_ROOT/cycles" status --short)"
   cp src/hydra/plugInfo.json install/hydra/
   cp build/src/hydra/resources/plugInfo.json install/hydra/hdCycles/resources/
   cp build/src/kernel/kernel_*.zst install/lib/
-  find lib/linux_x64 -type f -path '*/lib/*.so*' \
+  find lib/linux_x64 -type f -name 'lib*.so*' \
     -exec cp -a -t install/lib -- {} +
-  find lib/linux_x64 -type l -path '*/lib/*.so*' \
+  find lib/linux_x64 -type l -name 'lib*.so*' \
     -exec cp -a -t install/lib -- {} +
 
   test -f install/hydra/hdCycles.so
