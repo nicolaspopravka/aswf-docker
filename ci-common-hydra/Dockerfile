@@ -30,8 +30,18 @@ COPY ci-common-hydra/common-hydra-env /usr/local/bin/common-hydra-env
 RUN chmod +x /usr/local/bin/common-hydra-env && \
     dnf install -y mesa-dri-drivers mesa-libGL mesa-libEGL glx-utils xorg-x11-server-Xvfb && \
     dnf clean all
-ENV PYTHONPATH=/usr/local/lib/python
-ENV PATH=/usr/local/bin:/opt/cycles:${PATH}
+ENV PXR_PLUGINPATH_NAME="" \
+    PXR_PLUGIN_PATH="" \
+    RDL2_DSO_PATH="" \
+    MOONRAY_CLASS_PATH="" \
+    ARRAS_SESSION_PATH="" \
+    MOONRAY_ROOT="" \
+    REZ_MOONRAY_ROOT="" \
+    LOG4CPLUS_ROOT="" \
+    LD_LIBRARY_PATH="" \
+    HDMOONRAY_DEBUG_MODE="" \
+    PYTHONPATH=/usr/local/lib/python \
+    PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 LABEL org.opencontainers.image.source="https://github.com/nicolaspopravka/aswf-docker"
 LABEL org.opencontainers.image.title="Common Hydra stack (Storm + MoonRay + Cycles) for the USD Render Benchmark"
 LABEL org.opencontainers.image.description="Single-OpenUSD common image: OpenUSD 25.05.01 (hdStorm), OpenMoonRay 2026.29.1 (hdMoonray), Cycles ${CYCLES_TAG} (hdCycles, CPU/Embree)"
