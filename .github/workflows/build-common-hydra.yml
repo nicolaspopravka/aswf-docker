@@ -18,9 +18,8 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  BASE_IMAGE: aswf/ci-moonray:2025.7@sha256:0a6fd225c6a58b673d980c5d8503bb8a35a122006b9274428911374a3bc5dead
+  MOONRAY_IMAGE: ghcr.io/nicolaspopravka/openmoonray-hydra@sha256:75945fa61e05ee39c46d9f82c6e2add7759ac242568f5a51127d76170e1661fc
   IMAGE_REPOSITORY: ghcr.io/nicolaspopravka/usd-render-benchmark-open-delegates
-  MOONRAY_TAG: v2026.29.1
   MOONRAY_COMMIT: d96c6e30a8c280d4b5eb3bafa5e54efc445d7ea8
   CYCLES_TAG: v5.0.0
   CYCLES_REVISION: 2eba4102417439e59e03003f1dff881192cbd75f
@@ -63,31 +62,15 @@ jobs:
       - name: Validate fixed inputs and build-only contract
         run: |
           set -euxo pipefail
-          [[ "$BASE_IMAGE" == *@sha256:* ]]
+          [[ "$MOONRAY_IMAGE" == *@sha256:* ]]
           [[ "$MOONRAY_COMMIT" =~ ^[0-9a-f]{40}$ ]]
           [[ "$CYCLES_REVISION" =~ ^[0-9a-f]{40}$ ]]
           [[ "$CYCLES_LIB_REVISION" =~ ^[0-9a-f]{40}$ ]]
-          test -f ci-moonray-hydra/Dockerfile
           test -f ci-common-hydra/Dockerfile
           test -f ci-common-hydra/build_cycles.sh
           test -f ci-common-hydra/build_cycles_dependencies.sh
           ! grep -Eq 'usdrecord[[:space:]]+--renderer|xvfb-run[[:space:]]+usdrecord|moonray[[:space:]]+-in' \
-            ci-moonray-hydra/Dockerfile ci-common-hydra/*
-
-      - name: Build GPU-capable MoonRay base locally
-        env:
-          BUILDKIT_STEP_LOG_MAX_SIZE: 52428800
-        run: |
-          set -euxo pipefail
-          DOCKER_BUILDKIT=1 docker build \
-            --file ci-moonray-hydra/Dockerfile \
-            --build-arg "BASE_IMAGE=${BASE_IMAGE}" \
-            --build-arg "MOONRAY_TAG=${MOONRAY_TAG}" \
-            --build-arg "MOONRAY_COMMIT=${MOONRAY_COMMIT}" \
-            --build-arg "BUILD_REVISION=${GITHUB_SHA}" \
-            --build-arg BUILD_JOBS=4 \
-            --tag common-hydra-moonray:${GITHUB_SHA} \
-            . 2>&1 | tee "${RUNNER_TEMP}/common-moonray-build.log"
+            ci-common-hydra/*
 
       - name: Build common image locally
         env:
@@ -96,7 +79,7 @@ jobs:
           set -euxo pipefail
           DOCKER_BUILDKIT=1 docker build \
             --file ci-common-hydra/Dockerfile \
-            --build-arg "MOONRAY_IMAGE=common-hydra-moonray:${GITHUB_SHA}" \
+            --build-arg "MOONRAY_IMAGE=${MOONRAY_IMAGE}" \
             --build-arg "MOONRAY_COMMIT=${MOONRAY_COMMIT}" \
             --build-arg "CYCLES_TAG=${CYCLES_TAG}" \
             --build-arg "CYCLES_REVISION=${CYCLES_REVISION}" \
@@ -218,7 +201,6 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
           path: |
-            ${{ runner.temp }}/common-moonray-build.log
             ${{ runner.temp }}/common-image-build.log
             ${{ runner.temp }}/common-image-evidence/
             ${{ runner.temp }}/common-build-evidence/

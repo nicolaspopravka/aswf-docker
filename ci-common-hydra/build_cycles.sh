@@ -63,14 +63,25 @@ test -z "$(git -C "$BUILD_ROOT/cycles" status --short)"
     -DCYCLES_CUDA_BINARIES_ARCH='sm_89;compute_75' \
     -DWITH_CUDA_DYNLOAD=ON \
     -DWITH_CYCLES_HYDRA_RENDER_DELEGATE=ON
-  cmake --build ./build --parallel "$(nproc)"
+  cmake --build ./build \
+    --parallel "$(nproc)" \
+    --target hdCycles cycles_kernel_cuda cycles_kernel_optix
+
+  mkdir -p install/hydra/hdCycles/resources install/lib
+  cp build/src/hydra/hdCycles.so install/hydra/
+  cp src/hydra/plugInfo.json install/hydra/
+  cp build/src/hydra/resources/plugInfo.json install/hydra/hdCycles/resources/
+  cp build/src/kernel/kernel_*.zst install/lib/
+  find lib/linux_x64 -type f -path '*/lib/*.so*' \
+    -exec cp -a -t install/lib -- {} +
+  find lib/linux_x64 -type l -path '*/lib/*.so*' \
+    -exec cp -a -t install/lib -- {} +
 
   test -f install/hydra/hdCycles.so
   test -f install/hydra/plugInfo.json
   test -f install/lib/kernel_sm_89.cubin.zst
   test -f install/lib/kernel_compute_75.ptx.zst
   test -f install/lib/kernel_optix.ptx.zst
-  cp -a lib/linux_x64/tbb/lib/libtbb.so* install/lib/
   patchelf --set-rpath '$ORIGIN/../lib' install/hydra/hdCycles.so
   cp build/CMakeCache.txt "$EVIDENCE_ROOT/Cycles-CMakeCache.txt"
   cp lib/linux_x64/deps.md "$EVIDENCE_ROOT/cycles-dependencies.md"
