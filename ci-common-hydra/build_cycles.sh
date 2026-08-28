@@ -24,8 +24,9 @@ fi
 
 mkdir -p "$BUILD_ROOT" "$EVIDENCE_ROOT"
 
-dnf install -y git glew-devel mesa-libEGL-devel mesa-libGL-devel mesa-libOSMesa-devel patchelf
+dnf install -y git git-lfs glew-devel mesa-libEGL-devel mesa-libGL-devel mesa-libOSMesa-devel patchelf
 dnf clean all
+git lfs install --skip-repo
 
 test -x "$USD_PREFIX/bin/usdrecord"
 test -d "$USD_PREFIX/lib/python/pxr"
@@ -47,7 +48,6 @@ test -z "$(git -C "$BUILD_ROOT/cycles" status --short)"
   rm -rf lib/linux_x64
   mkdir -p lib
   cp -a /opt/cycles-dependencies lib/linux_x64
-  make update
 
   test "$(git -C lib/linux_x64 rev-parse HEAD)" = "$CYCLES_LIB_REVISION"
   test -z "$(git status --short)"
