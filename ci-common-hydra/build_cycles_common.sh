@@ -73,12 +73,14 @@ test ! -s "$EVIDENCE_ROOT/cycles-applied.patch"
   # WITH_CYCLES_OPENVDB=OFF: the conan USD ships OpenVDB 12.1 (v12_1
   # namespace) while the Cycles 5.0.0 bundle pins 12.0 (v12_0); the
   # FindUSDPixar USD-prefix override links the 12.1 library against 12.0
-  # objects and only the standalone CLI catches it at link time. Volume
-  # support is dropped (documented); no benchmark scene uses OpenVDB except
-  # Moana, which fails on pristine Cycles regardless.
+  # objects and only the standalone CLI catches it at link time.  NanoVDB
+  # goes off with it (its host-side code requires the OpenVDB types).
+  # Volume support is dropped (documented); no benchmark scene uses OpenVDB
+  # except Moana, which fails on pristine Cycles regardless.
   cmake -B ./build \
     -DPXR_ROOT="$USD_PREFIX" \
     -DWITH_CYCLES_OPENVDB=OFF \
+    -DWITH_CYCLES_NANOVDB=OFF \
     -DCMAKE_PROJECT_INCLUDE=/usr/local/share/cycles/import_openusd_dependencies.cmake
 
   grep -E '^(OPENVDB|WITH_OPENVDB|WITH_CYCLES_OPENVDB|USD_OVERRIDE_OPENVDB|BLOSC|NANOVDB)' \
