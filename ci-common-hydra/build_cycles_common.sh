@@ -96,7 +96,9 @@ test ! -s "$EVIDENCE_ROOT/cycles-applied.patch"
   test -f install/hydra/plugInfo.json
   test -d install/lib
   cp build/CMakeCache.txt "$EVIDENCE_ROOT/Cycles-CMakeCache.txt"
-  cp lib/linux_x64/deps.md "$EVIDENCE_ROOT/cycles-dependencies.md"
+  if [[ -f lib/linux_x64/deps.md ]]; then
+    cp lib/linux_x64/deps.md "$EVIDENCE_ROOT/cycles-dependencies.md"
+  fi
   cp -a install /opt/cycles
 )
 
