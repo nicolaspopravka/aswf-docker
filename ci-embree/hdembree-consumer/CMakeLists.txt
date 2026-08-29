@@ -24,13 +24,48 @@ if(NOT HDEMBREE_SOURCE_DIR)
 endif()
 
 # The conan-built pxrConfig on the ASWF images bakes its build machine's
-# Python paths into find_dependency(Python3 <ver> EXACT); the same conan
-# cpython is installed at /usr/local in the shipped image, so resolve it
-# first.  pxrConfig only fills Python3_* cache variables when NOT DEFINED,
-# which makes this the sanctioned override path (no config edits).
-set(Python3_EXECUTABLE "/usr/local/bin/python3" CACHE FILEPATH
-    "Image Python -- the same conan cpython this pxrConfig was built against" FORCE)
-find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
+# Python paths into find_dependency(Python3 <ver> EXACT) guarded by
+# "if (NOT DEFINED ...)" -- but those baked paths do not exist in the
+# shipped image.  The same conan cpython IS installed at /usr/local, so
+# query it and pin ALL the Python3_* cache variables pxrConfig consults
+# (empirically FindPython does not define Python3_LIBRARY itself, so the
+# variables are set explicitly rather than via find_package(Python3)).
+set(IMAGE_PYTHON_EXECUTABLE "/usr/local/bin/python3")
+execute_process(
+  COMMAND "${IMAGE_PYTHON_EXECUTABLE}" -c
+    "import sysconfig, sys; print(sysconfig.get_config_var('LIBDIR')); print(sysconfig.get_config_var('INCLUDEPY')); print(sysconfig.get_config_var('LDLIBRARY')); print('%d.%d.%d' % sys.version_info[:3])"
+  RESULT_VARIABLE _pyconfig_rc
+  OUTPUT_VARIABLE _pyconfig_out
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+  ERROR_QUIET)
+if(NOT _pyconfig_rc EQUAL 0 OR NOT _pyconfig_out)
+  message(FATAL_ERROR "Cannot query Python sysconfig via ${IMAGE_PYTHON_EXECUTABLE}")
+endif()
+string(REPLACE "\n" ";" _pyconfig "${_pyconfig_out}")
+list(LENGTH _pyconfig _pyconfig_len)
+if(NOT _pyconfig_len EQUAL 4)
+  message(FATAL_ERROR "Unexpected sysconfig output: ${_pyconfig}")
+endif()
+list(GET _pyconfig 0 _py_libdir)
+list(GET _pyconfig 1 _py_includepy)
+list(GET _pyconfig 2 _py_ldlibrary)
+list(GET _pyconfig 3 _py_version)
+set(_py_library "${_py_libdir}/${_py_ldlibrary}")
+if(_py_ldlibrary STREQUAL "" OR NOT EXISTS "${_py_library}")
+  file(GLOB _py_library "${_py_libdir}/libpython${_py_version}*.so")
+  list(LENGTH _py_library _py_library_len)
+  if(NOT _py_library_len EQUAL 1)
+    message(FATAL_ERROR "Cannot locate libpython under ${_py_libdir} (LDLIBRARY='${_py_ldlibrary}')")
+  endif()
+  list(GET _py_library 0 _py_library)
+endif()
+message(STATUS "Image Python ${_py_version}: ${IMAGE_PYTHON_EXECUTABLE}")
+message(STATUS "Image Python library: ${_py_library}")
+message(STATUS "Image Python include: ${_py_includepy}")
+set(Python3_EXECUTABLE "${IMAGE_PYTHON_EXECUTABLE}" CACHE FILEPATH "" FORCE)
+set(Python3_LIBRARY "${_py_library}" CACHE FILEPATH "" FORCE)
+set(Python3_INCLUDE_DIR "${_py_includepy}" CACHE PATH "" FORCE)
+set(Python3_VERSION "${_py_version}" CACHE STRING "" FORCE)
 find_package(pxr CONFIG REQUIRED)
 
 find_library(EMBREE_LIBRARY
