@@ -84,7 +84,6 @@ test -z "$(git -C "$BUILD_ROOT/cycles" status --short)"
   test -f install/lib/kernel_optix.ptx.zst
   patchelf --set-rpath '$ORIGIN/../lib' install/hydra/hdCycles.so
   cp build/CMakeCache.txt "$EVIDENCE_ROOT/Cycles-CMakeCache.txt"
-  cp lib/linux_x64/deps.md "$EVIDENCE_ROOT/cycles-dependencies.md"
   cp -a install /opt/cycles
 )
 
