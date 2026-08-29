@@ -23,7 +23,6 @@ env:
   MOONRAY_COMMIT: d96c6e30a8c280d4b5eb3bafa5e54efc445d7ea8
   CYCLES_TAG: v5.0.0
   CYCLES_REVISION: 2eba4102417439e59e03003f1dff881192cbd75f
-  CYCLES_LIB_REVISION: 3abcca1aa43fe29f21cdf442d0cf412357cf4d25
   REZ_VERSION: 3.4.0
 
 jobs:
@@ -65,10 +64,8 @@ jobs:
           [[ "$MOONRAY_IMAGE" == *@sha256:* ]]
           [[ "$MOONRAY_COMMIT" =~ ^[0-9a-f]{40}$ ]]
           [[ "$CYCLES_REVISION" =~ ^[0-9a-f]{40}$ ]]
-          [[ "$CYCLES_LIB_REVISION" =~ ^[0-9a-f]{40}$ ]]
           test -f ci-common-hydra/Dockerfile
           test -f ci-common-hydra/build_cycles.sh
-          test -f ci-common-hydra/build_cycles_dependencies.sh
           ! grep -Eq 'usdrecord[[:space:]]+--renderer|xvfb-run[[:space:]]+usdrecord|moonray[[:space:]]+-in' \
             ci-common-hydra/*
 
@@ -83,7 +80,6 @@ jobs:
             --build-arg "MOONRAY_COMMIT=${MOONRAY_COMMIT}" \
             --build-arg "CYCLES_TAG=${CYCLES_TAG}" \
             --build-arg "CYCLES_REVISION=${CYCLES_REVISION}" \
-            --build-arg "CYCLES_LIB_REVISION=${CYCLES_LIB_REVISION}" \
             --build-arg "REZ_VERSION=${REZ_VERSION}" \
             --build-arg "WORKFLOW_REVISION=${GITHUB_SHA}" \
             --tag "${IMAGE_REPOSITORY}:${CANDIDATE_TAG}" \
@@ -122,7 +118,7 @@ jobs:
               test -z "${LD_LIBRARY_PATH:-}"
               PYTHONPATH=/usr/local/lib/python python3 -c \
                 "from pxr import Usd; print(Usd.GetVersion())"
-              ldd -r /opt/cycles/hydra/hdCycles.so | tee /evidence/hdCycles-ldd.txt
+              ldd -r /opt/cycles/hydra/hdCycles.so 2>&1 | tee /evidence/hdCycles-ldd.txt
               ! grep -Eq "not found|undefined symbol" /evidence/hdCycles-ldd.txt
             '
 
@@ -164,7 +160,6 @@ jobs:
           container_id="$(docker create "${IMAGE_REPOSITORY}:${CANDIDATE_TAG}")"
           trap 'docker rm -f "$container_id" >/dev/null 2>&1 || true' EXIT
           docker cp "$container_id:/opt/cycles-build-evidence" "$evidence_root/"
-          docker cp "$container_id:/opt/cycles-dependency-evidence" "$evidence_root/"
           docker cp "$container_id:/opt/MoonRay/installs/openmoonray/share/openmoonray/provenance.txt" \
             "$evidence_root/moonray-provenance.txt"
           docker image inspect "${IMAGE_REPOSITORY}:${CANDIDATE_TAG}" \

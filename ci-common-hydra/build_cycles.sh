@@ -10,7 +10,6 @@ readonly OPTIX_ROOT="/usr/local/NVIDIA-OptiX-SDK-${ASWF_OPTIX_VERSION}"
 
 : "${CYCLES_TAG:?CYCLES_TAG is required}"
 : "${CYCLES_REVISION:?CYCLES_REVISION is required}"
-: "${CYCLES_LIB_REVISION:?CYCLES_LIB_REVISION is required}"
 
 if [[ -n "${ASWF_DTS_VERSION:-}" && -e "/opt/rh/gcc-toolset-${ASWF_DTS_VERSION}/enable" ]]; then
   # shellcheck disable=SC1090
@@ -45,11 +44,6 @@ test -z "$(git -C "$BUILD_ROOT/cycles" status --short)"
 
 (
   cd "$BUILD_ROOT/cycles"
-  rm -rf lib/linux_x64
-  mkdir -p lib
-  cp -a /opt/cycles-dependencies lib/linux_x64
-
-  test "$(git -C lib/linux_x64 rev-parse HEAD)" = "$CYCLES_LIB_REVISION"
   test -z "$(git status --short)"
 
   cmake -B ./build \
@@ -57,6 +51,7 @@ test -z "$(git -C "$BUILD_ROOT/cycles" status --short)"
     -DPXR_ROOT="$USD_PREFIX" \
     -DOPTIX_ROOT_DIR="$OPTIX_ROOT" \
     -DCUDAToolkit_ROOT=/usr/local/cuda \
+    -DWITH_LIBS_PRECOMPILED=OFF \
     -DWITH_CYCLES_DEVICE_CUDA=ON \
     -DWITH_CYCLES_DEVICE_OPTIX=ON \
     -DWITH_CYCLES_CUDA_BINARIES=ON \
@@ -72,11 +67,6 @@ test -z "$(git -C "$BUILD_ROOT/cycles" status --short)"
   cp src/hydra/plugInfo.json install/hydra/
   cp build/src/hydra/resources/plugInfo.json install/hydra/hdCycles/resources/
   cp build/src/kernel/kernel_*.zst install/lib/
-  find lib/linux_x64 -type f -name 'lib*.so*' \
-    -exec cp -a -t install/lib -- {} +
-  find lib/linux_x64 -type l -name 'lib*.so*' \
-    -exec cp -a -t install/lib -- {} +
-
   test -f install/hydra/hdCycles.so
   test -f install/hydra/plugInfo.json
   test -f install/lib/kernel_sm_89.cubin.zst
@@ -95,7 +85,7 @@ grep -Fx 'CYCLES_CUDA_BINARIES_ARCH:STRING=sm_89;compute_75' "$EVIDENCE_ROOT/Cyc
 {
   printf 'Cycles tag: %s\n' "$CYCLES_TAG"
   printf 'Cycles revision: %s\n' "$CYCLES_REVISION"
-  printf 'Cycles Linux libraries revision: %s\n' "$CYCLES_LIB_REVISION"
+  printf 'Cycles dependency method: CY2025 libraries from the common image\n'
   printf 'OpenUSD prefix: %s\n' "$USD_PREFIX"
   printf 'CUDA version: %s\n' "$ASWF_CUDA_VERSION"
   printf 'OptiX root: %s\n' "$OPTIX_ROOT"
@@ -104,7 +94,7 @@ grep -Fx 'CYCLES_CUDA_BINARIES_ARCH:STRING=sm_89;compute_75' "$EVIDENCE_ROOT/Cyc
   python3 --version
 } > "$EVIDENCE_ROOT/source-revisions.txt"
 
-ldd -r /opt/cycles/hydra/hdCycles.so \
+ldd -r /opt/cycles/hydra/hdCycles.so 2>&1 \
   | tee "$EVIDENCE_ROOT/hdCycles-ldd.txt"
 ! grep -Eq 'not found|undefined symbol' "$EVIDENCE_ROOT/hdCycles-ldd.txt"
 grep -q 'libtbb.so.12' "$EVIDENCE_ROOT/hdCycles-ldd.txt"

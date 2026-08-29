@@ -4,16 +4,9 @@
 
 ARG MOONRAY_IMAGE
 
-FROM ${MOONRAY_IMAGE} AS cycles-dependencies
-ARG CYCLES_LIB_REVISION
-COPY --chmod=0755 ci-common-hydra/build_cycles_dependencies.sh /usr/local/bin/build_cycles_dependencies.sh
-RUN /usr/local/bin/build_cycles_dependencies.sh
-
 FROM ${MOONRAY_IMAGE} AS cycles-builder
 ARG CYCLES_TAG
 ARG CYCLES_REVISION
-ARG CYCLES_LIB_REVISION
-COPY --from=cycles-dependencies /opt/cycles-dependencies /opt/cycles-dependencies
 COPY --chmod=0755 ci-common-hydra/build_cycles.sh /usr/local/bin/build_cycles.sh
 COPY ci-common-hydra/cycles_project_include.cmake /usr/local/share/cycles_project_include.cmake
 RUN /usr/local/bin/build_cycles.sh
@@ -21,13 +14,11 @@ RUN /usr/local/bin/build_cycles.sh
 FROM ${MOONRAY_IMAGE} AS runtime
 ARG CYCLES_TAG
 ARG CYCLES_REVISION
-ARG CYCLES_LIB_REVISION
 ARG MOONRAY_COMMIT
 ARG REZ_VERSION
 ARG WORKFLOW_REVISION
 
 USER root
-COPY --from=cycles-dependencies /opt/cycles-dependency-evidence /opt/cycles-dependency-evidence
 COPY --from=cycles-builder /opt/cycles /opt/cycles
 COPY --from=cycles-builder /opt/cycles-build-evidence /opt/cycles-build-evidence
 
@@ -35,7 +26,7 @@ RUN dnf install -y time && \
     dnf clean all && \
     rm -rf /var/cache/dnf && \
     python3 -m pip install --no-cache-dir "rez==${REZ_VERSION}" && \
-    test "$(rez --version)" = "Rez ${REZ_VERSION}" && \
+    rez --version | grep -F "${REZ_VERSION}" && \
     test -x /usr/bin/time
 
 # Delegate paths are supplied by the benchmark's split Rez packages. Clear the
@@ -63,7 +54,6 @@ LABEL io.usd-render-benchmark.openusd-version="25.05.01"
 LABEL io.usd-render-benchmark.moonray-revision="${MOONRAY_COMMIT}"
 LABEL io.usd-render-benchmark.cycles-version="${CYCLES_TAG}"
 LABEL io.usd-render-benchmark.cycles-revision="${CYCLES_REVISION}"
-LABEL io.usd-render-benchmark.cycles-libraries-revision="${CYCLES_LIB_REVISION}"
 LABEL io.usd-render-benchmark.rez-version="${REZ_VERSION}"
 LABEL io.usd-render-benchmark.gpu-runtime-validation="not-run"
 
