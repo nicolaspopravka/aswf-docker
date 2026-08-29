@@ -24,6 +24,11 @@ env:
   CYCLES_REVISION: 2eba4102417439e59e03003f1dff881192cbd75f
   CYCLES_LIB_REVISION: 3abcca1aa43fe29f21cdf442d0cf412357cf4d25
   OPENUSD_VERSION_PREFIX: "25.05"
+  OPENUSD_TAG: v25.05.01
+  OPENUSD_REVISION: 1595c62ea8381b5b22eb8621afc8652f89b6136d
+  EMBREE_TAG: v3.13.2
+  EMBREE_REVISION: d7157470e089098b9c7323f608835ed50453e606
+  EMBREE_TARBALL_SHA256: dcda827e5b7a606c29d00c1339f1ef00f7fa6867346bc46a2318e8f0a601c6f9
 
 jobs:
   build:
@@ -38,10 +43,10 @@ jobs:
         run: |
           set -euxo pipefail
           {
-            printf 'IMMUTABLE_TAG=usd%s-cycles%s-%s\n' \
-              "$OPENUSD_VERSION_PREFIX" "${CYCLES_TAG#v}" "$GITHUB_SHA"
-            printf 'VARIANT_TAG=usd%s-cycles%s\n' \
-              "$OPENUSD_VERSION_PREFIX" "${CYCLES_TAG#v}"
+            printf 'IMMUTABLE_TAG=usd%s-cycles%s-embree%s-%s\n' \
+              "$OPENUSD_VERSION_PREFIX" "${CYCLES_TAG#v}" "${EMBREE_TAG#v}" "$GITHUB_SHA"
+            printf 'VARIANT_TAG=usd%s-cycles%s-embree%s\n' \
+              "$OPENUSD_VERSION_PREFIX" "${CYCLES_TAG#v}" "${EMBREE_TAG#v}"
           } >> "$GITHUB_ENV"
 
       - name: Reclaim runner disk
@@ -61,6 +66,9 @@ jobs:
           [[ "$BASE_IMAGE" == *@sha256:* ]]
           [[ "$CYCLES_REVISION" =~ ^[0-9a-f]{40}$ ]]
           [[ "$CYCLES_LIB_REVISION" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$OPENUSD_REVISION" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$EMBREE_REVISION" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$EMBREE_TARBALL_SHA256" =~ ^[0-9a-f]{64}$ ]]
           [[ "$IMAGE_NAME" == "${IMAGE_NAME,,}" ]]
           test -f ci-common-hydra/Dockerfile
           test -f ci-common-hydra/build_cycles_dependencies.sh
@@ -68,6 +76,12 @@ jobs:
           test -f ci-common-hydra/common-hydra-env
           test -f ci-cycles-historical/import_openusd_dependencies.cmake
           test -f ci-cycles/check_png_variation.py
+          test -f ci-embree/build_embree.sh
+          test -f ci-embree/build_hdembree.sh
+          test -f ci-embree/validate_image.sh
+          test -f ci-embree/enumerate_plugins.py
+          test -f ci-embree/hdembree-consumer/CMakeLists.txt
+          test -f ci-embree/hdembree-consumer/plugInfo-root.json
 
       - name: Authenticate to GHCR
         env:
@@ -87,6 +101,11 @@ jobs:
             --build-arg CYCLES_TAG="$CYCLES_TAG" \
             --build-arg CYCLES_REVISION="$CYCLES_REVISION" \
             --build-arg CYCLES_LIB_REVISION="$CYCLES_LIB_REVISION" \
+            --build-arg OPENUSD_TAG="$OPENUSD_TAG" \
+            --build-arg OPENUSD_REVISION="$OPENUSD_REVISION" \
+            --build-arg EMBREE_TAG="$EMBREE_TAG" \
+            --build-arg EMBREE_REVISION="$EMBREE_REVISION" \
+            --build-arg EMBREE_TARBALL_SHA256="$EMBREE_TARBALL_SHA256" \
             . 2>&1 | tee "${{ runner.temp }}/common-hydra-docker-build.log"
 
       - name: Validate image closure
@@ -140,6 +159,24 @@ jobs:
               python3 -c "from pxr import Usd, UsdImagingGL; plugins = UsdImagingGL.Engine.GetRendererPlugins(); names = [UsdImagingGL.Engine.GetRendererDisplayName(p) for p in plugins]; print(list(zip(plugins, names))); assert \"Moonray\" in names; assert \"Moonray (debug)\" in names"
             ' | tee "${{ runner.temp }}/common-hydra-enum-moonray.log"
 
+      - name: Validate Embree delegate closure
+        run: |
+          set -euxo pipefail
+          docker run -i --rm \
+            "$IMAGE_NAME:$IMMUTABLE_TAG" bash -s -- "${OPENUSD_VERSION_PREFIX%%.*}" \
+            < ci-embree/validate_image.sh \
+            2>&1 | tee "${{ runner.temp }}/common-hydra-embree-validation.log"
+
+      - name: Validate Embree environment enumerates Embree
+        run: |
+          set -euxo pipefail
+          docker run --rm \
+            "$IMAGE_NAME:$IMMUTABLE_TAG" bash -c '
+              set -euxo pipefail
+              eval "$(common-hydra-env embree)"
+              python3 -c "from pxr import Usd, UsdImagingGL; plugins = UsdImagingGL.Engine.GetRendererPlugins(); names = [UsdImagingGL.Engine.GetRendererDisplayName(p) for p in plugins]; print(list(zip(plugins, names))); assert \"Embree\" in names; assert \"Storm\" in names"
+            ' | tee "${{ runner.temp }}/common-hydra-enum-embree.log"
+
       - name: Export stack evidence
         run: |
           set -euxo pipefail
@@ -151,6 +188,10 @@ jobs:
             "$evidence_root/cycles-build-evidence"
           docker cp "$container_id:/opt/cycles-dependency-evidence" \
             "$evidence_root/cycles-dependency-evidence"
+          docker cp "$container_id:/opt/embree-build-evidence" \
+            "$evidence_root/embree-build-evidence"
+          docker cp "$container_id:/opt/hdembree-build-evidence" \
+            "$evidence_root/hdembree-build-evidence"
           docker image inspect "$IMAGE_NAME:$IMMUTABLE_TAG" \
             > "$evidence_root/image-inspect.json"
           {
@@ -158,6 +199,11 @@ jobs:
             printf 'Cycles tag: %s\n' "$CYCLES_TAG"
             printf 'Cycles revision: %s\n' "$CYCLES_REVISION"
             printf 'Cycles Linux libraries revision: %s\n' "$CYCLES_LIB_REVISION"
+            printf 'OpenUSD tag: %s\n' "$OPENUSD_TAG"
+            printf 'OpenUSD revision: %s\n' "$OPENUSD_REVISION"
+            printf 'Embree tag: %s\n' "$EMBREE_TAG"
+            printf 'Embree revision: %s\n' "$EMBREE_REVISION"
+            printf 'Embree tarball sha256: %s\n' "$EMBREE_TARBALL_SHA256"
             printf 'OpenUSD version prefix: %s\n' "$OPENUSD_VERSION_PREFIX"
           } > "$evidence_root/stack-source-revisions.txt"
 

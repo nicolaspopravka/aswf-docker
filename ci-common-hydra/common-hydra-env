@@ -22,8 +22,14 @@ case "$delegate" in
     printf 'export MOONRAY_CLASS_PATH="/opt/MoonRay/installs/openmoonray/shader_json${MOONRAY_CLASS_PATH:+:$MOONRAY_CLASS_PATH}"\n'
     printf 'export ARRAS_SESSION_PATH="/opt/MoonRay/installs/openmoonray/sessions${ARRAS_SESSION_PATH:+:$ARRAS_SESSION_PATH}"\n'
     ;;
+  embree)
+    printf 'export PYTHONPATH="/usr/local/lib/python${PYTHONPATH:+:$PYTHONPATH}"\n'
+    printf 'export PATH="/usr/local/bin${PATH:+:$PATH}"\n'
+    printf 'export PXR_PLUGINPATH_NAME="/opt/hdembree/hydra${PXR_PLUGINPATH_NAME:+:$PXR_PLUGINPATH_NAME}"\n'
+    printf 'export LD_LIBRARY_PATH="/opt/embree/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"\n'
+    ;;
   *)
-    echo "usage: eval \"\$(common-hydra-env {usd|storm|cycles|moonray})\"" >&2
+    echo "usage: eval \"\$(common-hydra-env {usd|storm|cycles|moonray|embree})\"" >&2
     exit 2
     ;;
 esac
