@@ -9,5 +9,7 @@ plugins = UsdImagingGL.Engine.GetRendererPlugins()
 names = [UsdImagingGL.Engine.GetRendererDisplayName(p) for p in plugins]
 print(list(zip(plugins, names)))
 assert "Embree" in names, names
-assert "Storm" in names, names
+# the stock Storm delegate registers as "Storm" from USD 25.x on; the
+# CY2023/CY2024-era stacks expose it as "GL"
+assert ("Storm" in names) or ("GL" in names), names
 print("enumeration OK")
