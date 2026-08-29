@@ -24,16 +24,16 @@ LD_LIBRARY_PATH="/opt/embree/lib:/usr/local/lib:/usr/local/lib64" \
 ! grep -Eq "not found|undefined symbol" /tmp/hdEmbree-ldd.txt
 grep -Eq "libembree[34]" /tmp/hdEmbree-ldd.txt
 
-# The delegate must link the same TBB soname the installed pxr libs use
-# (two TBBs in one process would be fatal).  Read the expectation from the
-# installed stack instead of hardcoding a year-specific soname.
+# TBB coexistence: the pxr-side soname must be linked; any vendored
+# legacy libtbb.so.2 (the Embree 3.x pairing, mirroring build_usd.py)
+# must resolve from /opt/embree/lib.
 pxr_tbb_soname="$(ldd /usr/local/lib/libusd_work.so \
   | sed -n 's/.*\(libtbb\.so\.[0-9]*\).*/\1/p' | head -1)"
 printf 'pxr TBB soname: %s\n' "$pxr_tbb_soname"
 test -n "$pxr_tbb_soname"
 grep -q "$pxr_tbb_soname" /tmp/hdEmbree-ldd.txt
-! grep -oE 'libtbb\.so\.[0-9]+' /tmp/hdEmbree-ldd.txt \
-  | sort -u | grep -qv "^${pxr_tbb_soname}$"
+! grep 'libtbb\.so\.2' /tmp/hdEmbree-ldd.txt \
+  | grep -v '/opt/embree/lib/libtbb.so.2' | grep -q .
 
 # OpenUSD version of the consumed stack (conan builds report 0.Y.Z style
 # tuples; accept either shape against the expected major).

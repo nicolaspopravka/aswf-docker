@@ -19,6 +19,9 @@ concurrency:
 
 env:
   IMAGE_NAME: ghcr.io/nicolaspopravka/usd-render-benchmark-embree
+  TBB_TAG: v2020.3.1
+  TBB_REVISION: 617e9a711b713de9f33c2be1323cc5cebff0e850
+  TBB_TARBALL_SHA256: ad73e88dbf8590daa66136275d0785e5a733d0ee2cc66b99f210bdc969302b7d
 
 jobs:
   build:
@@ -133,6 +136,9 @@ jobs:
             --build-arg EMBREE_TAG="${{ matrix.embree_tag }}" \
             --build-arg EMBREE_REVISION="${{ matrix.embree_revision }}" \
             --build-arg EMBREE_TARBALL_SHA256="${{ matrix.embree_tarball_sha256 }}" \
+            --build-arg TBB_TAG="$TBB_TAG" \
+            --build-arg TBB_REVISION="$TBB_REVISION" \
+            --build-arg TBB_TARBALL_SHA256="$TBB_TARBALL_SHA256" \
             --build-arg OPENUSD_TAG="${{ matrix.openusd_tag }}" \
             --build-arg OPENUSD_REVISION="${{ matrix.openusd_revision }}" \
             . 2>&1 | tee "${{ runner.temp }}/embree-docker-build-${{ matrix.year }}.log"
