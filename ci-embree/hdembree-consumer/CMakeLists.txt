@@ -35,7 +35,7 @@ if(NOT HDEMBREE_SOURCE_DIR)
 endif()
 
 find_library(EMBREE_LIBRARY
-  NAMES embree3
+  NAMES embree4 embree3
   PATHS "${EMBREE_ROOT}/lib"
   NO_DEFAULT_PATH
   REQUIRED)

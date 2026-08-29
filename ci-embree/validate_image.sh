@@ -6,7 +6,6 @@ set -euxo pipefail
 
 : "${USD_VERSION_MAJOR:?USD_VERSION_MAJOR is required (pass as argument 1 or env)}"
 
-test -f /opt/embree/lib/libembree3.so
 test -f /opt/hdembree/hydra/hdEmbree.so
 test -f /opt/hdembree/hydra/plugInfo.json
 test -f /opt/hdembree/hydra/hdEmbree/resources/plugInfo.json
@@ -16,10 +15,14 @@ test -f /opt/hdembree/hydra/hdEmbree/resources/plugInfo.json
 grep -q '"Embree"' /opt/hdembree/hydra/hdEmbree/resources/plugInfo.json
 grep -q '"Includes"' /opt/hdembree/hydra/plugInfo.json
 
+# Embree 3.x installs libembree3.so, 4.x libembree4.so (OpenUSD 26.03+
+# pairs with the 4 API) -- accept either.
+{ test -f /opt/embree/lib/libembree3.so || test -f /opt/embree/lib/libembree4.so; }
+
 LD_LIBRARY_PATH="/opt/embree/lib:/usr/local/lib:/usr/local/lib64" \
   ldd -r /opt/hdembree/hydra/hdEmbree.so | tee /tmp/hdEmbree-ldd.txt
 ! grep -Eq "not found|undefined symbol" /tmp/hdEmbree-ldd.txt
-grep -q "libembree3" /tmp/hdEmbree-ldd.txt
+grep -Eq "libembree[34]" /tmp/hdEmbree-ldd.txt
 
 # The delegate must link the same TBB soname the installed pxr libs use
 # (two TBBs in one process would be fatal).  Read the expectation from the

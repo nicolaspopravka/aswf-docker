@@ -19,9 +19,6 @@ concurrency:
 
 env:
   IMAGE_NAME: ghcr.io/nicolaspopravka/usd-render-benchmark-embree
-  EMBREE_TAG: v3.13.2
-  EMBREE_REVISION: d7157470e089098b9c7323f608835ed50453e606
-  EMBREE_TARBALL_SHA256: dcda827e5b7a606c29d00c1339f1ef00f7fa6867346bc46a2318e8f0a601c6f9
 
 jobs:
   build:
@@ -31,39 +28,53 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # CY2025 first (Nicolas, Aug 29); the common-image port starts as
-          # soon as CY2025 validates.  Fan-out (Nicolas, Aug 29): all years
-          # build in parallel; CY2023 runs WITHOUT the GH #5 LD_PRELOAD
-          # workaround in the benchmark harness (the hioOiio failure is a
-          # finding).  Digests + revisions collected 2026-08-29; the build
-          # scripts fail loudly on per-year differences (FindEmbree
-          # hardcodes libembree3.so, python include layout, split-vs-
-          # monolithic libusd naming).
+          # Embree versions are Pixar's own Linux pairings from each
+          # release's build_usd.py (Nicolas, Aug 29): 3.2.2 for USD
+          # 23.08-25.05 (the v3.13.3 URL is the MacOS Apple-Silicon
+          # variant), 4.3.3 for 26.03+ (FindEmbree hardcodes libembree4).
+          # CY2023 runs WITHOUT the GH #5 LD_PRELOAD workaround in the
+          # benchmark harness (the hioOiio failure is a finding).
+          # Digests + revisions collected 2026-08-29.
           - year: 2023
             base_image: aswf/ci-vfxall:2023@sha256:0692b86d6f155d7a0ff812758cfc2da37bf9779d6a5f91174542453fdaeed4e8
             openusd_tag: v23.08
             openusd_revision: 10b62439e9242a55101cf8b200f2c7e02420e1b0
             usd_version_major: 23
+            embree_tag: v3.2.2
+            embree_revision: dac0fa9d4a55d0ab0456d332bd0f23fd8a3325bc
+            embree_tarball_sha256: f0523819aa24f77608afde3d23ddbeaea88937e3f9fb6a115c23e0e0646c8f5f
           - year: 2024
             base_image: aswf/ci-vfxall:2024@sha256:385f25867523396b2f2d990ca38506e05727c6df2e968fde56fb13973affdf49
             openusd_tag: v24.08
             openusd_revision: 59992d2178afcebd89273759f2bddfe730e59aa8
             usd_version_major: 24
+            embree_tag: v3.2.2
+            embree_revision: dac0fa9d4a55d0ab0456d332bd0f23fd8a3325bc
+            embree_tarball_sha256: f0523819aa24f77608afde3d23ddbeaea88937e3f9fb6a115c23e0e0646c8f5f
           - year: 2025
             base_image: aswf/ci-vfxall:2025@sha256:2df734d32beb92382674b90eb9cfca063b35c2af8b2782d714013a99828287d2
             openusd_tag: v25.05.01
             openusd_revision: 1595c62ea8381b5b22eb8621afc8652f89b6136d
             usd_version_major: 25
+            embree_tag: v3.2.2
+            embree_revision: dac0fa9d4a55d0ab0456d332bd0f23fd8a3325bc
+            embree_tarball_sha256: f0523819aa24f77608afde3d23ddbeaea88937e3f9fb6a115c23e0e0646c8f5f
           - year: 2026
             base_image: aswf/ci-vfxall:2026@sha256:595b22e545dd406d482e044cc9223eefe6e79ae70b6825711d4aa0e4edee4a96
             openusd_tag: v26.03
             openusd_revision: 1818e14bae0036ac4bc7b4e60826b5797076a4fe
             usd_version_major: 26
+            embree_tag: v4.3.3
+            embree_revision: 5730b150471602d6dc02d9b7d8a4a6ce9ceffe16
+            embree_tarball_sha256: 8a3bc3c3e21aa209d9861a28f8ba93b2f82ed0dc93341dddac09f1f03c36ef2d
           - year: 2027
             base_image: aswf/ci-vfxall:2027@sha256:c8c66e29ebe5587ddd4ebfc4e5c6c6beecfeb1c444735863539dbab04c995485
             openusd_tag: v26.05
             openusd_revision: 2095fafafd033fa23386d7ec6d58c7cc33974518
             usd_version_major: 26
+            embree_tag: v4.3.3
+            embree_revision: 5730b150471602d6dc02d9b7d8a4a6ce9ceffe16
+            embree_tarball_sha256: 8a3bc3c3e21aa209d9861a28f8ba93b2f82ed0dc93341dddac09f1f03c36ef2d
 
     steps:
       - name: Checkout reviewed source
@@ -93,8 +104,8 @@ jobs:
           set -eux
           [[ "${{ matrix.base_image }}" == *@sha256:* ]]
           [[ "${{ matrix.openusd_revision }}" =~ ^[0-9a-f]{40}$ ]]
-          [[ "$EMBREE_REVISION" =~ ^[0-9a-f]{40}$ ]]
-          [[ "$EMBREE_TARBALL_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          [[ "${{ matrix.embree_revision }}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "${{ matrix.embree_tarball_sha256 }}" =~ ^[0-9a-f]{64}$ ]]
           [[ "$IMAGE_NAME" == "${IMAGE_NAME,,}" ]]
           test -f ci-embree/Dockerfile
           test -f ci-embree/build_embree.sh
@@ -119,9 +130,9 @@ jobs:
             --build-arg BASE_IMAGE="${{ matrix.base_image }}" \
             --build-arg ASWF_SOURCE_REVISION="$GITHUB_SHA" \
             --build-arg WORKFLOW_REVISION="$GITHUB_SHA" \
-            --build-arg EMBREE_TAG="$EMBREE_TAG" \
-            --build-arg EMBREE_REVISION="$EMBREE_REVISION" \
-            --build-arg EMBREE_TARBALL_SHA256="$EMBREE_TARBALL_SHA256" \
+            --build-arg EMBREE_TAG="${{ matrix.embree_tag }}" \
+            --build-arg EMBREE_REVISION="${{ matrix.embree_revision }}" \
+            --build-arg EMBREE_TARBALL_SHA256="${{ matrix.embree_tarball_sha256 }}" \
             --build-arg OPENUSD_TAG="${{ matrix.openusd_tag }}" \
             --build-arg OPENUSD_REVISION="${{ matrix.openusd_revision }}" \
             . 2>&1 | tee "${{ runner.temp }}/embree-docker-build-${{ matrix.year }}.log"
@@ -159,9 +170,9 @@ jobs:
             > "$evidence_root/image-inspect.json"
           {
             printf 'Base image: %s\n' "${{ matrix.base_image }}"
-            printf 'Embree tag: %s\n' "$EMBREE_TAG"
-            printf 'Embree revision: %s\n' "$EMBREE_REVISION"
-            printf 'Embree tarball sha256: %s\n' "$EMBREE_TARBALL_SHA256"
+            printf 'Embree tag: %s\n' "${{ matrix.embree_tag }}"
+            printf 'Embree revision: %s\n' "${{ matrix.embree_revision }}"
+            printf 'Embree tarball sha256: %s\n' "${{ matrix.embree_tarball_sha256 }}"
             printf 'OpenUSD tag: %s\n' "${{ matrix.openusd_tag }}"
             printf 'OpenUSD revision: %s\n' "${{ matrix.openusd_revision }}"
           } > "$evidence_root/stack-source-revisions.txt"

@@ -41,13 +41,17 @@ echo "${EMBREE_TARBALL_SHA256}  ${tarball}" | sha256sum --check --strict \
 
 mkdir -p "$BUILD_ROOT/embree-src"
 tar -xzf "$tarball" --strip-components=1 -C "$BUILD_ROOT/embree-src"
-# Embree 3.13.2 declares its version as three SET() lines (no single
-# "VERSION x.y.z" token) -- assert the expected components per line.
-grep -m1 "SET(EMBREE_VERSION_MAJOR 3)" "$BUILD_ROOT/embree-src/CMakeLists.txt" \
+# Embree declares its version as three SET() lines (no single
+# "VERSION x.y.z" token) -- assert the components derived from the tag
+# (3.x for OpenUSD <= 25.05, 4.x for 26.03+, whose FindEmbree hardcodes
+# libembree4).
+readonly EMBREE_VERSION="${EMBREE_TAG#v}"
+IFS='.' read -r EMBREE_VMAJOR EMBREE_VMINOR EMBREE_VPATCH <<< "$EMBREE_VERSION"
+grep -m1 "SET(EMBREE_VERSION_MAJOR ${EMBREE_VMAJOR})" "$BUILD_ROOT/embree-src/CMakeLists.txt" \
   | tee "$EVIDENCE_ROOT/embree-version-line.txt"
-grep -m1 "SET(EMBREE_VERSION_MINOR 13)" "$BUILD_ROOT/embree-src/CMakeLists.txt" \
+grep -m1 "SET(EMBREE_VERSION_MINOR ${EMBREE_VMINOR})" "$BUILD_ROOT/embree-src/CMakeLists.txt" \
   | tee -a "$EVIDENCE_ROOT/embree-version-line.txt"
-grep -m1 "SET(EMBREE_VERSION_PATCH 2)" "$BUILD_ROOT/embree-src/CMakeLists.txt" \
+grep -m1 "SET(EMBREE_VERSION_PATCH ${EMBREE_VPATCH})" "$BUILD_ROOT/embree-src/CMakeLists.txt" \
   | tee -a "$EVIDENCE_ROOT/embree-version-line.txt"
 
 cmake -S "$BUILD_ROOT/embree-src" -B "$BUILD_ROOT/embree-build" \
