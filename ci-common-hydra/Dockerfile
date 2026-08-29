@@ -24,7 +24,7 @@ USER root
 COPY --from=cycles-builder /opt/cycles /opt/cycles
 COPY --from=cycles-builder /opt/cycles-build-evidence /opt/cycles-build-evidence
 
-RUN dnf install -y time && \
+RUN dnf install -y libepoxy time && \
     dnf clean all && \
     rm -rf /var/cache/dnf && \
     python3 -m pip install --no-cache-dir "rez==${REZ_VERSION}" && \

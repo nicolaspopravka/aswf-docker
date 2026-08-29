@@ -26,7 +26,7 @@ fi
 
 mkdir -p "$BUILD_ROOT" "$EVIDENCE_ROOT"
 
-dnf install -y git git-lfs glew-devel mesa-libEGL-devel mesa-libGL-devel mesa-libOSMesa-devel patchelf
+dnf install -y git git-lfs glew-devel libepoxy-devel mesa-libEGL-devel mesa-libGL-devel mesa-libOSMesa-devel patchelf
 dnf clean all
 git lfs install --skip-repo
 
