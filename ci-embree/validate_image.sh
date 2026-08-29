@@ -21,7 +21,11 @@ grep -q '"Includes"' /opt/hdembree/hydra/plugInfo.json
 
 LD_LIBRARY_PATH="/opt/embree/lib:/usr/local/lib:/usr/local/lib64" \
   ldd -r /opt/hdembree/hydra/hdEmbree.so | tee /tmp/hdEmbree-ldd.txt
-! grep -Eq "not found|undefined symbol" /tmp/hdEmbree-ldd.txt
+if grep -Eq "not found|undefined symbol" /tmp/hdEmbree-ldd.txt; then
+  echo "ERROR: unresolved entries in hdEmbree.so closure:" >&2
+  grep -E "not found|undefined symbol" /tmp/hdEmbree-ldd.txt | head -20 >&2
+  exit 1
+fi
 grep -Eq "libembree[34]" /tmp/hdEmbree-ldd.txt
 
 # TBB coexistence: the pxr-side soname must be linked; any vendored
