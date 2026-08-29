@@ -23,6 +23,7 @@ env:
   MOONRAY_COMMIT: d96c6e30a8c280d4b5eb3bafa5e54efc445d7ea8
   CYCLES_TAG: v5.0.0
   CYCLES_REVISION: 2eba4102417439e59e03003f1dff881192cbd75f
+  NANOVDB_REVISION: e3a9b1c1d9c9247c2d0fd85f688cc66bda16e890
   REZ_VERSION: 3.4.0
 
 jobs:
@@ -64,6 +65,7 @@ jobs:
           [[ "$MOONRAY_IMAGE" == *@sha256:* ]]
           [[ "$MOONRAY_COMMIT" =~ ^[0-9a-f]{40}$ ]]
           [[ "$CYCLES_REVISION" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$NANOVDB_REVISION" =~ ^[0-9a-f]{40}$ ]]
           test -f ci-common-hydra/Dockerfile
           test -f ci-common-hydra/build_cycles.sh
           ! grep -Eq 'usdrecord[[:space:]]+--renderer|xvfb-run[[:space:]]+usdrecord|moonray[[:space:]]+-in' \
@@ -80,6 +82,7 @@ jobs:
             --build-arg "MOONRAY_COMMIT=${MOONRAY_COMMIT}" \
             --build-arg "CYCLES_TAG=${CYCLES_TAG}" \
             --build-arg "CYCLES_REVISION=${CYCLES_REVISION}" \
+            --build-arg "NANOVDB_REVISION=${NANOVDB_REVISION}" \
             --build-arg "REZ_VERSION=${REZ_VERSION}" \
             --build-arg "WORKFLOW_REVISION=${GITHUB_SHA}" \
             --tag "${IMAGE_REPOSITORY}:${CANDIDATE_TAG}" \
