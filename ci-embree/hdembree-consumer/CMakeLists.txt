@@ -85,6 +85,29 @@ find_library(HDEMBREE_TBB_LIBRARY
   PATHS "${USD_LIB_DIR}" /usr/local/lib)
 message(STATUS "TBB library: ${HDEMBREE_TBB_LIBRARY}")
 
+# hdEmbree pulls in pxr/external/boost/python (wrap_python.hpp), which
+# includes pyconfig.h: add the image Python's include dir (the same conan
+# cpython the installed pxr was built against).
+set(IMAGE_PYTHON_EXECUTABLE "/usr/local/bin/python3")
+execute_process(
+  COMMAND "${IMAGE_PYTHON_EXECUTABLE}" -c
+    "import sysconfig; print(sysconfig.get_config_var('INCLUDEPY'))"
+  RESULT_VARIABLE _pyinc_rc
+  OUTPUT_VARIABLE _pyinc
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+  ERROR_QUIET)
+if(NOT _pyinc_rc EQUAL 0 OR NOT _pyinc OR NOT EXISTS "${_pyinc}")
+  file(GLOB _pyinc "${USD_INCLUDE_DIR}/python3*")
+  list(LENGTH _pyinc _pyinc_len)
+  if(NOT _pyinc_len EQUAL 1)
+    message(FATAL_ERROR
+      "Cannot locate the Python include dir (pyconfig.h) for wrap_python.hpp")
+  endif()
+  list(GET _pyinc 0 _pyinc)
+endif()
+set(PYTHON_INCLUDE_DIR "${_pyinc}")
+message(STATUS "Python include dir: ${PYTHON_INCLUDE_DIR}")
+
 # Glob the upstream sources so the consumer follows per-year source lists
 # (e.g. implicitSurfaceSceneIndexPlugin.cpp does not exist in older years).
 file(GLOB HDEMBREE_SOURCES CONFIGURE_DEPENDS "${HDEMBREE_SOURCE_DIR}/*.cpp")
@@ -102,6 +125,7 @@ add_library(hdEmbree SHARED ${HDEMBREE_SOURCES})
 # ${USD_INCLUDE_DIR}.
 target_include_directories(hdEmbree PRIVATE
   "${USD_INCLUDE_DIR}"
+  "${PYTHON_INCLUDE_DIR}"
   "${HDEMBREE_SOURCE_DIR}/../../../.."
   "${EMBREE_ROOT}/include")
 
