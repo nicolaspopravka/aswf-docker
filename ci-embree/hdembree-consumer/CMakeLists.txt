@@ -1,9 +1,10 @@
 cmake_minimum_required(VERSION 3.21)
 project(hdembree-consumer LANGUAGES CXX)
 
-# External pxr consumer build of hdEmbree (hdCycles pattern).  Compiles the
+# External consumer build of hdEmbree (hdCycles pattern).  Compiles the
 # upstream hdEmbree plugin sources from a pinned OpenUSD checkout against
-# the base image's prebuilt OpenUSD via its pxrConfig, then installs a
+# the base image's prebuilt OpenUSD by DIRECT LINKAGE -- headers from
+# ${USD_INCLUDE_DIR}, libraries from ${USD_LIB_DIR} -- then installs a
 # self-contained delegate tree:
 #
 #   <prefix>/hydra/hdEmbree.so
@@ -11,6 +12,14 @@ project(hdembree-consumer LANGUAGES CXX)
 #   <prefix>/hydra/hdEmbree/resources/plugInfo.json       (substituted)
 #
 # PXR_PLUGINPATH_NAME=<prefix>/hydra then registers the delegate.
+#
+# find_package(pxr) was abandoned deliberately: the conan-built pxrConfig
+# on the ASWF images bakes dead conan-home paths for its find_dependency
+# calls (Python3, MaterialX_DIR, Imath_DIR) and pxrTargets references
+# CONAN_LIB::* target names that the shipped dependency configs do not
+# define (GHA runs 33246312623 / 33248317478).  Direct linkage against the
+# installed libraries is the same consumer pattern the proven hdCycles
+# builds use.
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -18,55 +27,12 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(HDEMBREE_SOURCE_DIR "" CACHE PATH
     "Directory of the upstream hdEmbree plugin sources inside an OpenUSD checkout")
 set(EMBREE_ROOT "/opt/embree" CACHE PATH "Embree install prefix")
+set(USD_INCLUDE_DIR "/usr/local/include" CACHE PATH "Prebuilt OpenUSD headers")
+set(USD_LIB_DIR "/usr/local/lib" CACHE PATH "Prebuilt OpenUSD libraries")
 
 if(NOT HDEMBREE_SOURCE_DIR)
   message(FATAL_ERROR "HDEMBREE_SOURCE_DIR is required")
 endif()
-
-# The conan-built pxrConfig on the ASWF images bakes its build machine's
-# Python paths into find_dependency(Python3 <ver> EXACT) guarded by
-# "if (NOT DEFINED ...)" -- but those baked paths do not exist in the
-# shipped image.  The same conan cpython IS installed at /usr/local, so
-# query it and pin ALL the Python3_* cache variables pxrConfig consults
-# (empirically FindPython does not define Python3_LIBRARY itself, so the
-# variables are set explicitly rather than via find_package(Python3)).
-set(IMAGE_PYTHON_EXECUTABLE "/usr/local/bin/python3")
-execute_process(
-  COMMAND "${IMAGE_PYTHON_EXECUTABLE}" -c
-    "import sysconfig, sys; print(sysconfig.get_config_var('LIBDIR')); print(sysconfig.get_config_var('INCLUDEPY')); print(sysconfig.get_config_var('LDLIBRARY')); print('%d.%d.%d' % sys.version_info[:3])"
-  RESULT_VARIABLE _pyconfig_rc
-  OUTPUT_VARIABLE _pyconfig_out
-  OUTPUT_STRIP_TRAILING_WHITESPACE
-  ERROR_QUIET)
-if(NOT _pyconfig_rc EQUAL 0 OR NOT _pyconfig_out)
-  message(FATAL_ERROR "Cannot query Python sysconfig via ${IMAGE_PYTHON_EXECUTABLE}")
-endif()
-string(REPLACE "\n" ";" _pyconfig "${_pyconfig_out}")
-list(LENGTH _pyconfig _pyconfig_len)
-if(NOT _pyconfig_len EQUAL 4)
-  message(FATAL_ERROR "Unexpected sysconfig output: ${_pyconfig}")
-endif()
-list(GET _pyconfig 0 _py_libdir)
-list(GET _pyconfig 1 _py_includepy)
-list(GET _pyconfig 2 _py_ldlibrary)
-list(GET _pyconfig 3 _py_version)
-set(_py_library "${_py_libdir}/${_py_ldlibrary}")
-if(_py_ldlibrary STREQUAL "" OR NOT EXISTS "${_py_library}")
-  file(GLOB _py_library "${_py_libdir}/libpython${_py_version}*.so")
-  list(LENGTH _py_library _py_library_len)
-  if(NOT _py_library_len EQUAL 1)
-    message(FATAL_ERROR "Cannot locate libpython under ${_py_libdir} (LDLIBRARY='${_py_ldlibrary}')")
-  endif()
-  list(GET _py_library 0 _py_library)
-endif()
-message(STATUS "Image Python ${_py_version}: ${IMAGE_PYTHON_EXECUTABLE}")
-message(STATUS "Image Python library: ${_py_library}")
-message(STATUS "Image Python include: ${_py_includepy}")
-set(Python3_EXECUTABLE "${IMAGE_PYTHON_EXECUTABLE}" CACHE FILEPATH "" FORCE)
-set(Python3_LIBRARY "${_py_library}" CACHE FILEPATH "" FORCE)
-set(Python3_INCLUDE_DIR "${_py_includepy}" CACHE PATH "" FORCE)
-set(Python3_VERSION "${_py_version}" CACHE STRING "" FORCE)
-find_package(pxr CONFIG REQUIRED)
 
 find_library(EMBREE_LIBRARY
   NAMES embree3
@@ -75,13 +41,49 @@ find_library(EMBREE_LIBRARY
   REQUIRED)
 message(STATUS "Embree library: ${EMBREE_LIBRARY}")
 
-# TBB comes from the base image; pxr's exported targets normally carry it
-# transitively, but link it explicitly when the config is available so the
-# TBB soname stays the single one pxr uses.
-find_package(TBB CONFIG QUIET)
-if(TBB_FOUND)
-  set(HDEMBREE_TBB_TARGET TBB::tbb)
+# Locate the pxr libraries hdEmbree links, tolerating per-year layouts:
+# conan ASWF builds install split libusd_<name>.so; other builds may use
+# lib<name>.so or the monolithic libusd_ms.so.
+set(HDEMBREE_PXR_LIBS plug tf vt gf work hf hd hdx)
+set(_split_paths "")
+set(_missing "")
+foreach(_name IN LISTS HDEMBREE_PXR_LIBS)
+  find_library(_pxr_lib
+    NAMES "usd_${_name}" "${_name}"
+    PATHS "${USD_LIB_DIR}"
+    NO_DEFAULT_PATH)
+  if(_pxr_lib)
+    list(APPEND _split_paths "${_pxr_lib}")
+  else()
+    list(APPEND _missing "${_name}")
+  endif()
+  unset(_pxr_lib CACHE)
+endforeach()
+
+if(_missing)
+  find_library(_pxr_ms
+    NAMES usd_ms
+    PATHS "${USD_LIB_DIR}"
+    NO_DEFAULT_PATH)
+  if(NOT _pxr_ms)
+    message(FATAL_ERROR
+      "Cannot locate prebuilt OpenUSD libraries (missing: ${_missing}; "
+      "no monolithic libusd_ms.so in ${USD_LIB_DIR})")
+  endif()
+  set(HDEMBREE_LINK_LIBRARIES "${_pxr_ms}")
+  message(STATUS "OpenUSD monolithic library: ${_pxr_ms} (split libs missing: ${_missing})")
+else()
+  set(HDEMBREE_LINK_LIBRARIES "${_split_paths}")
+  message(STATUS "OpenUSD split libraries:")
+  foreach(_p IN LISTS _split_paths)
+    message(STATUS "  ${_p}")
+  endforeach()
 endif()
+
+find_library(HDEMBREE_TBB_LIBRARY
+  NAMES tbb
+  PATHS "${USD_LIB_DIR}" /usr/local/lib)
+message(STATUS "TBB library: ${HDEMBREE_TBB_LIBRARY}")
 
 # Glob the upstream sources so the consumer follows per-year source lists
 # (e.g. implicitSurfaceSceneIndexPlugin.cpp does not exist in older years).
@@ -96,21 +98,16 @@ add_library(hdEmbree SHARED ${HDEMBREE_SOURCES})
 
 # Sources include their own headers as "pxr/imaging/plugin/hdEmbree/..." so
 # the OpenUSD checkout root is the include root for the plugin; pxr's own
-# installed headers resolve through the imported targets.
+# installed headers and the image's TBB headers resolve from
+# ${USD_INCLUDE_DIR}.
 target_include_directories(hdEmbree PRIVATE
+  "${USD_INCLUDE_DIR}"
   "${HDEMBREE_SOURCE_DIR}/../../../.."
   "${EMBREE_ROOT}/include")
 
 target_link_libraries(hdEmbree PRIVATE
-  plug
-  tf
-  vt
-  gf
-  work
-  hf
-  hd
-  hdx
-  ${HDEMBREE_TBB_TARGET}
+  ${HDEMBREE_LINK_LIBRARIES}
+  ${HDEMBREE_TBB_LIBRARY}
   ${EMBREE_LIBRARY})
 
 target_compile_definitions(hdEmbree PRIVATE

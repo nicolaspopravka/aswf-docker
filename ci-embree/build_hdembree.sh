@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 set -euxo pipefail
 
-# Build hdEmbree as an external pxr consumer of the image's prebuilt OpenUSD
+# Build hdEmbree as an external consumer of the image's prebuilt OpenUSD
 # (hdCycles pattern): compile the upstream hdEmbree sources from a pinned
-# OpenUSD checkout against the installed pxrConfig, then install a
-# self-contained delegate tree at /opt/hdembree/hydra.
+# OpenUSD checkout against the installed headers and libraries by direct
+# linkage, then install a self-contained delegate tree at
+# /opt/hdembree/hydra.
 #
 # One USD build per image is a hard requirement: no second prefix is built;
 # this script consumes whatever OpenUSD the base image ships.  If a hidden
@@ -35,15 +36,14 @@ fi
 
 mkdir -p "$BUILD_ROOT" "$EVIDENCE_ROOT"
 
-# --- verify the pxr installation we are consuming --------------------------
-# The conan OpenUSD on the ASWF images installs pxrConfig.cmake directly at
-# /usr/local (verified on ci-vfxall:2025); older years may differ -- fail
-# loudly here so the per-year adjustment is explicit.
-if [[ ! -f "$USD_PREFIX/pxrConfig.cmake" ]]; then
-  echo "ERROR: pxrConfig.cmake not at $USD_PREFIX/pxrConfig.cmake" >&2
-  echo "       adjust the pxr_DIR for this year's base image" >&2
-  exit 1
-fi
+# --- verify the pxr installation we are consuming ---------------------------
+# Direct linkage (hdCycles pattern): headers + installed libraries from the
+# base image.  The conan-built pxrConfig on these images is NOT consumed --
+# it bakes dead conan-home paths and pxrTargets references CONAN_LIB::*
+# targets the shipped configs never define (GHA 33246312623 / 33248317478).
+test -d "$USD_PREFIX/include/pxr"
+test -d "$USD_PREFIX/include/pxr/imaging/hdx"
+test -d "$USD_PREFIX/lib"
 test -x "$USD_PREFIX/bin/usdrecord"
 test -d "$USD_PREFIX/lib/python/pxr"
 PYTHONPATH="$USD_PREFIX/lib/python${PYTHONPATH:+:$PYTHONPATH}" \
@@ -75,7 +75,8 @@ ls "$HDEMBREE_SOURCE_DIR" | tee "$EVIDENCE_ROOT/hdembree-source-listing.txt"
 cmake -S "$CONSUMER_DIR" -B "$BUILD_ROOT/hdembree-build" \
   -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_INSTALL_PREFIX="$INSTALL_PREFIX" \
-  -Dpxr_DIR="$USD_PREFIX" \
+  -DUSD_INCLUDE_DIR="$USD_PREFIX/include" \
+  -DUSD_LIB_DIR="$USD_PREFIX/lib" \
   -DHDEMBREE_SOURCE_DIR="$HDEMBREE_SOURCE_DIR" \
   -DEMBREE_ROOT=/opt/embree \
   -DCMAKE_INSTALL_RPATH=/opt/embree/lib
@@ -100,11 +101,25 @@ grep -q 'libembree3' "$EVIDENCE_ROOT/hdEmbree-ldd.txt"
 # The TBB soname hdEmbree links must equal the one the installed pxr libs
 # use (two TBBs in one process would be fatal).  Read the expectation from
 # the installed stack instead of hardcoding a year-specific soname.
-pxr_tbb_soname="$(ldd "$USD_PREFIX/lib/libusd_work.so" \
-  | sed -n 's/.*\(libtbb\.so\.[0-9]*\).*/\1/p' | head -1)"
+pxr_tbb_soname=""
+for probe in libusd_work.so libusd_hd.so libusd_tf.so; do
+  p="$USD_PREFIX/lib/$probe"
+  [[ -e "$p" ]] || continue
+  pxr_tbb_soname="$(ldd "$p" | sed -n 's/.*\(libtbb\.so\.[0-9]*\).*/\1/p' | head -1)"
+  [[ -n "$pxr_tbb_soname" ]] && break
+done
+if [[ -z "$pxr_tbb_soname" ]]; then
+  for p in "$USD_PREFIX"/lib/libusd_*.so; do
+    pxr_tbb_soname="$(ldd "$p" | sed -n 's/.*\(libtbb\.so\.[0-9]*\).*/\1/p' | head -1)"
+    [[ -n "$pxr_tbb_soname" ]] && break
+  done
+fi
+if [[ -z "$pxr_tbb_soname" ]]; then
+  echo "ERROR: no libtbb soname found across the installed libusd_*.so" >&2
+  exit 1
+fi
 printf 'pxr TBB soname: %s\n' "$pxr_tbb_soname" \
   | tee "$EVIDENCE_ROOT/pxr-tbb-soname.txt"
-test -n "$pxr_tbb_soname"
 grep -q "$pxr_tbb_soname" "$EVIDENCE_ROOT/hdEmbree-ldd.txt"
 ! grep -oE 'libtbb\.so\.[0-9]+' "$EVIDENCE_ROOT/hdEmbree-ldd.txt" \
   | sort -u | grep -qv "^${pxr_tbb_soname}$"
