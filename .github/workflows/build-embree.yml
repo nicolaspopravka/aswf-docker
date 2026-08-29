@@ -32,35 +32,38 @@ jobs:
       matrix:
         include:
           # CY2025 first (Nicolas, Aug 29); the common-image port starts as
-          # soon as CY2025 validates.  Fan the remaining years out after --
-          # digests + revisions collected 2026-08-29; verify FindEmbree and
-          # the pxrConfig location per year when enabling (both build
-          # scripts fail loudly rather than guessing).
+          # soon as CY2025 validates.  Fan-out (Nicolas, Aug 29): all years
+          # build in parallel; CY2023 runs WITHOUT the GH #5 LD_PRELOAD
+          # workaround in the benchmark harness (the hioOiio failure is a
+          # finding).  Digests + revisions collected 2026-08-29; the build
+          # scripts fail loudly on per-year differences (FindEmbree
+          # hardcodes libembree3.so, python include layout, split-vs-
+          # monolithic libusd naming).
+          - year: 2023
+            base_image: aswf/ci-vfxall:2023@sha256:0692b86d6f155d7a0ff812758cfc2da37bf9779d6a5f91174542453fdaeed4e8
+            openusd_tag: v23.08
+            openusd_revision: 10b62439e9242a55101cf8b200f2c7e02420e1b0
+            usd_version_major: 23
+          - year: 2024
+            base_image: aswf/ci-vfxall:2024@sha256:385f25867523396b2f2d990ca38506e05727c6df2e968fde56fb13973affdf49
+            openusd_tag: v24.08
+            openusd_revision: 59992d2178afcebd89273759f2bddfe730e59aa8
+            usd_version_major: 24
           - year: 2025
             base_image: aswf/ci-vfxall:2025@sha256:2df734d32beb92382674b90eb9cfca063b35c2af8b2782d714013a99828287d2
             openusd_tag: v25.05.01
             openusd_revision: 1595c62ea8381b5b22eb8621afc8652f89b6136d
             usd_version_major: 25
-          # - year: 2023
-          #   base_image: aswf/ci-vfxall:2023@sha256:0692b86d6f155d7a0ff812758cfc2da37bf9779d6a5f91174542453fdaeed4e8
-          #   openusd_tag: v23.08
-          #   openusd_revision: 10b62439e9242a55101cf8b200f2c7e02420e1b0
-          #   usd_version_major: 23
-          # - year: 2024
-          #   base_image: aswf/ci-vfxall:2024@sha256:385f25867523396b2f2d990ca38506e05727c6df2e968fde56fb13973affdf49
-          #   openusd_tag: v24.08
-          #   openusd_revision: 59992d2178afcebd89273759f2bddfe730e59aa8
-          #   usd_version_major: 24
-          # - year: 2026
-          #   base_image: aswf/ci-vfxall:2026@sha256:595b22e545dd406d482e044cc9223eefe6e79ae70b6825711d4aa0e4edee4a96
-          #   openusd_tag: v26.03
-          #   openusd_revision: 1818e14bae0036ac4bc7b4e60826b5797076a4fe
-          #   usd_version_major: 26
-          # - year: 2027
-          #   base_image: aswf/ci-vfxall:2027@sha256:c8c66e29ebe5587ddd4ebfc4e5c6c6beecfeb1c444735863539dbab04c995485
-          #   openusd_tag: v26.05
-          #   openusd_revision: 2095fafafd033fa23386d7ec6d58c7cc33974518
-          #   usd_version_major: 26
+          - year: 2026
+            base_image: aswf/ci-vfxall:2026@sha256:595b22e545dd406d482e044cc9223eefe6e79ae70b6825711d4aa0e4edee4a96
+            openusd_tag: v26.03
+            openusd_revision: 1818e14bae0036ac4bc7b4e60826b5797076a4fe
+            usd_version_major: 26
+          - year: 2027
+            base_image: aswf/ci-vfxall:2027@sha256:c8c66e29ebe5587ddd4ebfc4e5c6c6beecfeb1c444735863539dbab04c995485
+            openusd_tag: v26.05
+            openusd_revision: 2095fafafd033fa23386d7ec6d58c7cc33974518
+            usd_version_major: 26
 
     steps:
       - name: Checkout reviewed source
