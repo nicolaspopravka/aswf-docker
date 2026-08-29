@@ -1,0 +1,215 @@
+name: Build hdEmbree Delegate
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches:
+      - opencode/embree-hydra
+    paths:
+      - ci-embree/**
+      - .github/workflows/build-embree.yml
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: embree-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  IMAGE_NAME: ghcr.io/nicolaspopravka/usd-render-benchmark-embree
+  EMBREE_TAG: v3.13.2
+  EMBREE_REVISION: d7157470e089098b9c7323f608835ed50453e606
+  EMBREE_TARBALL_SHA256: dcda827e5b7a606c29d00c1339f1ef00f7fa6867346bc46a2318e8f0a601c6f9
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # CY2025 first (Nicolas, Aug 29); the common-image port starts as
+          # soon as CY2025 validates.  Fan the remaining years out after --
+          # digests + revisions collected 2026-08-29; verify FindEmbree and
+          # the pxrConfig location per year when enabling (both build
+          # scripts fail loudly rather than guessing).
+          - year: 2025
+            base_image: aswf/ci-vfxall:2025@sha256:2df734d32beb92382674b90eb9cfca063b35c2af8b2782d714013a99828287d2
+            openusd_tag: v25.05.01
+            openusd_revision: 1595c62ea8381b5b22eb8621afc8652f89b6136d
+            usd_version_major: 25
+          # - year: 2023
+          #   base_image: aswf/ci-vfxall:2023@sha256:0692b86d6f155d7a0ff812758cfc2da37bf9779d6a5f91174542453fdaeed4e8
+          #   openusd_tag: v23.08
+          #   openusd_revision: 10b62439e9242a55101cf8b200f2c7e02420e1b0
+          #   usd_version_major: 23
+          # - year: 2024
+          #   base_image: aswf/ci-vfxall:2024@sha256:385f25867523396b2f2d990ca38506e05727c6df2e968fde56fb13973affdf49
+          #   openusd_tag: v24.08
+          #   openusd_revision: 59992d2178afcebd89273759f2bddfe730e59aa8
+          #   usd_version_major: 24
+          # - year: 2026
+          #   base_image: aswf/ci-vfxall:2026@sha256:595b22e545dd406d482e044cc9223eefe6e79ae70b6825711d4aa0e4edee4a96
+          #   openusd_tag: v26.03
+          #   openusd_revision: 1818e14bae0036ac4bc7b4e60826b5797076a4fe
+          #   usd_version_major: 26
+          # - year: 2027
+          #   base_image: aswf/ci-vfxall:2027@sha256:c8c66e29ebe5587ddd4ebfc4e5c6c6beecfeb1c444735863539dbab04c995485
+          #   openusd_tag: v26.05
+          #   openusd_revision: 2095fafafd033fa23386d7ec6d58c7cc33974518
+          #   usd_version_major: 26
+
+    steps:
+      - name: Checkout reviewed source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Resolve pinned tags
+        run: |
+          set -euxo pipefail
+          {
+            printf 'IMMUTABLE_TAG=cy%s-%s\n' "${{ matrix.year }}" "$GITHUB_SHA"
+            printf 'VARIANT_TAG=cy%s\n' "${{ matrix.year }}"
+          } >> "$GITHUB_ENV"
+
+      - name: Reclaim runner disk
+        run: |
+          set -eux
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /usr/local/share/powershell /usr/share/swift /usr/local/.ghcup \
+            /usr/local/aws-cli /usr/local/aws-sam-cli /usr/local/julia* \
+            /usr/lib/jvm
+          sudo apt-get clean
+          docker system prune -af
+          df -h /
+
+      - name: Validate immutable inputs
+        run: |
+          set -eux
+          [[ "${{ matrix.base_image }}" == *@sha256:* ]]
+          [[ "${{ matrix.openusd_revision }}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$EMBREE_REVISION" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$EMBREE_TARBALL_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$IMAGE_NAME" == "${IMAGE_NAME,,}" ]]
+          test -f ci-embree/Dockerfile
+          test -f ci-embree/build_embree.sh
+          test -f ci-embree/build_hdembree.sh
+          test -f ci-embree/validate_image.sh
+          test -f ci-embree/enumerate_plugins.py
+          test -f ci-embree/hdembree-consumer/CMakeLists.txt
+          test -f ci-embree/hdembree-consumer/plugInfo-root.json
+
+      - name: Authenticate to GHCR
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+
+      - name: Build hdEmbree image
+        run: |
+          set -euxo pipefail
+          docker build --progress=plain \
+            --file ci-embree/Dockerfile \
+            --target runtime \
+            --tag "$IMAGE_NAME:$IMMUTABLE_TAG" \
+            --build-arg BASE_IMAGE="${{ matrix.base_image }}" \
+            --build-arg ASWF_SOURCE_REVISION="$GITHUB_SHA" \
+            --build-arg WORKFLOW_REVISION="$GITHUB_SHA" \
+            --build-arg EMBREE_TAG="$EMBREE_TAG" \
+            --build-arg EMBREE_REVISION="$EMBREE_REVISION" \
+            --build-arg EMBREE_TARBALL_SHA256="$EMBREE_TARBALL_SHA256" \
+            --build-arg OPENUSD_TAG="${{ matrix.openusd_tag }}" \
+            --build-arg OPENUSD_REVISION="${{ matrix.openusd_revision }}" \
+            . 2>&1 | tee "${{ runner.temp }}/embree-docker-build-${{ matrix.year }}.log"
+
+      - name: Validate image closure
+        run: |
+          set -euxo pipefail
+          docker run -i --rm \
+            --env USD_VERSION_MAJOR="${{ matrix.usd_version_major }}" \
+            "$IMAGE_NAME:$IMMUTABLE_TAG" bash -s -- "${{ matrix.usd_version_major }}" \
+            < ci-embree/validate_image.sh \
+            2>&1 | tee "${{ runner.temp }}/embree-image-validation-${{ matrix.year }}.log"
+
+      - name: Validate Embree environment enumerates Embree
+        run: |
+          set -euxo pipefail
+          docker run -i --rm \
+            --env PYTHONPATH=/usr/local/lib/python \
+            "$IMAGE_NAME:$IMMUTABLE_TAG" python3 - \
+            < ci-embree/enumerate_plugins.py \
+            2>&1 | tee "${{ runner.temp }}/embree-enum-${{ matrix.year }}.log"
+
+      - name: Export stack evidence
+        run: |
+          set -euxo pipefail
+          evidence_root="${{ runner.temp }}/embree-stack-evidence-${{ matrix.year }}"
+          mkdir -p "$evidence_root"
+          container_id="$(docker create "$IMAGE_NAME:$IMMUTABLE_TAG")"
+          trap 'docker rm -f "$container_id" >/dev/null 2>&1 || true' EXIT
+          docker cp "$container_id:/opt/embree-build-evidence" \
+            "$evidence_root/embree-build-evidence"
+          docker cp "$container_id:/opt/hdembree-build-evidence" \
+            "$evidence_root/hdembree-build-evidence"
+          docker image inspect "$IMAGE_NAME:$IMMUTABLE_TAG" \
+            > "$evidence_root/image-inspect.json"
+          {
+            printf 'Base image: %s\n' "${{ matrix.base_image }}"
+            printf 'Embree tag: %s\n' "$EMBREE_TAG"
+            printf 'Embree revision: %s\n' "$EMBREE_REVISION"
+            printf 'Embree tarball sha256: %s\n' "$EMBREE_TARBALL_SHA256"
+            printf 'OpenUSD tag: %s\n' "${{ matrix.openusd_tag }}"
+            printf 'OpenUSD revision: %s\n' "${{ matrix.openusd_revision }}"
+          } > "$evidence_root/stack-source-revisions.txt"
+
+      - name: Publish validated image
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        run: |
+          set -euxo pipefail
+          docker push "$IMAGE_NAME:$IMMUTABLE_TAG" \
+            2>&1 | tee "${{ runner.temp }}/embree-push-immutable-${{ matrix.year }}.log"
+          docker tag "$IMAGE_NAME:$IMMUTABLE_TAG" "$IMAGE_NAME:$VARIANT_TAG"
+          docker push "$IMAGE_NAME:$VARIANT_TAG" \
+            2>&1 | tee "${{ runner.temp }}/embree-push-version-${{ matrix.year }}.log"
+
+          docker buildx imagetools inspect "$IMAGE_NAME:$IMMUTABLE_TAG" \
+            | tee "${{ runner.temp }}/embree-remote-immutable-${{ matrix.year }}.txt"
+          docker buildx imagetools inspect "$IMAGE_NAME:$VARIANT_TAG" \
+            | tee "${{ runner.temp }}/embree-remote-version-${{ matrix.year }}.txt"
+
+          immutable_digest="$(sed -n 's/^Digest:[[:space:]]*//p' \
+            "${{ runner.temp }}/embree-remote-immutable-${{ matrix.year }}.txt" | head -1)"
+          version_digest="$(sed -n 's/^Digest:[[:space:]]*//p' \
+            "${{ runner.temp }}/embree-remote-version-${{ matrix.year }}.txt" | head -1)"
+          [[ "$immutable_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          test "$immutable_digest" = "$version_digest"
+          printf '%s@%s\n' "$IMAGE_NAME" "$immutable_digest" \
+            | tee "${{ runner.temp }}/embree-image-ref-${{ matrix.year }}.txt"
+
+      - name: Verify anonymous public access
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        run: |
+          set -euxo pipefail
+          docker logout ghcr.io
+          docker buildx imagetools inspect "$IMAGE_NAME:$IMMUTABLE_TAG" \
+            | tee "${{ runner.temp }}/embree-anonymous-inspect-${{ matrix.year }}.txt"
+          grep -q '^Digest:[[:space:]]*sha256:' \
+            "${{ runner.temp }}/embree-anonymous-inspect-${{ matrix.year }}.txt"
+
+      - name: Upload build evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: embree-build-cy${{ matrix.year }}-${{ github.run_attempt }}
+          if-no-files-found: warn
+          retention-days: 30
+          path: |
+            ${{ runner.temp }}/embree-docker-build-${{ matrix.year }}.log
+            ${{ runner.temp }}/embree-image-validation-${{ matrix.year }}.log
+            ${{ runner.temp }}/embree-enum-${{ matrix.year }}.log
+            ${{ runner.temp }}/embree-stack-evidence-${{ matrix.year }}/
+            ${{ runner.temp }}/embree-push-*.log
+            ${{ runner.temp }}/embree-remote-*.txt
+            ${{ runner.temp }}/embree-image-ref-*.txt
+            ${{ runner.temp }}/embree-anonymous-inspect-*.txt
