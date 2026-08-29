@@ -98,9 +98,11 @@ LD_LIBRARY_PATH="/opt/embree/lib:$USD_PREFIX/lib:$USD_PREFIX/lib64${LD_LIBRARY_P
 ! grep -Eq 'not found|undefined symbol' "$EVIDENCE_ROOT/hdEmbree-ldd.txt"
 grep -q 'libembree3' "$EVIDENCE_ROOT/hdEmbree-ldd.txt"
 
-# The TBB soname hdEmbree links must equal the one the installed pxr libs
-# use (two TBBs in one process would be fatal).  Read the expectation from
-# the installed stack instead of hardcoding a year-specific soname.
+# TBB coexistence: the Embree 3.x pairing vendors legacy TBB 2020.3.1
+# (libtbb.so.2 -- soname-distinct from the image's oneTBB libtbb.so.12),
+# the exact combination Pixar's build_usd.py ships.  The pxr-side soname
+# must be linked, and any libtbb.so.2 must resolve from the vendored
+# tree at /opt/embree/lib.
 pxr_tbb_soname=""
 for probe in libusd_work.so libusd_hd.so libusd_tf.so; do
   p="$USD_PREFIX/lib/$probe"
@@ -121,8 +123,9 @@ fi
 printf 'pxr TBB soname: %s\n' "$pxr_tbb_soname" \
   | tee "$EVIDENCE_ROOT/pxr-tbb-soname.txt"
 grep -q "$pxr_tbb_soname" "$EVIDENCE_ROOT/hdEmbree-ldd.txt"
-! grep -oE 'libtbb\.so\.[0-9]+' "$EVIDENCE_ROOT/hdEmbree-ldd.txt" \
-  | sort -u | grep -qv "^${pxr_tbb_soname}$"
+# any vendored libtbb.so.2 link must resolve from /opt/embree/lib
+! grep 'libtbb\.so\.2' "$EVIDENCE_ROOT/hdEmbree-ldd.txt" \
+  | grep -v '/opt/embree/lib/libtbb.so.2' | grep -q .
 
 readelf -d "$INSTALL_PREFIX/hydra/hdEmbree.so" | tee "$EVIDENCE_ROOT/hdEmbree-dynamic.txt"
 grep -q "/opt/embree/lib" "$EVIDENCE_ROOT/hdEmbree-dynamic.txt"

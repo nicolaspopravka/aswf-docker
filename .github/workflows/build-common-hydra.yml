@@ -29,6 +29,9 @@ env:
   EMBREE_TAG: v3.2.2
   EMBREE_REVISION: dac0fa9d4a55d0ab0456d332bd0f23fd8a3325bc
   EMBREE_TARBALL_SHA256: f0523819aa24f77608afde3d23ddbeaea88937e3f9fb6a115c23e0e0646c8f5f
+  TBB_TAG: v2020.3.1
+  TBB_REVISION: 617e9a711b713de9f33c2be1323cc5cebff0e850
+  TBB_TARBALL_SHA256: ad73e88dbf8590daa66136275d0785e5a733d0ee2cc66b99f210bdc969302b7d
 
 jobs:
   build:
@@ -106,6 +109,9 @@ jobs:
             --build-arg EMBREE_TAG="$EMBREE_TAG" \
             --build-arg EMBREE_REVISION="$EMBREE_REVISION" \
             --build-arg EMBREE_TARBALL_SHA256="$EMBREE_TARBALL_SHA256" \
+            --build-arg TBB_TAG="$TBB_TAG" \
+            --build-arg TBB_REVISION="$TBB_REVISION" \
+            --build-arg TBB_TARBALL_SHA256="$TBB_TARBALL_SHA256" \
             . 2>&1 | tee "${{ runner.temp }}/common-hydra-docker-build.log"
 
       - name: Validate image closure
