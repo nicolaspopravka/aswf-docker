@@ -118,6 +118,9 @@ endif()
 message(STATUS "hdEmbree sources: ${HDEMBREE_SOURCE_COUNT}")
 
 add_library(hdEmbree SHARED ${HDEMBREE_SOURCES})
+# pxr plugins install without the "lib" prefix (hdEmbree.so, not
+# libhdEmbree.so) -- the plugInfo LibraryPath and plugin loading expect it.
+set_target_properties(hdEmbree PROPERTIES PREFIX "")
 
 # Sources include their own headers as "pxr/imaging/plugin/hdEmbree/..." so
 # the OpenUSD checkout root is the include root for the plugin; pxr's own
