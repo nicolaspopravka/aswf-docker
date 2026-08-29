@@ -23,6 +23,14 @@ if(NOT HDEMBREE_SOURCE_DIR)
   message(FATAL_ERROR "HDEMBREE_SOURCE_DIR is required")
 endif()
 
+# The conan-built pxrConfig on the ASWF images bakes its build machine's
+# Python paths into find_dependency(Python3 <ver> EXACT); the same conan
+# cpython is installed at /usr/local in the shipped image, so resolve it
+# first.  pxrConfig only fills Python3_* cache variables when NOT DEFINED,
+# which makes this the sanctioned override path (no config edits).
+set(Python3_EXECUTABLE "/usr/local/bin/python3" CACHE FILEPATH
+    "Image Python -- the same conan cpython this pxrConfig was built against" FORCE)
+find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
 find_package(pxr CONFIG REQUIRED)
 
 find_library(EMBREE_LIBRARY

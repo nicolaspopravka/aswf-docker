@@ -41,8 +41,14 @@ echo "${EMBREE_TARBALL_SHA256}  ${tarball}" | sha256sum --check --strict \
 
 mkdir -p "$BUILD_ROOT/embree-src"
 tar -xzf "$tarball" --strip-components=1 -C "$BUILD_ROOT/embree-src"
-grep -m1 "VERSION 3.13.2" "$BUILD_ROOT/embree-src/CMakeLists.txt" \
+# Embree 3.13.2 declares its version as three SET() lines (no single
+# "VERSION x.y.z" token) -- assert the expected components per line.
+grep -m1 "SET(EMBREE_VERSION_MAJOR 3)" "$BUILD_ROOT/embree-src/CMakeLists.txt" \
   | tee "$EVIDENCE_ROOT/embree-version-line.txt"
+grep -m1 "SET(EMBREE_VERSION_MINOR 13)" "$BUILD_ROOT/embree-src/CMakeLists.txt" \
+  | tee -a "$EVIDENCE_ROOT/embree-version-line.txt"
+grep -m1 "SET(EMBREE_VERSION_PATCH 2)" "$BUILD_ROOT/embree-src/CMakeLists.txt" \
+  | tee -a "$EVIDENCE_ROOT/embree-version-line.txt"
 
 cmake -S "$BUILD_ROOT/embree-src" -B "$BUILD_ROOT/embree-build" \
   -DCMAKE_BUILD_TYPE=Release \

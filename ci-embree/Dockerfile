@@ -9,10 +9,13 @@ ARG EMBREE_TARBALL_SHA256
 ARG OPENUSD_TAG
 ARG OPENUSD_REVISION
 COPY ci-embree/build_embree.sh /usr/local/bin/build_embree.sh
+RUN chmod +x /usr/local/bin/build_embree.sh && \
+    /usr/local/bin/build_embree.sh
+# Separate layers: Embree (slow, stable) caches; consumer iterations
+# (hdEmbree build) only re-run the last stage of this step sequence.
 COPY ci-embree/build_hdembree.sh /usr/local/bin/build_hdembree.sh
 COPY ci-embree/hdembree-consumer/ /usr/local/share/hdembree-consumer/
-RUN chmod +x /usr/local/bin/build_embree.sh /usr/local/bin/build_hdembree.sh && \
-    /usr/local/bin/build_embree.sh && \
+RUN chmod +x /usr/local/bin/build_hdembree.sh && \
     /usr/local/bin/build_hdembree.sh
 
 FROM ${BASE_IMAGE} AS runtime
