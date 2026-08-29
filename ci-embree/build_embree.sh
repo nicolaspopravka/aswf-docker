@@ -82,9 +82,16 @@ if [[ "$EMBREE_VMAJOR" == "3" ]]; then
   mkdir -p "$TBB_STAGE/include" "$TBB_STAGE/lib"
   cp -a "$BUILD_ROOT/tbb-src/include/tbb" "$TBB_STAGE/include/"
   cp -a "$BUILD_ROOT/tbb-src/build/"*_release/libtbb*.so.* "$TBB_STAGE/lib/"
+  # TBB 2020's make emits only versioned sonames; find_library(tbb) needs
+  # the unversioned dev symlink or it falls through to the image's oneTBB
+  # (legacy symbols undefined at link -- run 33260052470 CY2025).
+  for l in libtbb libtbbmalloc libtbbmalloc_proxy; do
+    ln -sf "$l.so.2" "$TBB_STAGE/lib/$l.so"
+  done
   test -f "$TBB_STAGE/include/tbb/task_scheduler_init.h"
   test -e "$TBB_STAGE/lib/libtbb.so.2"
-  find "$TBB_STAGE" -type f -print | sort \
+  test -e "$TBB_STAGE/lib/libtbb.so"
+  find "$TBB_STAGE" -type f -o -type l -print | sort \
     > "$EVIDENCE_ROOT/tbb-stage-manifest.txt"
   EMBREE_TBB_ROOT="$TBB_STAGE"
 fi

@@ -95,8 +95,12 @@ grep -q '"Includes"' "$INSTALL_PREFIX/hydra/plugInfo.json"
 
 LD_LIBRARY_PATH="/opt/embree/lib:$USD_PREFIX/lib:$USD_PREFIX/lib64${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
   ldd -r "$INSTALL_PREFIX/hydra/hdEmbree.so" | tee "$EVIDENCE_ROOT/hdEmbree-ldd.txt"
-! grep -Eq 'not found|undefined symbol' "$EVIDENCE_ROOT/hdEmbree-ldd.txt"
-grep -q 'libembree3' "$EVIDENCE_ROOT/hdEmbree-ldd.txt"
+if grep -Eq 'not found|undefined symbol' "$EVIDENCE_ROOT/hdEmbree-ldd.txt"; then
+  echo "ERROR: unresolved entries in hdEmbree.so closure:" >&2
+  grep -E 'not found|undefined symbol' "$EVIDENCE_ROOT/hdEmbree-ldd.txt" | head -20 >&2
+  exit 1
+fi
+grep -Eq 'libembree[34]' "$EVIDENCE_ROOT/hdEmbree-ldd.txt"
 
 # TBB coexistence: the Embree 3.x pairing vendors legacy TBB 2020.3.1
 # (libtbb.so.2 -- soname-distinct from the image's oneTBB libtbb.so.12),
