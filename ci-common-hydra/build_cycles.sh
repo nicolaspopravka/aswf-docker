@@ -11,8 +11,8 @@ readonly OPTIX_ROOT="/usr/local/NVIDIA-OptiX-SDK-${ASWF_OPTIX_VERSION}"
 
 : "${CYCLES_TAG:?CYCLES_TAG is required}"
 : "${CYCLES_REVISION:?CYCLES_REVISION is required}"
+: "${NANOVDB_TAG:?NANOVDB_TAG is required}"
 : "${NANOVDB_REVISION:?NANOVDB_REVISION is required}"
-: "${ASWF_OPENVDB_VERSION:?ASWF_OPENVDB_VERSION is required}"
 
 if [[ -n "${ASWF_DTS_VERSION:-}" && -e "/opt/rh/gcc-toolset-${ASWF_DTS_VERSION}/enable" ]]; then
   # shellcheck disable=SC1090
@@ -44,7 +44,7 @@ PYTHONPATH="$USD_PREFIX/lib/python${PYTHONPATH:+:$PYTHONPATH}" \
 git clone --branch "$CYCLES_TAG" --depth 1 "$CYCLES_URL" "$BUILD_ROOT/cycles"
 test "$(git -C "$BUILD_ROOT/cycles" rev-parse HEAD)" = "$CYCLES_REVISION"
 test -z "$(git -C "$BUILD_ROOT/cycles" status --short)"
-git clone --branch "v${ASWF_OPENVDB_VERSION}" --depth 1 \
+git clone --branch "$NANOVDB_TAG" --depth 1 \
   "$OPENVDB_URL" "$BUILD_ROOT/openvdb"
 test "$(git -C "$BUILD_ROOT/openvdb" rev-parse HEAD)" = "$NANOVDB_REVISION"
 test -f "$BUILD_ROOT/openvdb/nanovdb/nanovdb/NanoVDB.h"

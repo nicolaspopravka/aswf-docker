@@ -7,6 +7,7 @@ ARG MOONRAY_IMAGE
 FROM ${MOONRAY_IMAGE} AS cycles-builder
 ARG CYCLES_TAG
 ARG CYCLES_REVISION
+ARG NANOVDB_TAG
 ARG NANOVDB_REVISION
 COPY --chmod=0755 ci-common-hydra/build_cycles.sh /usr/local/bin/build_cycles.sh
 COPY ci-common-hydra/cycles_project_include.cmake /usr/local/share/cycles_project_include.cmake
