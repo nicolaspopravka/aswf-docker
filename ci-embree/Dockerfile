@@ -34,8 +34,13 @@ RUN dnf clean all
 # plain docker run enumerates Storm + Embree.  PYTHONPATH is intentionally
 # NOT baked (the base image does not set it; the run harness's usd Rez
 # package owns it, matching the field-tested *-only image pattern).
-ENV PXR_PLUGINPATH_NAME=/opt/hdembree/hydra \
-    LD_LIBRARY_PATH=/opt/embree/lib
+# LD_LIBRARY_PATH must NOT be overridden: the base image bakes
+# /usr/local/lib into it and the conan-built pxr libraries resolve their
+# dependency chain through it (the ldconfig cache predates the conan
+# deploy -- GHA run 33251354330 died on libblosc.so.1 after this ENV
+# clobbered the inherited value).  hdEmbree.so carries its own RUNPATH to
+# /opt/embree/lib, so Embree needs no entry here either.
+ENV PXR_PLUGINPATH_NAME=/opt/hdembree/hydra
 LABEL org.opencontainers.image.source="https://github.com/nicolaspopravka/aswf-docker"
 LABEL org.opencontainers.image.title="hdEmbree delegate for the USD Render Benchmark"
 LABEL org.opencontainers.image.description="ASWF prebuilt OpenUSD ${OPENUSD_TAG} with hdEmbree (Embree ${EMBREE_TAG}, CPU render delegate) as an external pxr consumer"
