@@ -94,7 +94,7 @@ class OpenSubdivConan(ConanFile):
             if Version(self.version) < "3.6.0":
                 self.requires("onetbb/2020.3.3", transitive_headers=True)
             else:
-                self.requires("onetbb/2021.12.0", transitive_headers=True, transitive_libs=True)
+                self.requires("onetbb/[>=2021.10.0 <2024]", transitive_headers=True, transitive_libs=True) # ASWF
         if self.options.with_opengl:
             self.requires("opengl/system")
             self.requires("glfw/3.4")
@@ -187,27 +187,20 @@ class OpenSubdivConan(ConanFile):
         self.cpp_info.set_property("cmake_file_name", "OpenSubdiv")
         target_suffix = "" if self.options.shared else "_static"
 
-        self.cpp_info.components["osdcpu"].set_property("cmake_target_name", f"OpenSubdiv::osdcpu{target_suffix}")
-        self.cpp_info.components["osdcpu"].libs = ["osdCPU"]
+        # ASWF: match camelCase target names used in OpenSubdiv CMakeLists.txt
+        self.cpp_info.components["osdCPU"].set_property("cmake_target_name", f"OpenSubdiv::osdCPU{target_suffix}")
+        self.cpp_info.components["osdCPU"].libs = ["osdCPU"]
         if self.options.with_tbb:
-            self.cpp_info.components["osdcpu"].requires = ["onetbb::libtbb"] # ASWF: only need libtbb, NOT tbbmalloc/tbbmalloc_proxy
+            self.cpp_info.components["osdCPU"].requires = ["onetbb::libtbb"]
 
         if self._osd_gpu_enabled:
-            self.cpp_info.components["osdgpu"].set_property("cmake_target_name", f"OpenSubdiv::osdgpu{target_suffix}")
-            self.cpp_info.components["osdgpu"].libs = ["osdGPU"]
-            self.cpp_info.components["osdgpu"].requires = ["osdcpu"]
+            self.cpp_info.components["osdGPU"].set_property("cmake_target_name", f"OpenSubdiv::osdGPU{target_suffix}")
+            self.cpp_info.components["osdGPU"].libs = ["osdGPU"]
+            self.cpp_info.components["osdGPU"].requires = ["osdCPU"]
             if self.options.with_opengl:
-                self.cpp_info.components["osdgpu"].requires.extend(["opengl::opengl", "glfw::glfw"])
+                self.cpp_info.components["osdGPU"].requires.extend(["opengl::opengl", "glfw::glfw"])
             if self.options.get_safe("with_metal"):
-                self.cpp_info.components["osdgpu"].requires.append("metal-cpp::metal-cpp")
+                self.cpp_info.components["osdGPU"].requires.append("metal-cpp::metal-cpp")
             dl_required = self.options.with_opengl or self.options.with_opencl
             if self.settings.os in ["Linux", "FreeBSD"] and dl_required:
-                self.cpp_info.components["osdgpu"].system_libs = ["dl"]
-
-        # TODO: to remove in conan v2
-        self.cpp_info.names["cmake_find_package"] = "OpenSubdiv"
-        self.cpp_info.names["cmake_find_package_multi"] = "OpenSubdiv"
-        self.cpp_info.components["osdcpu"].names["cmake_find_package"] = f"osdcpu{target_suffix}"
-        self.cpp_info.components["osdcpu"].names["cmake_find_package_multi"] = f"osdcpu{target_suffix}"
-        self.cpp_info.components["osdgpu"].names["cmake_find_package"] = f"osdgpu{target_suffix}"
-        self.cpp_info.components["osdgpu"].names["cmake_find_package_multi"] = f"osdgpu{target_suffix}"
+                self.cpp_info.components["osdGPU"].system_libs = ["dl"]

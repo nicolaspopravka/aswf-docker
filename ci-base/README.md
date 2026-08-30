@@ -77,7 +77,7 @@ Contains:
 * numpy-1.20
 * vfxplatform-2022
 
-## [aswf/ci-base:2023.4](https://hub.docker.com/r/aswf/ci-base/tags?page=1&name=2023.4)
+## [aswf/ci-base:2023.5](https://hub.docker.com/r/aswf/ci-base/tags?page=1&name=2023.5)
 
 Contains:
 * b2-5.2.1
@@ -115,7 +115,7 @@ Contains:
 * numpy-1.23.5
 * vfxplatform-2023
 
-## [aswf/ci-base:2024.8](https://hub.docker.com/r/aswf/ci-base/tags?page=1&name=2024.8)
+## [aswf/ci-base:2024.9](https://hub.docker.com/r/aswf/ci-base/tags?page=1&name=2024.9)
 
 Contains:
 * b2-5.2.1
@@ -153,7 +153,7 @@ Contains:
 * numpy-1.24.3
 * vfxplatform-2024
 
-## [aswf/ci-base:2025.7](https://hub.docker.com/r/aswf/ci-base/tags?page=1&name=2025.7)
+## [aswf/ci-base:2025.8](https://hub.docker.com/r/aswf/ci-base/tags?page=1&name=2025.8)
 
 Contains:
 * b2-5.2.1
@@ -191,7 +191,7 @@ Contains:
 * numpy-1.26.4
 * vfxplatform-2025
 
-## [aswf/ci-base:2026.5](https://hub.docker.com/r/aswf/ci-base/tags?page=1&name=2026.5)
+## [aswf/ci-base:2026.6](https://hub.docker.com/r/aswf/ci-base/tags?page=1&name=2026.6)
 
 Contains:
 * b2-5.3.2
@@ -229,13 +229,13 @@ Contains:
 * numpy-2.3.2
 * vfxplatform-2026
 
-## [aswf/ci-base:2027.0](https://hub.docker.com/r/aswf/ci-base/tags?page=1&name=2027.0)
+## [aswf/ci-base:2027.1](https://hub.docker.com/r/aswf/ci-base/tags?page=1&name=2027.1)
 
 Contains:
-* b2-5.4.2
+* b2-5.5.3
 * bzip2-1.0.8
 * cppunit-1.15.1
-* expat-2.8.1
+* expat-2.8.2
 * fmt-12.1.0
 * gtest-1.17.0
 * jsoncpp-1.9.5
@@ -247,12 +247,12 @@ Contains:
 * libxcrypt-4.5.2
 * lua-5.4.4
 * lz4-1.10.0
-* pugixml-1.15
+* pugixml-1.16
 * pystring-1.1.5
 * random123-1.14.0
 * rapidjson-cci.20250205
 * snappy-1.2.2
-* onetbb-2023.0.0
+* onetbb-2023.1.0
 * zlib-1.3.2
 * zstd-1.5.7
 * cpython-3.13.14

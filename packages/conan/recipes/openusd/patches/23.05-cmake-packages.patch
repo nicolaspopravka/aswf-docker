@@ -71,12 +71,17 @@ index d99dd79ac..bfda2778a 100644
          debugCodes.cpp
 --- pxr/imaging/plugin/hioOiio/CMakeLists.txt
 +++ pxr/imaging/plugin/hioOiio/CMakeLists.txt
-@@ -26,7 +26,7 @@
+@@ -22,11 +22,11 @@
+         gf
+         hio
+         tf
+-        ${OIIO_LIBRARIES}
++        ${OpenImageIO_LIBRARIES}
          ${__OIIO_IMATH_LIBS}
 
      INCLUDE_DIRS
 -        ${OIIO_INCLUDE_DIRS}
-+        ${OpenImageIO_INCLUDE_DIR}
++        ${OpenImageIO_INCLUDE_DIRS}
          ${__OIIO_IMATH_INCLUDE}
 
      CPPFILES
@@ -95,8 +100,23 @@ index d99dd79ac..bfda2778a 100644
  pxr_library(hdx
 --- pxr/usd/plugin/sdrOsl/CMakeLists.txt
 +++ pxr/usd/plugin/sdrOsl/CMakeLists.txt
-@@ -17,9 +17,9 @@
-         ${OIIO_LIBRARIES}
+@@ -5,6 +5,8 @@
+     return()
+ endif()
+
++get_target_property(OSL_OSLQUERY_LIBRARIES OSL::oslquery INTERFACE_LINK_LIBRARIES)
++
+ pxr_plugin(sdrOsl
+     LIBRARIES
+         gf
+@@ -13,13 +15,13 @@
+         ar
+         ndr
+         sdr
+-        ${OSL_QUERY_LIBRARY}
+-        ${OIIO_LIBRARIES}
++        ${OSL_OSLQUERY_LIBRARIES}
++        ${OpenImageIO_LIBRARIES}
 
      INCLUDE_DIRS
 -        ${OPENEXR_INCLUDE_DIR}
