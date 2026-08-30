@@ -33,6 +33,12 @@ grep -Fx 'log4cplus_version=2.1.2' \
     "${moonray_root}/share/openmoonray/provenance.txt"
 grep -Fx 'log4cplus_unicode=OFF' \
     "${moonray_root}/share/openmoonray/provenance.txt"
+grep -Fx 'external_scene_rdl2_pythonpath=OFF' \
+    "${moonray_root}/share/openmoonray/provenance.txt"
+test -s "${moonray_root}/share/openmoonray/openmoonray-issue-35.patch"
+find "${moonray_root}/python/lib/python3.11" -type f -name shaders.py -print \
+    | tee "${evidence_root}/generated-shaders-python.txt"
+test -s "${evidence_root}/generated-shaders-python.txt"
 test -f /opt/MoonRay/dependencies/log4cplus/lib/liblog4cplus.so
 test -s /usr/local/share/openusd-cmake-relocation.txt
 cmp \

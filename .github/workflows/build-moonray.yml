@@ -1,4 +1,4 @@
-name: Validate MoonRay GH 23 Fix
+name: Validate OpenMoonRay Issue 35 Fix
 
 on: workflow_dispatch
 

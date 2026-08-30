@@ -78,6 +78,7 @@ ENV LOG4CPLUS_ROOT=/opt/MoonRay/dependencies/log4cplus
 ENV LD_LIBRARY_PATH=/opt/MoonRay/dependencies/log4cplus/lib:${LD_LIBRARY_PATH}
 
 WORKDIR /opt/MoonRay/source
+COPY ci-moonray-hydra/openmoonray-issue-35.patch /tmp/openmoonray-issue-35.patch
 RUN git clone \
         --branch "${MOONRAY_TAG}" \
         --depth 1 \
@@ -86,6 +87,11 @@ RUN git clone \
         https://github.com/OpenMoonRay/openmoonray.git && \
     test "$(git -C openmoonray rev-parse HEAD)" = "${MOONRAY_COMMIT}" && \
     git -C openmoonray lfs pull && \
+    git -C openmoonray apply --check /tmp/openmoonray-issue-35.patch && \
+    git -C openmoonray apply /tmp/openmoonray-issue-35.patch && \
+    git -C openmoonray diff --check && \
+    git -C openmoonray diff --exit-code -- \
+        . ':!moonray/CMakeLists.txt' && \
     git -C openmoonray/moonray/hydra/hdMoonray fetch \
         --depth 1 "${HDMOONRAY_REPOSITORY}" "${HDMOONRAY_COMMIT}" && \
     git -C openmoonray/moonray/hydra/hdMoonray checkout \
@@ -97,7 +103,6 @@ RUN git clone \
 RUN test -x /usr/local/bin/python3.11 && \
     test -f /usr/local/lib/libpython3.11.so && \
     test -f /usr/local/include/python3.11/Python.h && \
-    export PYTHONPATH=/opt/MoonRay/build/moonray/scene_rdl2/mod/python/py_scene_rdl2:${PYTHONPATH} && \
     cmake \
         -S /opt/MoonRay/source/openmoonray \
         -B /opt/MoonRay/build \
@@ -137,6 +142,8 @@ RUN test -x /usr/local/bin/python3.11 && \
     mkdir -p /opt/MoonRay/installs/openmoonray/share/openmoonray && \
     cp /usr/local/share/openusd-cmake-relocation.txt \
         /opt/MoonRay/installs/openmoonray/share/openmoonray/ && \
+    cp /tmp/openmoonray-issue-35.patch \
+        /opt/MoonRay/installs/openmoonray/share/openmoonray/ && \
     printf '%s\n' \
         "tag=${MOONRAY_TAG}" \
         "commit=${MOONRAY_COMMIT}" \
@@ -147,6 +154,7 @@ RUN test -x /usr/local/bin/python3.11 && \
         "lua_tool_version=5.4.4" \
         "log4cplus_version=2.1.2" \
         "log4cplus_unicode=OFF" \
+        "external_scene_rdl2_pythonpath=OFF" \
         > /opt/MoonRay/installs/openmoonray/share/openmoonray/provenance.txt
 
 FROM ${BASE_IMAGE} AS runtime
