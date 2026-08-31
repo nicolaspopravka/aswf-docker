@@ -169,7 +169,8 @@ jobs:
         run: |
           set -euxo pipefail
           docker run -i --rm \
-            "$IMAGE_NAME:$IMMUTABLE_TAG" bash -s -- "${OPENUSD_VERSION_PREFIX%%.*}" \
+            --env USD_VERSION_MAJOR="25" \
+            "$IMAGE_NAME:$IMMUTABLE_TAG" bash -s \
             < ci-embree/validate_image.sh \
             2>&1 | tee "${{ runner.temp }}/common-hydra-embree-validation.log"
 
