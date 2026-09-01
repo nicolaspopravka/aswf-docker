@@ -1,0 +1,53 @@
+name: GH449 sdrOsl/OIIO linkage + teardown probe
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - opencode/gh449-sdrosl-linkage-probe
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - aswf/ci-vfxall:2023
+          - aswf/ci-vfxall:2024
+          - aswf/ci-vfxall:2025
+          - aswf/ci-vfxall:2026
+          - aswf/ci-vfxall:2027
+    name: probe (${{ matrix.image }})
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Free runner disk space
+        run: |
+          set -euxo pipefail
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell
+          sudo apt-get clean
+          docker system prune -af
+
+      - name: Run linkage + teardown probe
+        run: |
+          set -euxo pipefail
+          mkdir -p "${RUNNER_TEMP}/probeout"
+          docker run --rm \
+            --volume "${GITHUB_WORKSPACE}/.github/workflows/scripts:/probe:ro" \
+            --volume "${RUNNER_TEMP}/probeout:/probeout" \
+            --entrypoint bash \
+            "${{ matrix.image }}" \
+            /probe/gh449_sdrosl_linkage_probe.sh /probeout
+
+      - name: Upload probe evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: gh449-probe-${{ matrix.image }}
+          path: "${{ runner.temp }}/probeout/"
+          if-no-files-found: error
