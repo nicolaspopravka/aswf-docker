@@ -1,0 +1,67 @@
+name: Issue 10 refreshed OpenChessSet validation
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  render:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - year: "2023"
+            renderer: GL
+            image: aswf/ci-vfxall:2023-clang15.5@sha256:184caf8c0e2531e6153b1c742b9b57263c032fc619c40259d0dc5a726c3bb077
+          - year: "2025"
+            renderer: Storm
+            image: aswf/ci-vfxall:2025-clang19.8@sha256:1357ca999b90bdd022c9d3668398e6a7c6ae8cdf836327a0e18d1db967505701
+          - year: "2026"
+            renderer: Storm
+            image: aswf/ci-vfxall:2026-clang20.6@sha256:649ff41fa02bb22a73ac361a49eb161493097bf719540696afd1da9bedd0bec7
+    name: OpenChessSet CY${{ matrix.year }}
+
+    steps:
+      - name: Checkout workflow
+        uses: actions/checkout@v4
+
+      - name: Checkout pinned benchmark asset
+        uses: actions/checkout@v4
+        with:
+          repository: usd-wg/assets
+          ref: 907d5f17bbe933fc14441a3f3ab69a5bd8abe32a
+          path: benchmark-assets
+          sparse-checkout: full_assets/OpenChessSet
+
+      - name: Free runner disk space
+        run: |
+          set -euxo pipefail
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell
+          sudo apt-get clean
+          docker system prune -af
+          df -h
+
+      - name: Render exact OpenChessSet
+        run: |
+          set -euxo pipefail
+          mkdir -p "${RUNNER_TEMP}/issue10-${{ matrix.year }}"
+          docker run --rm \
+            --volume "${GITHUB_WORKSPACE}/.github/workflows/scripts:/probe:ro" \
+            --volume "${GITHUB_WORKSPACE}/benchmark-assets/full_assets/OpenChessSet:/asset:ro" \
+            --volume "${RUNNER_TEMP}/issue10-${{ matrix.year }}:/out" \
+            --entrypoint bash \
+            "${{ matrix.image }}" \
+            /probe/issue10_openchessset_probe.sh /out "${{ matrix.renderer }}"
+
+      - name: Upload render evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: issue10-openchessset-${{ matrix.year }}
+          path: "${{ runner.temp }}/issue10-${{ matrix.year }}/"
+          if-no-files-found: error
+
