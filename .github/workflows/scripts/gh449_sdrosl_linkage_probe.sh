@@ -82,7 +82,6 @@ def Xform "Root" {
         float[] verticalAperture = [15.2908]
         float[] focalLength = [50]
         int[] projection = [1]
-        matrix4d[] worldInvView = [(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 5, 1)]
     }
     def Mesh "sphere" {
         int[] faceVertexCounts = [3, 3, 3, 3]

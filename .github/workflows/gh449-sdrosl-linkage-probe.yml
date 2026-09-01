@@ -16,12 +16,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image:
-          - aswf/ci-vfxall:2023
-          - aswf/ci-vfxall:2024
-          - aswf/ci-vfxall:2025
-          - aswf/ci-vfxall:2026
-          - aswf/ci-vfxall:2027
+        include:
+          - image: aswf/ci-vfxall:2023
+            year: "2023"
+          - image: aswf/ci-vfxall:2024
+            year: "2024"
+          - image: aswf/ci-vfxall:2025
+            year: "2025"
+          - image: aswf/ci-vfxall:2026
+            year: "2026"
+          - image: aswf/ci-vfxall:2027
+            year: "2027"
     name: probe (${{ matrix.image }})
     steps:
       - name: Checkout
@@ -48,6 +53,6 @@ jobs:
       - name: Upload probe evidence
         uses: actions/upload-artifact@v4
         with:
-          name: gh449-probe-${{ matrix.image }}
+          name: gh449-probe-${{ matrix.year }}
           path: "${{ runner.temp }}/probeout/"
           if-no-files-found: error
