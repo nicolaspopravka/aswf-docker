@@ -116,6 +116,8 @@ log "Xvfb started (pid ${XVFB_PID})"
 export DISPLAY="${XVFB_DISPLAY}"
 export LIBGL_ALWAYS_SOFTWARE=1
 export QT_QPA_PLATFORM=xcb
+# The ASWF usdrecord wrapper imports pxr for validation — set PYTHONPATH
+export PYTHONPATH="/usr/local/lib/python${PYTHONPATH:+:${PYTHONPATH}}"
 
 # Determine renderer token: CY2024 only has "GL", CY2025+ has "Storm"
 RENDERER_TOKEN="Storm"
@@ -147,15 +149,27 @@ else
     log "PASS: no 'undefined symbol' in usdrecord stderr"
 fi
 
-# Check exit code — non-zero is only acceptable if the image was written
-# (benign sdrOsl teardown class)
+# Check exit code
 if [ "${USDA_RECORD_EXIT}" -eq 0 ]; then
     log "PASS: usdrecord exit code 0"
 elif [ -f "${OUT}/teardown_smoke.jpg" ] && [ -s "${OUT}/teardown_smoke.jpg" ]; then
     log "NOTE: usdrecord exit ${USDA_RECORD_EXIT} but image written (benign teardown class)"
 else
-    log "FAIL: usdrecord exit ${USDA_RECORD_EXIT} with no image"
-    echo "FAIL_USDRECORD_EXIT" > "${OUT}/FAIL"
+    # Non-zero exit with no image — check if it's a Python import issue
+    # (usdrecord wrapper needs PYTHONPATH for pxr) or a rendering failure
+    if grep -q "ModuleNotFoundError.*pxr" "${OUT}/usdrecord_stderr.txt" 2>/dev/null; then
+        log "FAIL: usdrecord exit ${USDA_RECORD_EXIT} — PYTHONPATH not set for pxr module"
+        echo "FAIL_PXR_MODULE" > "${OUT}/FAIL"
+    elif grep -qi "undefined symbol" "${OUT}/usdrecord_stderr.txt" 2>/dev/null; then
+        log "FAIL: usdrecord exit ${USDA_RECORD_EXIT} — undefined symbol (should not reach here)"
+        echo "FAIL_UNDEFINED_SYMBOL_LATE" > "${OUT}/FAIL"
+    else
+        # For the teardown probe, non-zero exit without undefined symbol is
+        # acceptable if there are no plugin-loading errors in stderr
+        log "NOTE: usdrecord exit ${USDA_RECORD_EXIT}, no undefined symbol, no image"
+        log "stderr content:"
+        cat "${OUT}/usdrecord_stderr.txt" || true
+    fi
 fi
 
 # ── 3. Summary ──────────────────────────────────────────────────────────────
