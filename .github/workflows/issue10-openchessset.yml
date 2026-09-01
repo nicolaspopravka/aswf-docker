@@ -2,6 +2,9 @@ name: Issue 10 refreshed OpenChessSet validation
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - codex/ci/openchessset-issue10
 
 permissions:
   contents: read
@@ -64,4 +67,3 @@ jobs:
           name: issue10-openchessset-${{ matrix.year }}
           path: "${{ runner.temp }}/issue10-${{ matrix.year }}/"
           if-no-files-found: error
-
