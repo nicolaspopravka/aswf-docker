@@ -62,17 +62,18 @@ jobs:
             embree_tag: v3.2.2
             embree_revision: dac0fa9d4a55d0ab0456d332bd0f23fd8a3325bc
             embree_tarball_sha256: f0523819aa24f77608afde3d23ddbeaea88937e3f9fb6a115c23e0e0646c8f5f
-          # CY2027 is NOT in the matrix (finding, Aug 29): ci-vfxall:2027
-          # ships oneTBB 2023.0 whose headers lack the legacy tbb::task
-          # that OpenUSD v26.05's workTBB inline headers (dispatcher_impl.h)
-          # require at compile time; the conan build's own TBB headers are
-          # not shipped in the image.  hdEmbree-as-external-consumer is
-          # therefore infeasible on this stack without patching -- tracked
-          # in the benchmark ledger (GH issue) rather than hacked around.
           - year: 2026
             base_image: aswf/ci-vfxall:2026@sha256:595b22e545dd406d482e044cc9223eefe6e79ae70b6825711d4aa0e4edee4a96
             openusd_tag: v26.03
             openusd_revision: 1818e14bae0036ac4bc7b4e60826b5797076a4fe
+            usd_version_major: 26
+            embree_tag: v4.3.3
+            embree_revision: 5730b150471602d6dc02d9b7d8a4a6ce9ceffe16
+            embree_tarball_sha256: 8a3bc3c3e21aa209d9861a28f8ba93b2f82ed0dc93341dddac09f1f03c36ef2d
+          - year: 2027
+            base_image: aswf/ci-vfxall:2027@sha256:475f153a2e60598ba536d97e95e95caac74925524662d67cc4248901c06594d0
+            openusd_tag: v26.08
+            openusd_revision: cb5613f6da7c61b56fe86dbe8cc1cbe9f0d84ef1
             usd_version_major: 26
             embree_tag: v4.3.3
             embree_revision: 5730b150471602d6dc02d9b7d8a4a6ce9ceffe16
