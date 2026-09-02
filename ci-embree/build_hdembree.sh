@@ -45,8 +45,24 @@ test -d "$USD_PREFIX/include/pxr"
 test -d "$USD_PREFIX/include/pxr/imaging/hdx"
 test -d "$USD_PREFIX/lib"
 test -x "$USD_PREFIX/bin/usdrecord"
-test -d "$USD_PREFIX/lib/python/pxr"
-PYTHONPATH="$USD_PREFIX/lib/python${PYTHONPATH:+:$PYTHONPATH}" \
+# Python pxr module path varies by image: /usr/local/lib/python/pxr (older)
+# or /usr/local/lib/pythonX.Y/site-packages/pxr (CY2027+ with versioned cpython).
+usd_python_dir=""
+for candidate in \
+  "$USD_PREFIX/lib/python3.13/site-packages" \
+  "$USD_PREFIX/lib/python3.12/site-packages" \
+  "$USD_PREFIX/lib/python3.11/site-packages" \
+  "$USD_PREFIX/lib/python3.10/site-packages" \
+  "$USD_PREFIX/lib/python" \
+; do
+  if [[ -d "$candidate/pxr" ]]; then
+    usd_python_dir="$candidate"
+    break
+  fi
+done
+test -n "$usd_python_dir"
+test -d "$usd_python_dir/pxr"
+PYTHONPATH="$usd_python_dir${PYTHONPATH:+:$PYTHONPATH}" \
   python3 -c 'from pxr import Usd; print(Usd.GetVersion())' \
   | tee "$EVIDENCE_ROOT/openusd-version.txt"
 
