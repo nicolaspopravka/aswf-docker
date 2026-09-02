@@ -73,7 +73,7 @@ jobs:
           - year: 2027
             base_image: aswf/ci-vfxall:2027@sha256:475f153a2e60598ba536d97e95e95caac74925524662d67cc4248901c06594d0
             openusd_tag: v26.08
-            openusd_revision: cb5613f6da7c61b56fe86dbe8cc1cbe9f0d84ef1
+            openusd_revision: ee47c679abde5b467a7b6a41f3b2285564a4222e
             usd_version_major: 26
             embree_tag: v4.3.3
             embree_revision: 5730b150471602d6dc02d9b7d8a4a6ce9ceffe16
