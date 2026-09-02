@@ -110,7 +110,7 @@ message(STATUS "Python include dir: ${PYTHON_INCLUDE_DIR}")
 
 # Glob the upstream sources so the consumer follows per-year source lists
 # (e.g. implicitSurfaceSceneIndexPlugin.cpp does not exist in older years).
-file(GLOB HDEMBREE_SOURCES CONFIGURE_DEPENDS "${HDEMBREE_SOURCE_DIR}/*.cpp")
+file(GLOB_RECURSE HDEMBREE_SOURCES CONFIGURE_DEPENDS "${HDEMBREE_SOURCE_DIR}/*.cpp")
 list(LENGTH HDEMBREE_SOURCES HDEMBREE_SOURCE_COUNT)
 if(HDEMBREE_SOURCE_COUNT EQUAL 0)
   message(FATAL_ERROR "No hdEmbree sources under ${HDEMBREE_SOURCE_DIR}")
