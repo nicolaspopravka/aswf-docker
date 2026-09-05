@@ -1,0 +1,65 @@
+diff --git a/src/hydra/material.cpp b/src/hydra/material.cpp
+index ea14ff8f2..5db1d6227 100644
+--- a/src/hydra/material.cpp
++++ b/src/hydra/material.cpp
+@@ -12,6 +12,8 @@
+ #include "scene/shader_graph.h"
+ #include "scene/shader_nodes.h"
+
++#include <pxr/usd/ar/resolver.h>
++#include <pxr/usd/ar/resolverScopedCache.h>
+ #include <pxr/imaging/hd/material.h>
+ #include <pxr/imaging/hd/materialConnectionSchema.h>
+ #include <pxr/imaging/hd/materialNetworkSchema.h>
+@@ -57,12 +59,35 @@ TF_DEFINE_PRIVATE_TOKENS(CyclesMaterialTokens,
+     (b)
+     (result)
+     (st)
++    (file)
+     (wrapS)
+     (wrapT)
+     (periodic)
+ );
+ // clang-format on
+
++static array<int> FindUdimTiles(const SdfAssetPath &assetPath)
++{
++  const std::string &resolvedPath = assetPath.GetResolvedPath();
++  const std::string filename = resolvedPath.empty() ? assetPath.GetAssetPath() : resolvedPath;
++  const std::string::size_type udimPos = filename.find("<UDIM>");
++  if (udimPos == std::string::npos) {
++    return {};
++  }
++
++  ArResolverScopedCache resolverCache;
++  ArResolver &resolver = ArGetResolver();
++  array<int> tiles;
++  for (int tile = 1001; tile <= 1100; ++tile) {
++    std::string tileFilename = filename;
++    tileFilename.replace(udimPos, 6, std::to_string(tile));
++    if (!resolver.Resolve(tileFilename).empty()) {
++      tiles.push_back_slow(tile);
++    }
++  }
++  return tiles;
++}
++
+ /* Simple class to handle remapping of USDPreviewSurface nodes and parameters to Cycles
+  * equivalents. */
+ class UsdToCyclesMapping {
+@@ -351,5 +376,15 @@ void HdCyclesMaterial::UpdateParameters(NodeDesc &nodeDesc,
+     }
+
+     SetNodeValue(nodeDesc.node, *input, value);
++
++    if (inputMapping && paramName == CyclesMaterialTokens->file &&
++        nodeDesc.node->is_a(ImageTextureNode::get_node_type()))
++    {
++      array<int> tiles;
++      if (value.IsHolding<SdfAssetPath>()) {
++        tiles = FindUdimTiles(value.UncheckedGet<SdfAssetPath>());
++      }
++      static_cast<ImageTextureNode *>(nodeDesc.node)->set_tiles(tiles);
++    }
+   }
+ }
