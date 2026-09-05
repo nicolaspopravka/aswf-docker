@@ -2,6 +2,9 @@ name: Probe Cycles Hydra UDIM prototype
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - codex/diagnostics/cycles-hydra-udim-prototype
 
 permissions:
   contents: read
