@@ -26,6 +26,9 @@
 #     and reference imported targets (Threads/Ptex/OpenColorIO/MaterialX) that
 #     the deploy never loads. A shim rewrites the hints and target names, loads
 #     the referenced packages, and synthesizes OpenSubdiv::osdcpu/osdgpu.
+#   - The generator is the CMake default (Unix Makefiles), matching
+#     general_build.md; Ninja rejects "defined as an output multiple times" for
+#     v2026.29.1's DSO JSON custom commands (e.g. dso/camera/BakeCamera).
 #   - git-lfs is not shipped by the base image; it is installed so the
 #     openmoonray submodules' LFS files can be pulled.
 #   - ispc is present but may be unusable (missing libclang-cpp runtime); the
@@ -246,7 +249,6 @@ export LD_LIBRARY_PATH="/usr/local/cuda/lib64:${LD_LIBRARY_PATH:-}"
 cmake \
     -S "${MOONRAY_SOURCE_DIR}" \
     -B "${MOONRAY_BUILD_DIR}" \
-    -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_PREFIX_PATH=/usr/local \
     -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
