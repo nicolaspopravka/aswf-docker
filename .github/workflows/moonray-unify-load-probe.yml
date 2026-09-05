@@ -2,9 +2,16 @@ name: MoonRay VFX-unification load probe (Phase B)
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - opencode/moonray-unify-load-probe
 
 permissions:
   contents: read
+
+concurrency:
+  group: moonray-unify-load-probe
+  cancel-in-progress: true
 
 jobs:
   probe:
