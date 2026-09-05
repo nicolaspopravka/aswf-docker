@@ -1,0 +1,110 @@
+name: build-common-stack
+
+# Build-only workflow for the pristine per-year common stack: aswf/ci-moonray:<year> +
+# OpenMoonRay installed into /usr/local. Byte-pristine result: no ENV, no
+# aliasing, no relayout. No validation gates; the build log is always uploaded
+# so any blocker lands in an artifact.
+#
+# Year-parameterized so CY2023/24/26 can reuse it: a new branch per year only
+# edits `branches`, YEAR, BASE_IMAGE and IMAGE (and the MoonRay pin if the
+# year's MoonRay differs).
+#
+# Publish note: `workflow_dispatch` only resolves workflows on the repository
+# default branch, so dispatch-gated publish is unreachable from a fork branch;
+# the authoritative publish path is the usd-render-benchmark-stack repo
+# (default branch main). Pushes here = build + log only.
+#
+# publish -> ghcr.io/nicolaspopravka/usd-render-benchmark-stack:2025-pristine
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - opencode/ci-common-stack-2025
+    paths:
+      - scripts/vfx/build_moonray.sh
+      - .github/workflows/build-common-stack.yml
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: common-stack-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  YEAR: "2025"
+  BASE_IMAGE: aswf/ci-moonray:2025.8@sha256:5d29528fd6027fcd96c3d1d99fead53c33f3878ad1a9cb88491b0a8236b84f48
+  IMAGE: ghcr.io/nicolaspopravka/usd-render-benchmark-stack:2025-pristine
+  MOONRAY_TAG: v2026.29.1
+  MOONRAY_COMMIT: d96c6e30a8c280d4b5eb3bafa5e54efc445d7ea8
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 360
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build
+        id: build
+        shell: bash
+        run: |
+          # Overlay context: mirror the generated ci-moonray Dockerfile's last
+          # step exactly (COPY build_moonray.sh to /usr/local/aswf, then run).
+          cat > Dockerfile.common-stack <<'DOCKERFILE'
+          ARG BASE_IMAGE
+          FROM ${BASE_IMAGE}
+
+          ARG MOONRAY_TAG
+          ARG MOONRAY_COMMIT
+          ARG YEAR
+
+          LABEL org.opencontainers.image.source="https://github.com/nicolaspopravka/aswf-docker/blob/opencode/ci-common-stack-2025/scripts/vfx/build_moonray.sh"
+          LABEL org.opencontainers.image.title="USD render benchmark stack (CY${YEAR} pristine): ci-moonray + OpenMoonRay"
+          LABEL org.opencontainers.image.description="OpenUSD 25.05 (hdStorm) + OpenMoonRay ${MOONRAY_TAG} (hdMoonray) under /usr/local. Byte-pristine: no ENV, no aliasing, no relayout."
+          LABEL org.opencontainers.image.licenses="Apache-2.0"
+          LABEL io.aswf.docker.versions.moonray="3.6.0.1"
+          LABEL io.openmoonray.source.tag="${MOONRAY_TAG}"
+          LABEL io.openmoonray.source.commit="${MOONRAY_COMMIT}"
+
+          COPY scripts/vfx/build_moonray.sh /usr/local/aswf/build_moonray.sh
+          RUN /usr/local/aswf/build_moonray.sh
+          DOCKERFILE
+
+          set +e
+          docker buildx build --provenance=false \
+            --file Dockerfile.common-stack \
+            --build-arg BASE_IMAGE="${{ env.BASE_IMAGE }}" \
+            --build-arg MOONRAY_TAG="${{ env.MOONRAY_TAG }}" \
+            --build-arg MOONRAY_COMMIT="${{ env.MOONRAY_COMMIT }}" \
+            --build-arg YEAR="${{ env.YEAR }}" \
+            --tag "${{ env.IMAGE }}" \
+            --load \
+            . 2>&1 | tee build-common-stack.log
+          status=${PIPESTATUS[0]}
+          echo "build_exit=$status" >> "$GITHUB_ENV"
+          rm -f Dockerfile.common-stack
+          exit "$status"
+        timeout-minutes: 350
+
+      - name: Publish
+        if: ${{ github.event_name == 'workflow_dispatch' && env.build_exit == 0 }}
+        run: docker push "${{ env.IMAGE }}"
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: common-stack-build-log
+          path: build-common-stack.log
+          if-no-files-found: error
