@@ -90,11 +90,16 @@ def Xform "World" {
     def Sphere "S0" {
         float3[] extent = [(-0.5, -0.5, -0.5), (0.5, 0.5, 0.5)]
     }
+    def DistantLight "d_light" {
+        matrix4d xformOp:transform = ( (0, 0, 1, 0), (0, 1, 0, 0), (-1, 0, 0, 0), (-10, 0, 0, 1) )
+        uniform token[] xformOpOrder = ["xformOp:transform"]
+        float intensity = 1
+        bool normalize = true
+    }
     def Camera "cam" {
-        float2 clippingRange = (0.1, 10000)
-        float3 eye = (3, 3, 3)
-        float3 up = (0, 1, 0)
-        float3 viewdir = (-1, -1, -1)
+        matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 0.5, 10, 1) )
+        uniform token[] xformOpOrder = ["xformOp:transform"]
+        string focalLength = "test"
     }
 }
 USDA
