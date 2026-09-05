@@ -329,8 +329,10 @@ grep -F '/usr/local/bin/lua' "${MOONRAY_BUILD_DIR}/CMakeCache.txt"
 # blocker (B5d) is recorded centrally.
 BUILD_LOG="${MOONRAY_BUILD_ROOT}/build.log"
 set +e
-cmake --build "${MOONRAY_BUILD_DIR}" --parallel "${BUILD_JOBS}" -- -k >"${BUILD_LOG}" 2>&1
-build_status=$?
+# Stream to the build log AND the step output so compiler diagnostics land in
+# the workflow artifact even when a target fails.
+cmake --build "${MOONRAY_BUILD_DIR}" --parallel "${BUILD_JOBS}" -- -k 2>&1 | tee "${BUILD_LOG}"
+build_status=${PIPESTATUS[0]}
 set -e
 if [ "${build_status}" -ne 0 ]; then
     echo "build exited ${build_status}; verifying all failures are the two Ndr-dependent Sdr plugin targets"
