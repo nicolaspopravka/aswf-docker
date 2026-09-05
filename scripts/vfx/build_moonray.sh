@@ -29,6 +29,11 @@
 #   - The generator is the CMake default (Unix Makefiles), matching
 #     general_build.md; Ninja rejects "defined as an output multiple times" for
 #     v2026.29.1's DSO JSON custom commands (e.g. dso/camera/BakeCamera).
+#   - OpenUSD 26.08 removed the Ndr subsystem (folded into Sdr), but the two
+#     MoonRay Sdr plugins (moonrayShaderParser/Discovery, pinned by ASWF as
+#     MoonRay 3.6.0.1) still include pxr/usd/ndr/*.h. They fail to compile; the
+#     build proceeds keep-going and tolerates exactly those two failures while
+#     verifying no other target errors (blocker B5d, pre-release flag).
 #   - git-lfs is not shipped by the base image; it is installed so the
 #     openmoonray submodules' LFS files can be pulled.
 #   - ispc is present but may be unusable (missing libclang-cpp runtime); the
@@ -274,7 +279,28 @@ grep -F "${BOOST_PYTHON_COMPONENT_NAME}" "${MOONRAY_BUILD_DIR}/CMakeCache.txt"
 grep -F '3.13' "${MOONRAY_BUILD_DIR}/CMakeCache.txt"
 grep -F '/usr/local/bin/lua' "${MOONRAY_BUILD_DIR}/CMakeCache.txt"
 
-cmake --build "${MOONRAY_BUILD_DIR}" --parallel "${BUILD_JOBS}"
+# Build everything, keep-going. MoonRay v2026.29.1's two Sdr plugins
+# (moonrayShaderParser / moonrayShaderDiscovery) include pxr/usd/ndr/*.h,
+# which OpenUSD 26.08 removed when Ndr was folded into Sdr (source-level API
+# break; ASWF pins this MoonRay as 3.6.0.1 on the 26.08 stack). They fail to
+# compile; every OTHER target must build. The failure set is verified to be
+# exactly those two targets and then tolerated for the probe image; the
+# blocker (B5d) is recorded centrally.
+BUILD_LOG="${MOONRAY_BUILD_ROOT}/build.log"
+set +e
+cmake --build "${MOONRAY_BUILD_DIR}" --parallel "${BUILD_JOBS}" -- -k >"${BUILD_LOG}" 2>&1
+build_status=$?
+set -e
+if [ "${build_status}" -ne 0 ]; then
+    echo "build exited ${build_status}; verifying all failures are the two Ndr-dependent Sdr plugin targets"
+    other_failures=$(grep -E '\*\*\* \[.*\] Error' "${BUILD_LOG}" | grep -v 'moonray_sdr_plugins' || true)
+    if [ -n "${other_failures}" ]; then
+        echo "UNEXPECTED failing targets:" 1>&2
+        echo "${other_failures}" 1>&2
+        exit 1
+    fi
+    echo "only moonray_sdr_plugins targets failed (Ndr removed in OpenUSD 26.08, blocker B5d)"
+fi
 cmake --install "${MOONRAY_BUILD_DIR}" --prefix "${CMAKE_INSTALL_PREFIX}"
 
 # ---------------------------------------------------------------------------
