@@ -29,6 +29,10 @@
 #     openmoonray submodules' LFS files can be pulled.
 #   - ispc is present but may be unusable (missing libclang-cpp runtime); the
 #     build proceeds and the failure point (if any) is reported in the log.
+#   - CMake 4 (the ASWF pin) refuses OpenMoonRay's vendored
+#     cmake_modules/cmake/FindTBB.cmake (its cmake_minimum_required predates
+#     CMake 3.5). Configure uses the escape hatch CMake itself recommends,
+#     -DCMAKE_POLICY_VERSION_MINIMUM=3.5; flagged to OpenMoonRay upstream.
 #
 # Environment overrides (all optional):
 #   MOONRAY_TAG, MOONRAY_COMMIT, MOONRAY_REPO_URL
@@ -175,6 +179,7 @@ cmake \
     -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_PREFIX_PATH=/usr/local \
+    -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
     -DCUDAToolkit_ROOT=/usr/local/cuda \
     -DLUA_BIN_LUA:FILEPATH=/usr/local/bin/lua \
     -DLUA_BIN_LUAC:FILEPATH=/usr/local/bin/luac \
