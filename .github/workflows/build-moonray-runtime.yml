@@ -1,0 +1,89 @@
+name: build-moonray-runtime
+
+# Build-only workflow: produces the byte-pristine 2027 benchmark-stack image
+# (aswf/ci-moonray:2027.1 + OpenMoonRay installed under /usr/local, the exact
+# stack the ASWF ci-moonray image would ship when build_moonray.sh stops being
+# a placeholder). No validation gates. The build log is always uploaded so
+# upstream blockers land in an artifact even when the build fails.
+#
+# publish -> ghcr.io/nicolaspopravka/usd-render-benchmark-stack:2027-pristine
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  BASE_IMAGE: aswf/ci-moonray:2027.1@sha256:940b474357d93e991edacd792ca5a4c40b39c79ef57220d26ca5566ee134e296
+  IMAGE: ghcr.io/nicolaspopravka/usd-render-benchmark-stack:2027-pristine
+  MOONRAY_TAG: v2026.29.1
+  MOONRAY_COMMIT: d96c6e30a8c280d4b5eb3bafa5e54efc445d7ea8
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build
+        id: build
+        shell: bash
+        run: |
+          # Inline context: mirror the generated ci-moonray Dockerfile's final
+          # step exactly (COPY build_moonray.sh to /usr/local/aswf, then run).
+          cat > Dockerfile.moonray-runtime <<'DOCKERFILE'
+          ARG BASE_IMAGE
+          FROM ${BASE_IMAGE}
+
+          ARG MOONRAY_TAG
+          ARG MOONRAY_COMMIT
+
+          LABEL org.opencontainers.image.source="https://github.com/nicolaspopravka/aswf-docker/blob/opencode/ci-moonray-build/scripts/vfx/build_moonray.sh"
+          LABEL org.opencontainers.image.title="USD render benchmark stack (2027 pristine): ci-moonray + OpenMoonRay"
+          LABEL org.opencontainers.image.description="OpenUSD 26.08 (hdStorm) + OpenMoonRay ${MOONRAY_TAG} (hdMoonray) under /usr/local. Byte-pristine: no ENV, no aliasing, no relayout."
+          LABEL org.opencontainers.image.licenses="Apache-2.0"
+          LABEL io.aswf.docker.versions.moonray="3.6.0.1"
+          LABEL io.openmoonray.source.tag="${MOONRAY_TAG}"
+          LABEL io.openmoonray.source.commit="${MOONRAY_COMMIT}"
+
+          COPY scripts/vfx/build_moonray.sh /usr/local/aswf/build_moonray.sh
+          RUN /usr/local/aswf/build_moonray.sh
+          DOCKERFILE
+
+          set +e
+          docker buildx build --provenance=false \
+            --file Dockerfile.moonray-runtime \
+            --build-arg BASE_IMAGE="${{ env.BASE_IMAGE }}" \
+            --build-arg MOONRAY_TAG="${{ env.MOONRAY_TAG }}" \
+            --build-arg MOONRAY_COMMIT="${{ env.MOONRAY_COMMIT }}" \
+            --tag "${{ env.IMAGE }}" \
+            --load \
+            . 2>&1 | tee build-moonray-runtime.log
+          status=${PIPESTATUS[0]}
+          echo "build_exit=$status" >> "$GITHUB_ENV"
+          rm -f Dockerfile.moonray-runtime
+          exit "$status"
+        timeout-minutes: 350
+
+      - name: Publish
+        if: env.build_exit == 0
+        run: docker push "${{ env.IMAGE }}"
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: moonray-runtime-build-log
+          path: build-moonray-runtime.log
+          if-no-files-found: error
