@@ -34,6 +34,13 @@
 #     MoonRay 3.6.0.1) still include pxr/usd/ndr/*.h. They fail to compile; the
 #     build proceeds keep-going and tolerates exactly those two failures while
 #     verifying no other target errors (blocker B5d, pre-release flag).
+#   - The ASWF-conan ispc cannot run (its LLVM-22 runtime was never deployed,
+#     RUNPATH points into the deleted conan cache). The official ispc release
+#     (statically linked LLVM) is provisioned as the build tool on Linux, where
+#     MoonRay has no ISPC-less path (blocker B6 workaround).
+#   - Boost.Asio 1.91 removed the deprecated boost/asio/io_service.hpp;
+#     MoonRay's arras4_athena includes it. A one-header io_service->io_context
+#     alias (the historical Boost content) is emitted (blocker B5f).
 #   - git-lfs is not shipped by the base image; it is installed so the
 #     openmoonray submodules' LFS files can be pulled.
 #   - ispc is present but may be unusable (missing libclang-cpp runtime); the
@@ -102,12 +109,24 @@ test -f "/usr/local/include/python${PYTHON_MAJOR_MINOR}/Python.h"
 test -x /usr/local/cuda/bin/nvcc
 test -f "${OPTIX_ROOT}/include/optix.h"
 
-# ispc is a listed MoonRay dependency on the ASWF conan stack; on some images
-# it is not runnable (missing libclang-cpp runtime). Report rather than fail.
+# ispc is required by MoonRay's ISPC kernels on Linux (no disable path; the
+# DSO fallback branch is the macOS/aarch64 flow). The ASWF-conan ispc in the
+# image is linked against an LLVM-22 runtime that the deploy omitted
+# (RUNPATH into the deleted conan cache; libclang-cpp.so.22.1 absent), so it
+# cannot execute. Provision the official ispc release (LLVM statically
+# linked; only glibc NEEDED) when the deployed one is unusable.
 if ispc --version >/dev/null 2>&1; then
     echo "ispc OK: $(ispc --version 2>&1 | head -1)"
 else
-    echo "WARN: ispc present but unusable: $(ispc --version 2>&1 | head -1 || true)"
+    echo "WARN: deployed ispc unusable ($(ispc --version 2>&1 | head -1 || true)); installing official ispc v1.25.0"
+    ISPC_TARBALL="${MOONRAY_BUILD_ROOT}/ispc-v1.25.0-linux.tar.gz"
+    curl --location --fail --silent --show-error \
+        -o "${ISPC_TARBALL}" \
+        https://github.com/ispc/ispc/releases/download/v1.25.0/ispc-v1.25.0-linux.tar.gz
+    echo "1667976049abe6653d170de3f8a462799d57981ce46a161ccf59367f1177a028  ${ISPC_TARBALL}" | sha256sum --check -
+    tar -xzf "${ISPC_TARBALL}" -C "${MOONRAY_BUILD_ROOT}"
+    install -m 0755 "${MOONRAY_BUILD_ROOT}/ispc-v1.25.0-linux/bin/ispc" /usr/local/bin/ispc
+    ispc --version
 fi
 
 # ---------------------------------------------------------------------------
@@ -230,6 +249,28 @@ else()
 endif()
 """)
     print(f"Boost header-only component shim emitted: {dir_name}")
+
+# Boost.Asio io_service -> io_context compatibility header. Boost 1.91's asio
+# removed the deprecated boost/asio/io_service.hpp (io_service was a typedef
+# of io_context since 1.66); MoonRay v2026.29.1's arras4_athena includes the
+# vestigial header. Emit the historical alias like older Boost did.
+ASIO_SERVICE = Path("/usr/local/include/boost/asio/io_service.hpp")
+if not ASIO_SERVICE.exists() and (Path("/usr/local/include/boost/asio").is_dir()):
+    ASIO_SERVICE.write_text(
+        "#ifndef BOOST_ASIO_IO_SERVICE_HPP\n"
+        "#define BOOST_ASIO_IO_SERVICE_HPP\n"
+        "// io_service is the deprecated name of io_context (typedef since "
+        "Boost.Asio 1.66);\n"
+        "// this header exists only for compatibility with code (such as "
+        "MoonRay's\n"
+        "// arras4_athena) that includes the legacy header.\n"
+        '#include <boost/asio/io_context.hpp>\n'
+        "namespace boost { namespace asio {\n"
+        "using io_service = io_context;\n"
+        "} }\n"
+        "#endif\n"
+    )
+    print("Boost.Asio io_service compatibility header emitted")
 PYEOF
 
 # ---------------------------------------------------------------------------
