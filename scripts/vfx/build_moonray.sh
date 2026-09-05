@@ -22,9 +22,10 @@
 # this script stays usable as the ASWF ci-moonray build step, and reported as
 # findings until fixed upstream):
 #   - The ASWF-deployed OpenUSD cmake exports (/usr/local/pxrConfig.cmake) carry
-#     stale Conan-cache path hints, and OpenSubdiv is not exported as imported
-#     targets. A shim rewrites the stale hints and synthesizes
-#     OpenSubdiv::osdcpu/osdgpu against the deployed libs+headers.
+#     stale Conan-cache path hints, stale CONAN_LIB::materialx_ target names,
+#     and reference imported targets (Threads/Ptex/OpenColorIO/MaterialX) that
+#     the deploy never loads. A shim rewrites the hints and target names, loads
+#     the referenced packages, and synthesizes OpenSubdiv::osdcpu/osdgpu.
 #   - git-lfs is not shipped by the base image; it is installed so the
 #     openmoonray submodules' LFS files can be pulled.
 #   - ispc is present but may be unusable (missing libclang-cpp runtime); the
@@ -129,15 +130,30 @@ def repl(match):
         f'[[/usr/local/lib/cmake/{package}]]\u0029'
     )
 
+# Stale Conan target names in the deployed pxr exports (MaterialX component
+# targets are un-namespaced in the ASWF MaterialX package: MaterialXCore, ...).
+materialx_conan = re.compile(
+    r"CONAN_LIB::materialx_materialx_(?P<c>[A-Za-z0-9]+)_(?P=c)_RELEASE"
+)
+
 for path in files:
     text = path.read_text()
     text, _ = hint.subn(repl, text)
+    if (path.name.startswith("pxrTargets")
+            or path.name.startswith("pxrConfig")):
+        text, _ = materialx_conan.subn(lambda m: m.group("c"), text)
     path.write_text(text)
 
 text = pxr_config.read_text()
 includes = 'include("${PXR_CMAKE_DIR}/cmake/pxrTargets.cmake")'
 if marker not in text:
     block = f"""{marker}
+# The deployed pxr exports reference imported targets that consumers must
+# provide (the conan deploy does not load them itself).
+find_package(Threads REQUIRED)
+find_package(Ptex CONFIG REQUIRED)
+find_package(OpenColorIO CONFIG REQUIRED)
+find_package(MaterialX CONFIG REQUIRED)
 if(NOT TARGET OpenSubdiv::osdcpu)
     add_library(OpenSubdiv::osdcpu SHARED IMPORTED)
     set_target_properties(OpenSubdiv::osdcpu PROPERTIES
