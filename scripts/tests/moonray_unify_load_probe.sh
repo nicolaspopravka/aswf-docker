@@ -46,17 +46,26 @@ ldd_relocated() {
 
 plugin_enum() {
     repo "plugin enumeration (proves registry sees Moonray from /usr/local)"
-    cat > /tmp/enum.py <<'PY'
-from pxr import Plug, UsdImagingGL
+    cat > /tmp/renderer_enum.py <<PYEOF
+import os
+os.environ.setdefault("PXR_PLUGINPATH_NAME", "/usr/local/openmoonray/plugin/pxr")
+from pxr import Plug
 reg = Plug.Registry()
-print("PXR_PLUGINPATH_NAME =", __import__("os").environ.get("PXR_PLUGINPATH_NAME"))
+print("PXR_PLUGINPATH_NAME =", os.environ.get("PXR_PLUGINPATH_NAME"))
+print("plugin search paths =", [str(x) for x in reg.GetAllPluginPaths()])
 print("total plugins:", len(reg.GetAllPlugins()))
 for p in reg.GetAllPlugins():
     print("  ", p.name, "->", p.path)
-print("UsdImagingGL renderers:", [str(x) for x in UsdImagingGL.Engine.GetRendererPlugins()])
-PY
+moon = [p for p in reg.GetAllPlugins() if "moonray" in str(p.name).lower()]
+print("MOONRAY PLUGINS:", [str(p.name) for p in moon])
+try:
+    from pxr import UsdImagingGL
+    print("UsdImagingGL renderers:", [str(x) for x in UsdImagingGL.Engine.GetRendererPlugins()])
+except Exception as e:
+    print("UsdImagingGL enum err:", e)
+PYEOF
     PYTHONPATH=/usr/local/lib/python PXR_PLUGINPATH_NAME=/usr/local/openmoonray/plugin/pxr \
-        python3.11 /tmp/enum.py 2>&1 | tee "$EVID/plugin_enum.txt"
+        python3.11 /tmp/renderer_enum.py 2>&1 | tee "$EVID/plugin_enum.txt"
 }
 
 # teapot render: build a minimal scene inline (no external asset needed)
@@ -78,20 +87,30 @@ USDA
 }
 
 render_moonray() {
-    repo "usdrecord --renderer Moonray on minimal scene (single-`usd` env, no LD_LIBRARY_PATH)"
+    repo "usdrecord --renderer Moonray on minimal scene (single-rez-usd env, no LD_LIBRARY_PATH)"
     write_scene
     local out="$EVID/moonray_relocated.jpg"
-    PATH=/usr/local/openmoonray/bin:$PATH \
-    PYTHONPATH=/usr/local/lib/python PXR_PLUGINPATH_NAME=/usr/local/openmoonray/plugin/pxr \
-    RDL2_DSO_PATH=/usr/local/openmoonray/rdl2dso \
-    MOONRAY_CLASS_PATH=/usr/local/openmoonray/shader_json \
-    ARRAS_SESSION_PATH=/usr/local/openmoonray/sessions \
-    MOONRAY_ROOT=/usr/local/openmoonray \
-        usdrecord --camera /World/cam --renderer "Moonray" --purposes render /tmp/teapot.usda "$out" \
-        2>&1 | tee "$EVID/moonray_render.log"
-    echo "usdrecord exit: ${PIPESTATUS[0]}" | tee -a "$EVID/moonray_render.log"
+    # prepend the relocated MoonRay bin dir so Arras execComp is discoverable
+    export PATH="/usr/local/openmoonray/bin:$PATH"
+    export PYTHONPATH=/usr/local/lib/python
+    export PXR_PLUGINPATH_NAME=/usr/local/openmoonray/plugin/pxr
+    export RDL2_DSO_PATH=/usr/local/openmoonray/rdl2dso
+    export MOONRAY_CLASS_PATH=/usr/local/openmoonray/shader_json
+    export ARRAS_SESSION_PATH=/usr/local/openmoonray/sessions
+    export MOONRAY_ROOT=/usr/local/openmoonray
+    # headless: xvfb-run if present (stock usdrecord wants X), else Qt offscreen
+    if command -v xvfb-run >/dev/null 2>&1; then
+        xvfb-run -a usdrecord --camera /World/cam --renderer "Moonray" --purposes render /tmp/teapot.usda "$out" \
+            2>&1 | tee "$EVID/moonray_render.log"
+        echo "usdrecord exit: ${PIPESTATUS[0]}" | tee -a "$EVID/moonray_render.log"
+    else
+        QT_QPA_PLATFORM=offscreen usdrecord --camera /World/cam --renderer "Moonray" --purposes render /tmp/teapot.usda "$out" \
+            2>&1 | tee "$EVID/moonray_render.log"
+        echo "usdrecord exit: ${PIPESTATUS[0]}" | tee -a "$EVID/moonray_render.log"
+    fi
     ls -la "$out" 2>&1 | tee -a "$EVID/moonray_render.log"
 }
+
 
 ######## MAIN ########
 run_local
