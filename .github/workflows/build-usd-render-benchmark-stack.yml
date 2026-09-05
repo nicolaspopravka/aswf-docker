@@ -1,4 +1,4 @@
-name: build-common-stack
+name: build-usd-render-benchmark-stack
 
 # Build-only workflow for the pristine per-year common stack: aswf/ci-moonray:<year> +
 # OpenMoonRay installed into /usr/local. Byte-pristine result: no ENV, no
@@ -23,14 +23,14 @@ on:
       - opencode/ci-common-stack-2025
     paths:
       - scripts/vfx/build_moonray.sh
-      - .github/workflows/build-common-stack.yml
+      - .github/workflows/build-usd-render-benchmark-stack.yml
 
 permissions:
   contents: read
   packages: write
 
 concurrency:
-  group: common-stack-${{ github.ref }}
+  group: usd-render-benchmark-stack-${{ github.ref }}
   cancel-in-progress: false
 
 env:
@@ -90,7 +90,7 @@ jobs:
             --build-arg YEAR="${{ env.YEAR }}" \
             --tag "${{ env.IMAGE }}" \
             --load \
-            . 2>&1 | tee build-common-stack.log
+            . 2>&1 | tee build-usd-render-benchmark-stack.log
           status=${PIPESTATUS[0]}
           echo "build_exit=$status" >> "$GITHUB_ENV"
           rm -f Dockerfile.common-stack
@@ -105,6 +105,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: common-stack-build-log
-          path: build-common-stack.log
+          name: benchmark-stack-build-log
+          path: build-usd-render-benchmark-stack.log
           if-no-files-found: error
