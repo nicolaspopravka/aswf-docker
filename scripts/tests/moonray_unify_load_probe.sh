@@ -67,7 +67,6 @@ os.environ.setdefault("PXR_PLUGINPATH_NAME", "/usr/local/openmoonray/plugin/pxr"
 from pxr import Plug
 reg = Plug.Registry()
 print("PXR_PLUGINPATH_NAME =", os.environ.get("PXR_PLUGINPATH_NAME"))
-print("plugin search paths =", [str(x) for x in reg.GetAllPluginPaths()])
 print("total plugins:", len(reg.GetAllPlugins()))
 for p in reg.GetAllPlugins():
     print("  ", p.name, "->", p.path)
