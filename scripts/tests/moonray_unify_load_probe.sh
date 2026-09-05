@@ -5,7 +5,10 @@
 #    the tree relocated under /usr/local, resolving all libs from /usr/local?
 #    (evidence for a true VFX-Platform /usr/local-only layout, single `usd` rez env)
 #
-# Evidence dir argument: $1 (default /evidence)
+# Evidence dir argument: $1 (default /evidence).
+# Optional env REFRESHED_LOG4CPLUS=/path: replace the image's /usr/local
+# liblog4cplus.so.9 with this refreshed narrow-char build before running, to
+# model "rebuilt on the refreshed ASWF base" without a full image rebuild.
 set -u
 
 EVID="${1:-/evidence}"
@@ -14,6 +17,18 @@ repo() { echo "== $*" >>"$EVID/probe.log"; echo "== $*"; }
 
 repo "moonray_unify_load_probe start $(date -u +%Y%m%dT%H%M%SZ)"
 repo "image: ${DIAGNOSTIC_IMAGE:-unknown}"
+
+apply_refreshed_log4cplus() {
+    if [ -n "${REFRESHED_LOG4CPLUS:-}" ] && [ -f "$REFRESHED_LOG4CPLUS" ]; then
+        repo "swapping /usr/local/lib/liblog4cplus.so.9 <- $REFRESHED_LOG4CPLUS (refreshed narrow-char)"
+        cp "$REFRESHED_LOG4CPLUS" /usr/local/lib/liblog4cplus.so.9
+        repo "post-swap symbol counts:"
+        nm -D --defined-only /usr/local/lib/liblog4cplus.so.9 2>/dev/null | grep -c "basic_stringIw" | sed 's/^/  wchar_t (Iw): /'
+        nm -D --defined-only /usr/local/lib/liblog4cplus.so.9 2>/dev/null | grep -c "basic_stringIc" | sed 's/^/  char (Ic): /'
+    else
+        repo "no REFRESHED_LOG4CPLUS swap (using image stock /usr/local log4cplus)"
+    fi
+}
 
 run_local() {
     repo "local ldd (host avx512 n/a) - static resolution check in image"
@@ -113,6 +128,7 @@ render_moonray() {
 
 
 ######## MAIN ########
+apply_refreshed_log4cplus
 run_local
 simulate_relocate
 ldd_relocated

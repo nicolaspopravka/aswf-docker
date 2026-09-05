@@ -27,16 +27,33 @@ jobs:
           docker pull "${IMAGE}"
           docker image inspect "${IMAGE}" --format '{{index .RepoDigests 0}}' > /tmp/image-digest.txt
 
+      - name: Pull refreshed MoonRay base + extract narrow-char log4cplus
+        env:
+          REFRESH: aswf/ci-moonray:2025.8
+        run: |
+          docker pull "${REFRESH}"
+          mkdir -p refreshed-lib
+          cid=$(docker create "${REFRESH}" sh)
+          docker cp "${cid}:/usr/local/lib/liblog4cplus.so.9" ./refreshed-lib/liblog4cplus.so.9
+          docker rm "${cid}"
+          ls -la refreshed-lib/
+          echo "swapped symbol counts (expect narrow-char: char>>wchar):"
+          docker run --rm --entrypoint sh "${REFRESH}" -c \
+            'echo -n "wchar: "; nm -D --defined-only /usr/local/lib/liblog4cplus.so.9 | grep -c basic_stringIw; echo -n "char: "; nm -D --defined-only /usr/local/lib/liblog4cplus.so.9 | grep -c basic_stringIc'
+
       - name: Run load probe in container
         env:
           IMAGE: ghcr.io/nicolaspopravka/usd-common-hydra@sha256:6a0c20650acaf6d16f92735e3a7dcd2f748d85805eed16f35ad3b13a1693f217
           DIAGNOSTIC_IMAGE: ghcr.io/nicolaspopravka/usd-common-hydra@sha256:6a0c20650acaf6d16f92735e3a7dcd2f748d85805eed16f35ad3b13a1693f217
+          REFRESHED_LOG4CPLUS: /refreshed-lib/liblog4cplus.so.9
         run: |
           set -o pipefail
           docker run --rm \
             -e DIAGNOSTIC_IMAGE="${IMAGE}" \
+            -e REFRESHED_LOG4CPLUS="${REFRESHED_LOG4CPLUS}" \
             -v "${PWD}:/src:ro" \
             -v "${PWD}/evidence:/evidence" \
+            -v "${PWD}/refreshed-lib:/refreshed-lib:ro" \
             -w /src \
             "${IMAGE}" \
             bash scripts/tests/moonray_unify_load_probe.sh /evidence \
