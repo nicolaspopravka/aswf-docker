@@ -33,6 +33,11 @@
 #     cmake_modules/cmake/FindTBB.cmake (its cmake_minimum_required predates
 #     CMake 3.5). Configure uses the escape hatch CMake itself recommends,
 #     -DCMAKE_POLICY_VERSION_MINIMUM=3.5; flagged to OpenMoonRay upstream.
+#   - CMake 4's legacy FindBoost module delegates per-component config finds
+#     (boost_systemConfig.cmake) that miss the ASWF-Boost versioned dirs
+#     (boost_system-1.91.0/). With CMP0167 forced NEW, find_package(Boost)
+#     uses the deployed umbrella BoostConfig.cmake, which handles components
+#     itself; flagged upstream (CMP0167 is a CMake 4 project fixture).
 #
 # Environment overrides (all optional):
 #   MOONRAY_TAG, MOONRAY_COMMIT, MOONRAY_REPO_URL
@@ -180,6 +185,7 @@ cmake \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_PREFIX_PATH=/usr/local \
     -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+    -DCMAKE_POLICY_DEFAULT_CMP0167=NEW \
     -DCUDAToolkit_ROOT=/usr/local/cuda \
     -DLUA_BIN_LUA:FILEPATH=/usr/local/bin/lua \
     -DLUA_BIN_LUAC:FILEPATH=/usr/local/bin/luac \
