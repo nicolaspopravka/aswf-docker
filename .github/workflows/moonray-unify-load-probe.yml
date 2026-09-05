@@ -1,0 +1,45 @@
+name: MoonRay VFX-unification load probe (Phase B)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Pull common image
+        env:
+          IMAGE: ghcr.io/nicolaspopravka/usd-common-hydra@sha256:6a0c20650acaf6d16f92735e3a7dcd2f748d85805eed16f35ad3b13a1693f217
+        run: |
+          docker pull "${IMAGE}"
+          docker image inspect "${IMAGE}" --format '{{index .RepoDigests 0}}' > /tmp/image-digest.txt
+
+      - name: Run load probe in container
+        env:
+          IMAGE: ghcr.io/nicolaspopravka/usd-common-hydra@sha256:6a0c20650acaf6d16f92735e3a7dcd2f748d85805eed16f35ad3b13a1693f217
+          DIAGNOSTIC_IMAGE: ghcr.io/nicolaspopravka/usd-common-hydra@sha256:6a0c20650acaf6d16f92735e3a7dcd2f748d85805eed16f35ad3b13a1693f217
+        run: |
+          set -o pipefail
+          docker run --rm \
+            -e DIAGNOSTIC_IMAGE="${IMAGE}" \
+            -v "${PWD}:/src:ro" \
+            -v "${PWD}/evidence:/evidence" \
+            -w /src \
+            "${IMAGE}" \
+            bash scripts/tests/moonray_unify_load_probe.sh /evidence \
+            2>&1 | tee evidence/driver.log
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: moonray-unify-load-probe-${{ github.run_id }}
+          path: evidence
+          if-no-files-found: warn
+          retention-days: 14
