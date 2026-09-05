@@ -6,14 +6,27 @@ name: build-moonray-runtime
 # a placeholder). No validation gates. The build log is always uploaded so
 # upstream blockers land in an artifact even when the build fails.
 #
+# Publish only on workflow_dispatch (dispatch requires the workflow to be on
+# the fork's default branch too; push-triggered runs build + upload the log
+# without publishing, matching the ci-common-hydra pattern).
 # publish -> ghcr.io/nicolaspopravka/usd-render-benchmark-stack:2027-pristine
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - opencode/ci-moonray-build
+    paths:
+      - scripts/vfx/build_moonray.sh
+      - .github/workflows/build-moonray-runtime.yml
 
 permissions:
   contents: read
   packages: write
+
+concurrency:
+  group: moonray-runtime-${{ github.ref }}
+  cancel-in-progress: false
 
 env:
   BASE_IMAGE: aswf/ci-moonray:2027.1@sha256:940b474357d93e991edacd792ca5a4c40b39c79ef57220d26ca5566ee134e296
@@ -77,7 +90,7 @@ jobs:
         timeout-minutes: 350
 
       - name: Publish
-        if: env.build_exit == 0
+        if: ${{ github.event_name == 'workflow_dispatch' && env.build_exit == 0 }}
         run: docker push "${{ env.IMAGE }}"
 
       - name: Upload build log
