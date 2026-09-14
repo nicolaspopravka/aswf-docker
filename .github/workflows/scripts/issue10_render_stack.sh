@@ -5,6 +5,8 @@ renderer="${2:?}"
 mkdir -p "${output_root}"
 dnf -y install gdb xorg-x11-server-Xvfb mesa-dri-drivers mesa-libGL libepoxy > "${output_root}/packages.log" 2>&1
 export DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1 QT_QPA_PLATFORM=xcb
+export LP_NUM_THREADS=1
+echo "LP_NUM_THREADS=${LP_NUM_THREADS}" > "${output_root}/driver-control.txt"
 export PYTHONPATH=/usr/local/lib/python
 export PXR_MTLX_STDLIB_SEARCH_PATHS=/usr/local/share/MaterialX/libraries
 unset LD_PRELOAD
@@ -27,6 +29,10 @@ for scene in minimal chess; do
     done
     if kill -0 "${render_pid}" 2>/dev/null; then
         timeout -k 5 30 gdb -batch -p "${render_pid}" -ex 'set pagination off' -ex 'thread apply all bt 12' -ex detach > "${output_root}/${scene}-stack.txt" 2>&1 || true
+        sleep 15
+        if kill -0 "${render_pid}" 2>/dev/null; then
+            timeout -k 5 30 gdb -batch -p "${render_pid}" -ex 'set pagination off' -ex 'thread apply all bt 12' -ex detach > "${output_root}/${scene}-stack-second.txt" 2>&1 || true
+        fi
         kill "${render_pid}" 2>/dev/null || true
         sleep 2
         kill -9 "${render_pid}" 2>/dev/null || true
