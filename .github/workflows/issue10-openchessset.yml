@@ -55,7 +55,7 @@ jobs:
             --volume "${RUNNER_TEMP}/issue10-${{ matrix.year }}:/out" \
             --entrypoint bash \
             "${{ matrix.image }}" \
-            /probe/issue10_openchessset_probe.sh /out "${{ matrix.renderer }}"
+            /probe/issue10_discovery.sh /out
 
       - name: Upload render evidence
         if: always()
