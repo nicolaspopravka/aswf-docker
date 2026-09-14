@@ -6,6 +6,8 @@ mkdir -p "${output_root}"
 dnf -y install gdb xorg-x11-server-Xvfb mesa-dri-drivers mesa-libGL libepoxy > "${output_root}/packages.log" 2>&1
 export DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1 QT_QPA_PLATFORM=xcb
 export LP_NUM_THREADS=1
+export GALLIVM_PERF=nopt
+echo "GALLIVM_PERF=${GALLIVM_PERF}" > "${output_root}/compiler-control.txt"
 echo "LP_NUM_THREADS=${LP_NUM_THREADS}" > "${output_root}/driver-control.txt"
 export PYTHONPATH=/usr/local/lib/python
 export PXR_MTLX_STDLIB_SEARCH_PATHS=/usr/local/share/MaterialX/libraries
