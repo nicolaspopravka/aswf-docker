@@ -2,12 +2,28 @@
 set -euo pipefail
 output_root="${1:?}"
 renderer="${2:?}"
+year="${3:?}"
 mkdir -p "${output_root}"
 bash /probe/issue10_discovery.sh "${output_root}/discovery"
 dnf -y install xorg-x11-server-Xvfb mesa-dri-drivers mesa-libGL libepoxy procps-ng > "${output_root}/packages.log" 2>&1
 export DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1 QT_QPA_PLATFORM=xcb
 export PYTHONPATH=/usr/local/lib/python
 unset LD_PRELOAD LP_NUM_THREADS GALLIVM_PERF
+case "${year}" in
+    2024)
+        # Benchmark #46: select the distro LLVM required by distro Mesa.
+        export LD_LIBRARY_PATH="/usr/lib64/llvm17/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
+        ;;
+    2027)
+        # Benchmark #45: avoid the Blosc/zstd collision in Mesa's disk cache.
+        export MESA_SHADER_CACHE_DISABLE=true
+        ;;
+esac
+{
+    echo "year=${year}"
+    echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH-}"
+    echo "MESA_SHADER_CACHE_DISABLE=${MESA_SHADER_CACHE_DISABLE-}"
+} > "${output_root}/software-gl-workaround.txt"
 Xvfb :99 -screen 0 1280x960x24 +extension GLX +render -noreset > "${output_root}/xvfb.log" 2>&1 &
 xvfb_pid=$!
 trap 'kill "${xvfb_pid}" 2>/dev/null || true' EXIT
