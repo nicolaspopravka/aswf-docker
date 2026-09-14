@@ -17,6 +17,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - year: "2025"
+            renderer: Storm
+            image: aswf/ci-vfxall:2025-clang19.8@sha256:1357ca999b90bdd022c9d3668398e6a7c6ae8cdf836327a0e18d1db967505701
           - year: "2024"
             renderer: GL
             image: aswf/ci-vfxall:2024-clang17.9@sha256:e7431ef50a2e07bd53af515f54cb07f5601b1870046fa81e2d57a6b433e49fb6
@@ -52,7 +55,7 @@ jobs:
             --volume "${RUNNER_TEMP}/issue10-${{ matrix.year }}:/out" \
             --entrypoint bash \
             "${{ matrix.image }}" \
-            /probe/issue10_cy2024_materials.sh /out
+            /probe/issue10_cy2024_materials.sh /out "${{ matrix.renderer }}" "${{ matrix.year }}"
 
       - name: Upload render evidence
         if: always()
