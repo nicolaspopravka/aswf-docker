@@ -23,9 +23,6 @@ jobs:
           - year: "2025"
             renderer: Storm
             image: aswf/ci-vfxall:2025-clang19.8@sha256:1357ca999b90bdd022c9d3668398e6a7c6ae8cdf836327a0e18d1db967505701
-          - year: "2026"
-            renderer: Storm
-            image: aswf/ci-vfxall:2026-clang20.6@sha256:649ff41fa02bb22a73ac361a49eb161493097bf719540696afd1da9bedd0bec7
     name: OpenChessSet CY${{ matrix.year }}
 
     steps:
@@ -48,7 +45,7 @@ jobs:
           docker system prune -af
           df -h
 
-      - name: Render exact OpenChessSet
+      - name: Compare default and explicit MaterialX library discovery
         run: |
           set -euxo pipefail
           mkdir -p "${RUNNER_TEMP}/issue10-${{ matrix.year }}"
