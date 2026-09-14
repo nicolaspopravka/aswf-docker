@@ -20,9 +20,6 @@ jobs:
           - year: "2024"
             renderer: GL
             image: aswf/ci-vfxall:2024-clang17.9@sha256:e7431ef50a2e07bd53af515f54cb07f5601b1870046fa81e2d57a6b433e49fb6
-          - year: "2027"
-            renderer: Storm
-            image: aswf/ci-vfxall:2027-clang22.1@sha256:d41fc294f7770c4390de0813c4594dcd03ba99dcf1da1dc5be85f04acffa1b3d
     name: OpenChessSet CY${{ matrix.year }}
 
     steps:
@@ -55,7 +52,7 @@ jobs:
             --volume "${RUNNER_TEMP}/issue10-${{ matrix.year }}:/out" \
             --entrypoint bash \
             "${{ matrix.image }}" \
-            /probe/issue10_long_render.sh /out "${{ matrix.renderer }}" "${{ matrix.year }}"
+            /probe/issue10_cy2024_materials.sh /out
 
       - name: Upload render evidence
         if: always()
