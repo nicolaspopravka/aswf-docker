@@ -50,12 +50,13 @@ jobs:
           set -euxo pipefail
           mkdir -p "${RUNNER_TEMP}/issue10-${{ matrix.year }}"
           docker run --rm \
+            --cap-add SYS_PTRACE --security-opt seccomp=unconfined \
             --volume "${GITHUB_WORKSPACE}/.github/workflows/scripts:/probe:ro" \
             --volume "${GITHUB_WORKSPACE}/benchmark-assets/full_assets/OpenChessSet:/asset:ro" \
             --volume "${RUNNER_TEMP}/issue10-${{ matrix.year }}:/out" \
             --entrypoint bash \
             "${{ matrix.image }}" \
-            /probe/issue10_discovery.sh /out
+            /probe/issue10_render_stack.sh /out "${{ matrix.renderer }}"
 
       - name: Upload render evidence
         if: always()

@@ -1,0 +1,13 @@
+#usda 1.0
+def Sphere "Sphere" {
+    rel material:binding = </Material>
+}
+def Material "Material" {
+    token outputs:mtlx:surface.connect = </Material/Shader.outputs:out>
+    def Shader "Shader" {
+        uniform token info:id = "ND_standard_surface_surfaceshader"
+        color3f inputs:base_color = (0.8, 0.1, 0.05)
+        float inputs:base = 1
+        token outputs:out
+    }
+}
