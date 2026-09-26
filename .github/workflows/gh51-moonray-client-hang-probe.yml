@@ -1,0 +1,83 @@
+name: GH51 MoonRay client-hang probe
+
+# Does the MoonRay (Arras) Hydra client exit when its render worker dies?
+#
+# On the CY2024.3 benchmark run the Arras worker (mcrt) was killed mid-render;
+# Arras reported "compExited: mcrt exited due to signal 9" and the usdrecord
+# client stayed alive, blocking the harness for 2h46m of a 3.5h budget and
+# costing the MoonRay x ALab cell. Root cause and the proposed upstream fix are
+# in the benchmark repo: docs/gh51-moonray-client-hang.md (GH #51).
+#
+# This probe reproduces the client-liveness question with a real MoonRay render
+# and a synthetic worker kill -- no OOM, no pod, no paid compute. The prebuilt
+# ASWF images SIGILL on AVX2 hosts, so it has to run on a Linux runner; this
+# workflow is the free venue.
+#
+# Expected today: RESULT: CLIENT STILL ALIVE (the hang). If the upstream fix
+# lands, the same probe should report CLIENT EXITED with a nonzero status.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - opencode/gh51-client-hang-probe
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Free runner disk space
+        run: |
+          set -euxo pipefail
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell
+          sudo apt-get clean
+          docker system prune -af
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get the benchmark's published Teapot run branch
+        run: |
+          set -euxo pipefail
+          # demo/run1 is the published mount-run demo branch: a minimal checkout
+          # whose assets submodule carries the Teapot scene, and whose empty
+          # `aswf` rez package means stock usdrecord is used (no EGL alias).
+          git clone --depth 1 --branch demo/run1 \
+            https://github.com/nicolaspopravka/usd-render-benchmark.git run-branch
+          (cd run-branch && git submodule update --init --recursive)
+          ls -l run-branch/assets/full_assets/Teapot/Teapot.usd
+
+      - name: Run the client-hang probe
+        run: |
+          set -euxo pipefail
+          mkdir -p "${RUNNER_TEMP}/probeout"
+          set +e
+          .github/workflows/scripts/gh51_moonray_client_hang_probe.sh \
+            --repo "${PWD}/run-branch" \
+            --image "ghcr.io/nicolaspopravka/usd-render-benchmark@sha256:1bf25fff0f6e9d1e2618d4369ae021d2775f95d2b00f1f96a06f1a44f241c563" \
+            --rez-package aswf \
+            --scene assets/full_assets/Teapot/Teapot.usd \
+            --camera main_cam \
+            --kill-after 25 \
+            --observe 120
+          echo "probe exit: $?"
+          exit 0
+
+      - name: Upload the probe log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gh51-client-hang-probe
+          path: |
+            ${{ runner.temp }}/probeout/*.log
