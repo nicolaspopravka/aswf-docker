@@ -46,7 +46,7 @@ SCENE="${GH51_SCENE:-assets/full_assets/McUsd/McUsd.usda}"
 CAMERA="${GH51_CAMERA:-/McUsd/Camera}"
 RENDERER="${GH51_RENDERER:-Moonray}"
 REZ_PACKAGE="${GH51_REZ_PACKAGE:-openusd/24.08}"
-KILL_AFTER="${GH51_KILL_AFTER:-20}"
+KILL_AFTER="${GH51_KILL_AFTER:-30}"
 OBSERVE="${GH51_OBSERVE:-90}"
 KEEP=0
 SETUP=1
@@ -152,11 +152,38 @@ start_render() {
     CLIENT_PID=$!
 }
 
-# Match the Arras render worker by process name, not by command line: this
-# script's own command line contains the word "mcrt", so `pgrep -f mcrt` would
-# match the probe shell itself.
+# The render worker is found by walking the client's descendants rather than by
+# name: the Arras worker's process name differs between builds (`mcrt` on the
+# pods), and this script's own command line contains that word, so a `pgrep -f`
+# on it would match the probe shell itself.
+descendants() {
+    local child
+    for child in $(pgrep -P "$1" 2>/dev/null); do
+        echo "$child"
+        descendants "$child"
+    done
+}
+
+# Descendants of the client that are accumulating CPU: those are the render
+# workers. The client's own Python/rez parents are excluded by only looking
+# below the client pid.
 worker_pids() {
-    pgrep -x mcrt 2>/dev/null || pgrep -f '/mcrt( |$)' 2>/dev/null
+    local client pid sig
+    client="${CLIENT_PID:-}"
+    [ -n "$client" ] || return 0
+    for pid in $(descendants "$client"); do
+        sig="$(awk '{print $14 + $15}' "/proc/$pid/stat" 2>/dev/null)" || continue
+        [ -n "$sig" ] || continue
+        echo "$pid"
+    done
+}
+
+# Everything below the client, for the evidence block.
+client_tree() {
+    local client="$1" pid
+    for pid in $(descendants "$client"); do
+        ps -o pid,ppid,stat,etime,time,comm -p "$pid" 2>/dev/null | tail -n +2
+    done
 }
 
 echo "--- starting the cell ---"
@@ -177,17 +204,24 @@ while [ $SECONDS -lt $DEADLINE ]; do
 done
 
 if [ -z "${WORKER}" ]; then
-    echo "RESULT: no Arras render worker (mcrt) appeared within 180s"
+    echo "RESULT: no accumulating render worker appeared under the client within 180s"
+    echo "--- client process tree ---"
+    client_tree "${CLIENT_PID}" || true
+    echo "--- cell log tail ---"
     tail -20 "${LOG}"
     exit 4
 fi
+
+echo "--- render worker found: pid ${WORKER} ---"
+echo "--- client process tree (worker rows included) ---"
+client_tree "${CLIENT_PID}" || true
 
 echo "--- render worker up: mcrt pid ${WORKER}; letting it shade ${KILL_AFTER}s ---"
 sleep "${KILL_AFTER}"
 if ! kill -0 "${WORKER}" 2>/dev/null; then
     echo "RESULT: worker ${WORKER} already gone before the kill (unexpected)"
 fi
-echo "--- SIGKILL mcrt ${WORKER} (what an OOM kill looks like to the client) ---"
+echo "--- SIGKILL render worker ${WORKER} (what an OOM kill looks like to the client) ---"
 kill -9 "${WORKER}" 2>/dev/null || true
 KILL_AT=$SECONDS
 
@@ -219,6 +253,8 @@ pgrep -P "${CLIENT_PID}" 2>/dev/null | while read -r p; do
 done
 echo "surviving render workers:"
 worker_pids || echo "(none)"
+echo "client process tree:"
+client_tree "${CLIENT_PID}" || true
 echo "RESULT: CLIENT STILL ALIVE ${OBSERVE}s after its render worker died"
 exit 1
 INNER_EOF

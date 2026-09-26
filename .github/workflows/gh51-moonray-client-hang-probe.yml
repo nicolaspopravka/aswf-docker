@@ -67,10 +67,10 @@ jobs:
             --repo "${PWD}/run-branch" \
             --image "ghcr.io/nicolaspopravka/usd-render-benchmark@sha256:1bf25fff0f6e9d1e2618d4369ae021d2775f95d2b00f1f96a06f1a44f241c563" \
             --rez-package aswf \
-            --scene assets/full_assets/Teapot/Teapot.usd \
-            --camera main_cam \
-            --kill-after 25 \
-            --observe 120
+            --scene assets/full_assets/McUsd/McUsd.usda \
+            --camera /McUsd/Camera \
+            --kill-after 45 \
+            --observe 150
           echo "probe exit: $?"
           exit 0
 
