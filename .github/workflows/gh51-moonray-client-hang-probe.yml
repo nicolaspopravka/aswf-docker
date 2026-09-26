@@ -18,6 +18,22 @@ name: GH51 MoonRay client-hang probe
 
 on:
   workflow_dispatch:
+    inputs:
+      image:
+        description: "Runnable image to probe (default the 2023.3 runnable the hang was reproduced on)"
+        required: false
+        default: "ghcr.io/nicolaspopravka/usd-render-benchmark@sha256:1bf25fff0f6e9d1e2618d4369ae021d2775f95d2b00f1f96a06f1a44f241c563"
+        type: string
+      kill_after:
+        description: "Seconds of shading before killing the render worker"
+        required: false
+        default: "45"
+        type: string
+      observe:
+        description: "Seconds to watch the client for after the kill"
+        required: false
+        default: "150"
+        type: string
   push:
     branches:
       - opencode/gh51-client-hang-probe
@@ -62,15 +78,19 @@ jobs:
         run: |
           set -euxo pipefail
           mkdir -p "${RUNNER_TEMP}/probeout"
+          IMAGE="${{ inputs.image || 'ghcr.io/nicolaspopravka/usd-render-benchmark@sha256:1bf25fff0f6e9d1e2618d4369ae021d2775f95d2b00f1f96a06f1a44f241c563' }}"
+          KILL_AFTER="${{ inputs.kill_after || '45' }}"
+          OBSERVE="${{ inputs.observe || '150' }}"
+          echo "probing ${IMAGE} (kill after ${KILL_AFTER}s, observe ${OBSERVE}s)"
           set +e
           .github/workflows/scripts/gh51_moonray_client_hang_probe.sh \
             --repo "${PWD}/run-branch" \
-            --image "ghcr.io/nicolaspopravka/usd-render-benchmark@sha256:1bf25fff0f6e9d1e2618d4369ae021d2775f95d2b00f1f96a06f1a44f241c563" \
+            --image "${IMAGE}" \
             --rez-package aswf \
             --scene assets/full_assets/McUsd/McUsd.usda \
             --camera /McUsd/Camera \
-            --kill-after 45 \
-            --observe 150
+            --kill-after "${KILL_AFTER}" \
+            --observe "${OBSERVE}"
           echo "probe exit: $?"
           exit 0
 
