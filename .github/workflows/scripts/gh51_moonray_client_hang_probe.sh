@@ -102,6 +102,20 @@ echo "  kill     : SIGKILL the Arras render worker after ${KILL_AFTER}s of shadi
 echo "  observe  : ${OBSERVE}s for the client to exit"
 echo
 
+MOUNT_ARGS=()
+if [ -n "$USDRECORD_OVERRIDE" ]; then
+    if [ ! -f "$USDRECORD_OVERRIDE" ]; then
+        echo "ERROR: --usdrecord file not found: ${USDRECORD_OVERRIDE}" >&2
+        exit 2
+    fi
+    # Stage an executable absolute copy: a relative path in a -v spec is taken as
+    # the container path, and docker needs the source to be executable.
+    STAGED="${OUT_DIR}/usdrecord-override"
+    cp "$USDRECORD_OVERRIDE" "$STAGED"
+    chmod +x "$STAGED"
+    MOUNT_ARGS=(-v "${STAGED}:${USDRECORD_PATH}:ro")
+fi
+
 INNER=$(cat <<'INNER_EOF'
 set -uo pipefail
 REPO=/workspace/usd-render-benchmark
@@ -288,7 +302,7 @@ docker run --rm --name "$CONTAINER" --platform linux/amd64 \
     -e KILL_AFTER="$KILL_AFTER" -e OBSERVE="$OBSERVE" \
     -v "${REPO}:/workspace/usd-render-benchmark:ro" \
     -v "${OUT_DIR}:/probe-out" \
-    ${USDRECORD_OVERRIDE:+-v "${USDRECORD_OVERRIDE}:${USDRECORD_PATH}:ro"} \
+    ${MOUNT_ARGS[@]+"${MOUNT_ARGS[@]}"} \
     "$IMAGE" -lc "$INNER" 2>&1 | tee "${OUT_DIR}/gh51-moonray-client-hang-probe.log"
 
 STATUS=${PIPESTATUS[0]}
