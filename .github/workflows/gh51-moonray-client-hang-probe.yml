@@ -34,6 +34,11 @@ on:
         required: false
         default: "150"
         type: string
+      usdrecord_candidate:
+        description: "Bind-mount a candidate usdrecord over the image's (tests an upstream exit-status fix)"
+        required: false
+        default: ""
+        type: string
   push:
     branches:
       - opencode/gh51-client-hang-probe
@@ -82,6 +87,10 @@ jobs:
           KILL_AFTER="${{ inputs.kill_after || '45' }}"
           OBSERVE="${{ inputs.observe || '150' }}"
           echo "probing ${IMAGE} (kill after ${KILL_AFTER}s, observe ${OBSERVE}s)"
+          CANDIDATE="${{ inputs.usdrecord_candidate }}"
+          if [ -n "$CANDIDATE" ]; then
+              echo "using candidate usdrecord: $CANDIDATE"
+          fi
           set +e
           .github/workflows/scripts/gh51_moonray_client_hang_probe.sh \
             --repo "${PWD}/run-branch" \
@@ -90,7 +99,8 @@ jobs:
             --scene assets/full_assets/McUsd/McUsd.usda \
             --camera /McUsd/Camera \
             --kill-after "${KILL_AFTER}" \
-            --observe "${OBSERVE}"
+            --observe "${OBSERVE}" \
+            ${CANDIDATE:+--usdrecord "$CANDIDATE"}
           echo "probe exit: $?"
           exit 0
 

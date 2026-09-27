@@ -36,6 +36,9 @@
 #     --keep             keep the container and print its id for inspection
 #     --no-setup         skip installing the software-GL bits (the image already
 #                        has them)
+#     --usdrecord FILE   bind-mount FILE over the image's usdrecord, to test a
+#                        candidate usdrecord change (e.g. the exit-status fix)
+#                        without rebuilding the image
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -50,6 +53,8 @@ KILL_AFTER="${GH51_KILL_AFTER:-30}"
 OBSERVE="${GH51_OBSERVE:-90}"
 KEEP=0
 SETUP=1
+USDRECORD_OVERRIDE=""
+USDRECORD_PATH="/usr/local/bin/usdrecord"
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -63,6 +68,7 @@ while [ $# -gt 0 ]; do
         --observe) OBSERVE="$2"; shift 2 ;;
         --keep) KEEP=1; shift ;;
         --no-setup) SETUP=0; shift ;;
+        --usdrecord) USDRECORD_OVERRIDE="$2"; shift 2 ;;
         *) echo "unknown argument: $1" >&2; exit 2 ;;
     esac
 done
@@ -89,6 +95,9 @@ echo "  image    : ${IMAGE}"
 echo "  repo     : ${REPO}"
 echo "  cell     : ${RENDERER} / ${SCENE} (camera ${CAMERA})"
 echo "  rez      : ${REZ_PACKAGE}"
+if [ -n "$USDRECORD_OVERRIDE" ]; then
+    echo "  usdrecord: ${USDRECORD_OVERRIDE} (bind-mounted over ${USDRECORD_PATH})"
+fi
 echo "  kill     : SIGKILL the Arras render worker after ${KILL_AFTER}s of shading"
 echo "  observe  : ${OBSERVE}s for the client to exit"
 echo
@@ -123,6 +132,10 @@ echo "--- container facts ---"
 echo "host cpus: $(nproc)  mem: $(awk '/MemTotal/{printf "%.1f GiB", $2/1048576}' /proc/meminfo)"
 echo "software GL drivers: $(ls /usr/lib64/dri/*_dri.so 2>/dev/null | head -3 | tr '\n' ' ' || echo none)"
 echo "renderer token: ${RENDERER}"
+if [ -n "__OVERRIDE__" ]; then
+    echo "usdrecord: overridden (${USDRECORD_PATH})"
+    grep -n "recordingAborted" "${USDRECORD_PATH}" | head -2 || echo "  (candidate marker not present)"
+fi
 
 # The harness renders through Rez; the image bakes the delegate environment.
 # The alias resolves to the EGL wrapper, which needs a working EGL device; when
@@ -266,6 +279,7 @@ INNER="${INNER//\$\{KILL_AFTER\}/${KILL_AFTER}}"
 INNER="${INNER//\$\{OBSERVE\}/${OBSERVE}}"
 INNER="${INNER//\$\{REZ_PACKAGE\}/${REZ_PACKAGE}}"
 INNER="${INNER//__SETUP__/${SETUP}}"
+INNER="${INNER//__OVERRIDE__/${USDRECORD_OVERRIDE}}"
 
 docker run --rm --name "$CONTAINER" --platform linux/amd64 \
     --entrypoint /bin/bash \
@@ -274,6 +288,7 @@ docker run --rm --name "$CONTAINER" --platform linux/amd64 \
     -e KILL_AFTER="$KILL_AFTER" -e OBSERVE="$OBSERVE" \
     -v "${REPO}:/workspace/usd-render-benchmark:ro" \
     -v "${OUT_DIR}:/probe-out" \
+    ${USDRECORD_OVERRIDE:+-v "${USDRECORD_OVERRIDE}:${USDRECORD_PATH}:ro"} \
     "$IMAGE" -lc "$INNER" 2>&1 | tee "${OUT_DIR}/gh51-moonray-client-hang-probe.log"
 
 STATUS=${PIPESTATUS[0]}
