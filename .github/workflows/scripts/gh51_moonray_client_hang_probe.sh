@@ -147,8 +147,9 @@ echo "host cpus: $(nproc)  mem: $(awk '/MemTotal/{printf "%.1f GiB", $2/1048576}
 echo "software GL drivers: $(ls /usr/lib64/dri/*_dri.so 2>/dev/null | head -3 | tr '\n' ' ' || echo none)"
 echo "renderer token: ${RENDERER}"
 if [ -n "__OVERRIDE__" ]; then
-    echo "usdrecord: overridden (${USDRECORD_PATH})"
-    grep -n "recordingAborted" "${USDRECORD_PATH}" | head -2 || echo "  (candidate marker not present)"
+    echo "usdrecord: overridden (/usr/local/bin/usdrecord)"
+    grep -n "recordingAborted" /usr/local/bin/usdrecord | head -2 \
+        || echo "  WARNING: candidate marker 'recordingAborted' not in the mounted file"
 fi
 
 # The harness renders through Rez; the image bakes the delegate environment.
