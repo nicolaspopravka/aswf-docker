@@ -57,7 +57,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 ci-cycles/check_png_variation.py "$RUNNER_TEMP/evidence/smoke.png" --expected-width 64 \
+          python3 ci-cycles/check_png_variation.py "$RUNNER_TEMP/evidence/mesh.png" --expected-width 64 \
             | tee "$RUNNER_TEMP/evidence/image-check.txt"
       - name: Upload evidence
         if: always()
