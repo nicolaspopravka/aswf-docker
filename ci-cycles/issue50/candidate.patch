@@ -1,0 +1,37 @@
+diff --git a/src/cmake/Modules/FindUSDPixar.cmake b/src/cmake/Modules/FindUSDPixar.cmake
+index ebe8a6f..48a66af 100644
+--- a/src/cmake/Modules/FindUSDPixar.cmake
++++ b/src/cmake/Modules/FindUSDPixar.cmake
+@@ -60,7 +60,9 @@ if(pxr_FOUND)
+ 
+   # OpenColorIO
+   find_library(_opencolorio_library_pxr NAMES OpenColorIO PATHS ${_pxr_library_dir} NO_DEFAULT_PATH)
+-  if(_opencolorio_library_pxr)
++  if(TARGET OpenColorIO::OpenColorIO)
++    set(USD_OVERRIDE_OPENCOLORIO ON)
++  elseif(_opencolorio_library_pxr)
+     add_library(OpenColorIO::OpenColorIO UNKNOWN IMPORTED)
+     set_target_properties(OpenColorIO::OpenColorIO PROPERTIES
+       IMPORTED_LOCATION "${_opencolorio_library_pxr}"
+@@ -72,7 +74,9 @@ if(pxr_FOUND)
+ 
+   # OpenEXR
+   find_library(_openexr_library_pxr NAMES OpenEXR OpenCore PATHS ${_pxr_library_dir} NO_DEFAULT_PATH)
+-  if(_openexr_library_pxr)
++  if(TARGET OpenEXR::OpenEXR)
++    set(USD_OVERRIDE_OPENEXR ON)
++  elseif(_openexr_library_pxr)
+     add_library(OpenEXR::OpenEXR UNKNOWN IMPORTED)
+     set_target_properties(OpenEXR::OpenEXR PROPERTIES
+       IMPORTED_LOCATION "${_openexr_library_pxr}"
+@@ -85,7 +89,9 @@ if(pxr_FOUND)
+   # OpenImageIO
+   find_library(_openimageio_library_pxr NAMES OpenImageIO PATHS ${_pxr_library_dir} NO_DEFAULT_PATH)
+   find_library(_openimageio_util_library_pxr NAMES OpenImageIO_Util PATHS ${_pxr_library_dir} NO_DEFAULT_PATH)
+-  if(_openimageio_library_pxr AND _openimageio_util_library_pxr)
++  if(TARGET OpenImageIO::OpenImageIO)
++    set(USD_OVERRIDE_OPENIMAGEIO ON)
++  elseif(_openimageio_library_pxr AND _openimageio_util_library_pxr)
+     add_library(OpenImageIO::OpenImageIO UNKNOWN IMPORTED)
+     set_target_properties(OpenImageIO::OpenImageIO PROPERTIES
+       IMPORTED_LOCATION "${_openimageio_library_pxr}"

@@ -1,0 +1,26 @@
+#usda 1.0
+(
+    defaultPrim = "Sphere"
+    metersPerUnit = 1
+    upAxis = "Y"
+)
+
+def Sphere "Sphere"
+{
+    double radius = 1
+    color3f[] primvars:displayColor = [(0.2, 0.5, 0.8)]
+}
+
+def Camera "Camera"
+{
+    float focalLength = 50
+    float horizontalAperture = 36
+    float verticalAperture = 36
+    double3 xformOp:translate = (0, 0, 5)
+    uniform token[] xformOpOrder = ["xformOp:translate"]
+}
+
+def DomeLight "Light"
+{
+    float inputs:intensity = 1
+}
