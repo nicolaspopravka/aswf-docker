@@ -1,5 +1,5 @@
 diff --git a/plugin/hd_moonray/ArrasRenderer.cc b/plugin/hd_moonray/ArrasRenderer.cc
-index e93a542..e8ea024 100644
+index e93a542..06a32b7 100644
 --- a/plugin/hd_moonray/ArrasRenderer.cc
 +++ b/plugin/hd_moonray/ArrasRenderer.cc
 @@ -2,6 +2,9 @@
@@ -21,7 +21,7 @@ index e93a542..e8ea024 100644
  using scene_rdl2::logging::Logger;
  
  ArrasRenderer::ArrasRenderer()
-@@ -269,6 +274,25 @@ void
+@@ -269,6 +274,26 @@ void
  ArrasRenderer::exceptionHandler(const std::exception& e)
  {
      Logger::error(e.what());
@@ -31,11 +31,12 @@ index e93a542..e8ea024 100644
 +void
 +ArrasRenderer::setFrameFailure(const std::string& reason)
 +{
-+    mFrameFailed = true;
 +    std::lock_guard<std::mutex> lock(mFailureMutex);
 +    if (mFailureReason.empty()) {
 +        mFailureReason = reason;
 +    }
++    // Publish only after the reason is available to the recording thread.
++    mFrameFailed = true;
 +    Logger::error("Moonray: the frame in flight cannot finish: ", reason);
 +}
 +
@@ -47,7 +48,7 @@ index e93a542..e8ea024 100644
  }
  
  void
-@@ -287,6 +311,11 @@ ArrasRenderer::statusHandler(const std::string& msg)
+@@ -287,6 +312,11 @@ ArrasRenderer::statusHandler(const std::string& msg)
                                (stopReason.isString() ? stopReason.asString() : msg));
                  mConnected = false;
                  mStatusString = "Disconnected";
@@ -59,7 +60,7 @@ index e93a542..e8ea024 100644
                  return;
              }
          }
-@@ -315,6 +344,21 @@ ArrasRenderer::allocate(scene_rdl2::rdl2::RenderOutput* ro, PixelData& pd, const
+@@ -315,6 +345,21 @@ ArrasRenderer::allocate(scene_rdl2::rdl2::RenderOutput* ro, PixelData& pd, const
  bool
  ArrasRenderer::resolve(scene_rdl2::rdl2::RenderOutput* ro, PixelData& pd)
  {

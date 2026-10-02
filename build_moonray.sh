@@ -74,6 +74,13 @@ if [ -n "${MOONRAY_PATCHES_DIR:-}" ]; then
         fi
     done
     echo "evidence: superproject $(git -C "${MOONRAY_SRC}" rev-parse HEAD), hdMoonray $(git -C "${MOONRAY_SRC}/moonray/hydra/hdMoonray" rev-parse HEAD)"
+    # Diagnostic branch only: prove that the applied candidate equals PR #19.
+    hd_source="${MOONRAY_SRC}/moonray/hydra/hdMoonray"
+    test "$(git -C "$hd_source" rev-parse HEAD)" = 986121dbb8817237c02a254d0c4470b5eb820f9e
+    git -C "$hd_source" fetch https://github.com/nicolaspopravka/hdMoonray.git \
+        6fd4b8e7939c8d8c0f131f315ab24670277186b1
+    git -C "$hd_source" diff --exit-code FETCH_HEAD --
+    echo "Verified exact hdMoonray PR #19 source: 6fd4b8e7939c8d8c0f131f315ab24670277186b1"
 fi
 
 # --- Step 3b: configure ---------------------------------------------------
