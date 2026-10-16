@@ -15,11 +15,11 @@ jobs:
       matrix:
         include:
           - year: "2023"
-            image: ghcr.io/nicolaspopravka/usd-render-benchmark@sha256:ec69f37fcd648a78e6697dadf0a4642366526caf3e9c48310f54f9e1987a2d7c
+            image: ghcr.io/nicolaspopravka/usd-render-benchmark@sha256:bf9e13c9db8293b2e1c9ebd51454fc836452b34209a2f86ce2492e04bda6a1ac
           - year: "2025"
-            image: ghcr.io/nicolaspopravka/usd-render-benchmark@sha256:65d9529b1e746786e5a0ff4895042eeb5d64204f0a1f41372eb5b6f14215450f
+            image: ghcr.io/nicolaspopravka/usd-render-benchmark@sha256:18f7106f3334612e3e3d4462befac594ed7d0f3272ca18f7a5692ba9c9e0dbe4
           - year: "2024"
-            image: ghcr.io/nicolaspopravka/usd-render-benchmark@sha256:345d74f8da53f9db8a582981dbdfeb6f2775a0f5035468f67c0ac8b920d0d0fc
+            image: ghcr.io/nicolaspopravka/usd-render-benchmark@sha256:92eaa5402c3978072c874cf9ed8056217505ceca11ccd1d58b6ac98acfc6cfbb
     name: Discovery CY${{ matrix.year }}
 
     steps:
@@ -33,14 +33,6 @@ jobs:
           ref: 907d5f17bbe933fc14441a3f3ab69a5bd8abe32a
           path: benchmark-assets
           sparse-checkout: full_assets/OpenChessSet
-
-      - name: Free runner disk space
-        run: |
-          set -euxo pipefail
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell
-          sudo apt-get clean
-          docker system prune -af
-          df -h
 
       - name: Compare default and explicit MaterialX library discovery
         run: |
