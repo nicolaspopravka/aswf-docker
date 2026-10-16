@@ -1,29 +1,26 @@
-name: Issue 10 refreshed OpenChessSet validation
+name: OpenChessSet material discovery
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - codex/ci/openchessset-issue10
 
 permissions:
   contents: read
 
 jobs:
-  render:
+  discovery:
     runs-on: ubuntu-24.04
-    timeout-minutes: 210
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
         include:
+          - year: "2023"
+            image: ghcr.io/nicolaspopravka/usd-render-benchmark@sha256:ec69f37fcd648a78e6697dadf0a4642366526caf3e9c48310f54f9e1987a2d7c
           - year: "2025"
-            renderer: Storm
-            image: aswf/ci-vfxall:2025-clang19.8@sha256:1357ca999b90bdd022c9d3668398e6a7c6ae8cdf836327a0e18d1db967505701
+            image: ghcr.io/nicolaspopravka/usd-render-benchmark@sha256:65d9529b1e746786e5a0ff4895042eeb5d64204f0a1f41372eb5b6f14215450f
           - year: "2024"
-            renderer: GL
-            image: aswf/ci-vfxall:2024-clang17.9@sha256:e7431ef50a2e07bd53af515f54cb07f5601b1870046fa81e2d57a6b433e49fb6
-    name: OpenChessSet CY${{ matrix.year }}
+            image: ghcr.io/nicolaspopravka/usd-render-benchmark@sha256:345d74f8da53f9db8a582981dbdfeb6f2775a0f5035468f67c0ac8b920d0d0fc
+    name: Discovery CY${{ matrix.year }}
 
     steps:
       - name: Checkout workflow
@@ -55,9 +52,9 @@ jobs:
             --volume "${RUNNER_TEMP}/issue10-${{ matrix.year }}:/out" \
             --entrypoint bash \
             "${{ matrix.image }}" \
-            /probe/issue10_cy2024_materials.sh /out "${{ matrix.renderer }}" "${{ matrix.year }}"
+            /probe/issue10_discovery.sh /out
 
-      - name: Upload render evidence
+      - name: Upload discovery evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:

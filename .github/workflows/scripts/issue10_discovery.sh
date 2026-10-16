@@ -8,7 +8,7 @@ export PYTHONPATH="/usr/local/lib/python${PYTHONPATH:+:${PYTHONPATH}}"
 unset LD_PRELOAD
 for mode in default explicit-stdlib; do
     if [[ "${mode}" == default ]]; then
-        unset PXR_MTLX_STDLIB_SEARCH_PATHS
+        : # Keep the runnable image configuration in the default case.
     else
         export PXR_MTLX_STDLIB_SEARCH_PATHS=/usr/local/share/MaterialX/libraries
     fi

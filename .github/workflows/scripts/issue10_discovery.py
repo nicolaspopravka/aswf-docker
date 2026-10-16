@@ -7,8 +7,9 @@ import sys
 faulthandler.enable()
 faulthandler.dump_traceback_later(60, repeat=True)
 print('import-start', flush=True)
-from pxr import Usd, UsdShade, Sdr
+from pxr import Usd, UsdShade, Sdr, UsdImagingGL
 print('import-complete', Usd.GetVersion(), flush=True)
+print('renderer-plugins', [str(p) for p in UsdImagingGL.Engine.GetRendererPlugins()], flush=True)
 
 if sys.argv[1] == 'stage':
     print('stage-open-start', flush=True)
